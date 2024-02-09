@@ -1,4 +1,4 @@
-import os, csv, sys
+import os
 import pandas as pd
 from tools.utils import get_storage_path, get_temp_storage_path, get_csv_files
 
@@ -10,11 +10,11 @@ def append_all(temp=True):
     """
     if temp:
         csv_files = get_csv_files(get_temp_storage_path())
-        combined_df = pd.concat([pd.read_csv(file)[::-1] for file in csv_files], ignore_index=True)
+        append_df = pd.concat([pd.read_csv(file)[::-1] for file in csv_files], ignore_index=True)
     else:
         csv_files = get_csv_files(get_storage_path())
-        combined_df = pd.concat([pd.read_csv(file) for file in csv_files], ignore_index=True)
-    combined_df.to_csv('../UKPlanning.csv', index=False)
+        append_df = pd.concat([pd.read_csv(file) for file in csv_files], ignore_index=True)
+    append_df.to_csv('../UKPlanning.csv', index=False)
 
 
 def inverse_index(start_dir=1, end_dir=424):

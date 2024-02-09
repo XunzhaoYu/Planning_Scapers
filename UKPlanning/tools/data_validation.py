@@ -22,20 +22,20 @@ def validate_amount(start_dir=1, end_dir=424):
 
 def validate_authority(start_dir=1, end_dir=424):
     scrapers_df = pd.read_csv('scraper_name.csv')
-    names = scrapers_df.iloc[:, 0]
-    names = names[:-1]
+    scrapers = scrapers_df.iloc[:, 0]
+    scrapers = scrapers[:-1]
 
     for dir in range(start_dir-1, end_dir):
         csv_files = get_csv_files(get_storage_path(), start_dir=dir, end_dir=dir+1)
         auth_df = pd.concat([pd.read_csv(file) for file in csv_files], ignore_index=True)
-        names_in_auth = auth_df.iloc[:, 0]
+        scrapers_in_auth = auth_df.iloc[:, 0]
 
         correct = 0
         mistake = 0
         for app in range(auth_df.shape[0]):
-            if names_in_auth[app].startswith(names[dir]):
+            if scrapers_in_auth[app].startswith(scrapers[dir]):
                 correct += 1
             else:
                 mistake += 1
-                print(names_in_auth[app])
+                print(scrapers_in_auth[app])
         print(f"correct: {correct}, mistake: {mistake}. \n")
