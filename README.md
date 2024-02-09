@@ -32,11 +32,13 @@ File 'main.py' contains all APIs related to the scraper. Most APIs contain two p
 Run the following pieces of code to get a csv file with applications from the first 10 authorities.
     
 Option1:
+
 	scrape(1, 10)
 
 	append_all()
     
 Option2:
+
 	scrape(1, 10)
 
 	inverse(1, 10)
@@ -45,6 +47,7 @@ Option2:
 
 	append_all(False)
 
+Two options will produce the same csv file named "UKPlanning.csv". But option2 will also produce many csv files in 'Data' folder, these files are useful for further comments and documents scraping. 
 
 
 
