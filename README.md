@@ -2,6 +2,7 @@ Planning_Scapers
 
 
 ----- ----- ----- Project structure ----- ----- ----- 
+
 Folder 'Data': The processed data.
 Folder 'Data_Temp': The raw data scraped from the PlanIt API.
 Folder 'UKPlanning': All scripts.
@@ -9,6 +10,7 @@ Folder 'UKPlanning': All scripts.
 
 
 ----- ----- ----- APIs ----- ----- ----- 
+
 File 'main.py' contains all APIs related to the scraper. Most APIs contain two parameters which are used to clarify the range of authorities to scrape or process. There are 424 authorities.
 
     scrape(start, end): To scrape data from the PlanIt API. Results are stored in 'Data_Temp'.
@@ -24,6 +26,7 @@ File 'main.py' contains all APIs related to the scraper. Most APIs contain two p
 
     
 ----- ----- ----- Quick start ----- ----- ----- 
+
 Run the following pieces of code to get a csv file with applications from the first 10 authorities.
     
 Option1:
