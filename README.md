@@ -2,19 +2,6 @@ Planning_Scapers
 
 
 ----- ----- ----- Project structure ----- ----- ----- 
-# /home/Downloads/
-# └─ Data/
-# |  
-# |─ Data_Temp/
-# |
-# |─ UKPlanning/
-# |   └─ spiders/
-# |   └─ tools/
-# |   └─ main.py
-# |   └─ ...
-# |
-# └─ README.md
-
 Folder 'Data': The processed data.
 Folder 'Data_Temp': The raw data scraped from the PlanIt API.
 Folder 'UKPlanning': All scripts.
