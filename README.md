@@ -4,7 +4,9 @@ Planning_Scapers
 ----- ----- ----- Project structure ----- ----- ----- 
 
 Folder 'Data': The processed data.
+
 Folder 'Data_Temp': The raw data scraped from the PlanIt API.
+
 Folder 'UKPlanning': All scripts.
 
 
@@ -31,12 +33,16 @@ Run the following pieces of code to get a csv file with applications from the fi
     
 Option1:
 	scrape(1, 10)
+
 	append_all()
     
 Option2:
 	scrape(1, 10)
+
 	inverse(1, 10)
+
 	append_by_year(1, 10)
+
 	append_all(False)
 
 
