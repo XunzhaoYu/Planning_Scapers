@@ -10,6 +10,7 @@ from shutil import which
 SELENIUM_DRIVER_NAME = 'chrome'
 SELENIUM_DRIVER_EXECUTABLE_PATH = which('chromedriver')
 SELENIUM_DRIVER_ARGUMENTS = ['--headless'] #'--disable-blink-features=AutomationControlled']
+#SELENIUM_DRIVER_ARGUMENTS = [] #'--disable-blink-features=AutomationControlled']
 
 BOT_NAME = "UKPlanning"
 
@@ -19,8 +20,8 @@ NEWSPIDER_MODULE = "UKPlanning.spiders"
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = "UKPlanning (+http://www.yourdomain.com)"
-#USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-
+USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+#USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X x.y; rv:42.0) Gecko/20100101 Firefox/42.0"
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = False
@@ -37,7 +38,8 @@ ROBOTSTXT_OBEY = False
 #CONCURRENT_REQUESTS_PER_IP = 16
 
 # Disable cookies (enabled by default)
-#COOKIES_ENABLED = False
+COOKIES_ENABLED = True
+#COOKIES_DEBUG = True
 
 # Disable Telnet Console (enabled by default)
 #TELNETCONSOLE_ENABLED = False

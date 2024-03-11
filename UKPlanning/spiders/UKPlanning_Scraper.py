@@ -1,0 +1,1192 @@
+import scrapy
+#from scrapy import Request
+#import requests
+#import csv
+import pandas as pd
+pd.options.mode.chained_assignment = None
+import numpy as np
+#from scrapy.spiders import CrawlSpider, Rule
+#from scrapy.linkextractors import LinkExtractor
+from items import DownloadFilesItem
+#from scrapy import cmdline
+#from tools.bypass_reCaptcha import bypass_reCaptcha
+from scrapy_selenium import SeleniumRequest
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import Select
+from tools.utils import get_project_root, get_storage_path, get_temp_storage_path, get_csv_files, Month_Eng_to_Digit, get_scraper_by_type
+import time, random, timeit, re, os
+import zipfile
+import difflib  # for UPRN
+
+
+class UKPlanning_Scraper(scrapy.Spider):
+    name = 'UKPlanning_Scraper'
+
+    """
+       for i in range(10):
+           t1 = timeit.timeit(setup='import pandas as pd; '
+                               'from tools.utils import get_storage_path; '
+                               'auth = "Bexley";'
+                               'file_path = f"{get_storage_path()}{auth}/{auth}2011.csv"; '
+                               'df = pd.read_csv(file_path, index_col=0); '
+                               'app_df = df.iloc[5]',
+                         stmt='app_df["description"]="dec"', number=10000)
+
+           t2 = timeit.timeit(setup='import pandas as pd; '
+                               'from tools.utils import get_storage_path; '
+                               'auth = "Bexley";'
+                               'file_path = f"{get_storage_path()}{auth}/{auth}2011.csv"; '
+                               'df = pd.read_csv(file_path, index_col=0); '
+                               'app_df = df.iloc[5]',
+                         stmt='app_df.at["description"]="dec"', number=10000)
+           print(t1, t2, "{:.2f}%".format(t2*100.0/t1))
+       #"""
+
+    Non_empty = ['uid', 'scraper_name', 'url', 'link', 'area_id', 'area_name'] + \
+                ['last_scraped', 'last_different', 'last_changed', 'other_fields.comment_url']  # 10 = 6 + 4
+    Locations = ['location', 'location_x', 'location_y', 'other_fields.easting', 'other_fields.lat', 'other_fields.latitude'] + \
+                ['other_fields.lng', 'other_fields.longitude', 'other_fields.northing']  # 9 = 6 + 3
+    # '/html/body/div[1]/div/div[6]'
+
+    # self.app_df 81 - 19 + 8 = 70
+    # Summary: 10 + 2*
+    summary_dict = {'Reference': 'uid',  # Non-Empty
+                    'Alternative Reference': 'altid',
+                    'Application Received': 'other_fields.date_received',
+                    'Application Validated': 'other_fields.date_validated',
+                    'Address': 'address',
+                    'Proposal': 'description',
+                    'Status': 'other_fields.status',
+                    'Decision': 'other_fields.decision',
+                    'Decision Issued Date': 'other_fields.decision_issued_date',
+                    'Appeal Status': 'other_fields.appeal_status',
+                    'Appeal Decision': 'other_fields.appeal_result',
+                    'Local Review Body Status': 'other_fields.local_review_body_status',  # New*
+                    'Local Review Body Decision': 'other_fields.local_review_body_decision'  # New*
+                    }
+    # Further Information: 10 + 3 + 2*
+    details_dict = {'Application Type': 'other_fields.application_type',
+                    'Decision': 'other_fields.decision',  # Duplicated in summary
+                    'Actual Decision Level': 'other_fields.actual_decision_level',  # New
+                    'Expected Decision Level': 'other_fields.expected_decision_level',  # New
+                    'Case Officer': 'other_fields.case_officer',
+                    'Parish': 'other_fields.parish',
+                    'Ward': 'other_fields.ward_name',
+                    'District Reference': 'other_fields.district',
+                    'Applicant Name': 'other_fields.applicant_name',
+                    'Applicant Address': 'other_fields.applicant_address',
+                    'Agent Name': 'other_fields.agent_name',
+                    'Agent Company Name': 'other_fields.agent_company',
+                    'Agent Phone Number': 'other_fields.agent_phone',  # New*
+                    'Agent Address': 'other_fields.agent_address',
+                    'Environmental Assessment Requested': 'other_fields.environmental_assessment',  # New
+                    'Community Council': 'other_fields.community_council'  # New*
+                    }
+    # Important Datas: 14 + 4 + 1*
+    dates_dict = {'Application Received Date': 'other_fields.date_received',  # Duplicated in summary
+                  'Application Validated Date': 'other_fields.date_validated',  # Duplicated in summary
+                  'Expiry Date': 'other_fields.application_expires_date',
+                  'Actual Committee Date': 'other_fields.meeting_date',
+                  'Latest Neighbour Consultation Date': 'other_fields.neighbour_consultation_start_date',
+                  'Neighbour Consultation Expiry Date': 'other_fields.neighbour_consultation_end_date',
+                  'Standard Consultation Date': 'other_fields.consultation_start_date',
+                  'Standard Consultation Expiry Date': 'other_fields.consultation_end_date',
+                  'Last Advertised In Press Date': 'other_fields.last_advertised_date',
+                  'Latest Advertisement Expiry Date': 'other_fields.latest_advertisement_expiry_date',
+                  'Last Site Notice Posted Date': 'other_fields.site_notice_start_date',
+                  'Latest Site Notice Expiry Date': 'other_fields.site_notice_end_date',
+                  'Internal Target Date': 'other_fields.target_decision_date',
+                  'Agreed Expiry Date': 'other_fields.agreed_expires_date',  # New
+                  'Decision Made Date': 'other_fields.decision_date',
+                  'Decision Issued Date': 'other_fields.decision_issued_date',  # Duplicated in summary
+                  'Permission Expiry Date': 'other_fields.permission_expires_date',
+                  'Decision Printed Date': 'other_fields.decision_published_date',
+                  'Environmental Impact Assessment Received': 'other_fields.environmental_assessment_date',  # New
+                  'Determination Deadline': 'other_fields.determination_date',  # New
+                  'Temporary Permission Expiry Date': 'other_fields.temporary_permission_expires_date',  # New
+                  'Local Review Body Decision Date': 'other_fields.local_review_body_decision_date'  # New*
+                  }
+
+    start_time = time.time()
+    failures = 0
+    # auth_names = get_scraper_by_type()
+    auth_names = os.listdir(get_storage_path())
+    auth_names = [auth_name for auth_name in auth_names if not auth_name.startswith('.')]
+    auth_names.sort(key=str.lower)
+    # print(auth_names)
+    # Chelmsford
+
+    #years = np.linspace(2002, 2021, 20, dtype=int)
+    years = np.linspace(2020, 2021, 1, dtype=int)  # 11
+    # years = np.append(years[:14], years[15:])
+    # print(years)
+    # 2002 2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018 2019 2020 2021
+
+    result_storage_path = f"{get_temp_storage_path()}0.results/"
+    if not os.path.exists(result_storage_path):
+        os.mkdir(result_storage_path)
+
+    # auth_names = np.array(auth_names)
+    # auth_names = auth_names[[0, 1, 2, 3[ExternalDoc], 4, 6, 7, 8[2003-2022], 9[no 2016], 11, 12
+    # 10[too many requests], 13[too many requests], 14, 17, 19]]
+    # print(auth_names, type(auth_names), len(auth_names))
+    header = {
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Accept-Language': 'en-GB,en;q=0.9,en-US;q=0.8,zh-CN;q=0.7,zh;q=0.6,zh-TW;q=0.5',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
+        }
+
+    sample_index = 5
+    start_urls = []
+    app_dfs = []
+    auth_index = 1
+    for auth in auth_names[auth_index:auth_index + 1]:  # 5, 15, 16, 18
+        # auth = 'Bexley'
+        for year in years:
+            file_path = f"{get_storage_path()}{auth}/{auth}{year}.csv"
+            df = pd.read_csv(file_path)  # , index_col=0)
+            # app_df = df.iloc[[sample_index], :]
+            app_df = df.iloc[sample_index, :]
+            print(app_df)
+            # print(pd.DataFrame(app_df).T)
+            app_dfs.append(app_df)
+
+            """
+            # setup the storage path.
+            uid = str(app_df.at['uid'])
+            print(auth, year, app_df.at['uid'])
+            if '/' in uid:
+                uid = re.sub('/', '-', uid)
+            storage_path = f"{get_temp_storage_path()}{auth}{uid}/"
+            print(storage_path)
+            if not os.path.exists(storage_path):
+                os.mkdir(storage_path)
+            """
+
+            start_urls.append(app_df.at['url'])
+
+    # allowed_domains = ['pa.bexley.gov.uk']
+    # start_urls = ['https://pa.bexley.gov.uk/online-applications/applicationDetails.do?keyVal=LELZV9BE01D00&activeTab=summary']
+
+    # allowed_domains = ['pa.brent.gov.uk']
+    # start_urls = ['https://pa.brent.gov.uk/online-applications/applicationDetails.do?activeTab=documents&keyVal=DCAPR_159180']
+
+    index = 0
+
+    def start_requests(self):
+        """
+        for index, url in enumerate(self.start_urls):
+            print(f"{index}, start url: {url}")
+            #yield scrapy.Request(url=url, callback=self.parse_item)
+            yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df':self.app_dfs[index]})#, cookies={'JSESSIONID':'KeJWLx7xuKxSHXwhcXQLqlvAnFPRgFrrNu5BJwvJ.pawebhst47a'})
+        """
+        url = self.start_urls[self.index]
+        print(f"{self.index}, start url: {url}")
+        yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df': self.app_dfs[self.index]})
+
+    def is_empty(self, cell):
+        return pd.isnull(cell)
+
+    def convert_date(self, date_string):
+        strs = date_string.split(' ')
+        if len(strs) > 2:
+            year = strs[3]
+            month = Month_Eng_to_Digit(strs[2])
+            day = strs[1]
+            return f"{year}-{month}-{day}"
+        else:
+            return date_string
+
+    def ending_scraper(self, response):
+        print("ending of an application ...")
+        app_df = response.meta['app_df']
+        app_df2 = pd.DataFrame(app_df).T
+        # Derivative data: 11
+        # postcode (from address), associated_id
+        # app_size, app_state, app_type, start_date, decided_date, consulted_date, reference
+        # other_fields.n_dwellings, other_fields.n_statutory_days
+
+        # self.result_df = pd.concat([self.result_df, pd.DataFrame(self.app_df).T], ignore_index=True)
+        # self.result_df.to_csv(f"{get_temp_storage_path()}result.csv")  # , index=False)
+        uid = str(app_df.at['name'])
+        if '/' in uid:
+            uid = re.sub('/', '-', uid)
+        app_df2.to_csv(f"{self.result_storage_path}{uid}.csv", index=False)
+        # self.app_df.T.to_csv(f"{get_temp_storage_path()}{self.auth}.csv")  # , index=False)
+
+        self.index += 1
+        print(f"start application {self.index}.")
+        try:
+            url = self.start_urls[self.index]
+            print(f"{self.index}, start url: {url}")
+            yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df': self.app_dfs[self.index]})
+        except:
+            print("Scraping compelted.")
+
+    def parse_summary_item(self, response):
+        # driver = response.request.meta["driver"]
+        app_df = response.meta['app_df']
+        # Summary: 10
+        tbody = response.xpath('//*[@id="simpleDetailsTable"]/tbody')
+        items = tbody.xpath('./tr')  # .getall()
+        n_items = len(items)
+        print(f"\nSummary Tab: {n_items}")
+        for item in items:
+            item_name = item.xpath('./th/text()').get().strip()
+            data_name = self.summary_dict[item_name]
+
+            if data_name in self.df.columns:
+                # Empty
+                if self.is_empty(app_df.at[data_name]):
+                    # Date
+                    if item_name in ['Application Received', 'Application Validated', 'Decision Issued Date']:
+                        date_string = item.xpath('./td/text()').get().strip()
+                        app_df.at[data_name] = self.convert_date(date_string)
+                    # Non-Date
+                    else:
+                        app_df.at[data_name] = item.xpath('./td/text()').get().strip()
+                    print(f"<{item_name}> scraped: {app_df.at[data_name]}")
+                # Filled
+                else:
+                    print(f"<{item_name}> filled.")
+            # New (Non-Date)
+            else:
+                app_df[data_name] = item.xpath('./td/text()').get().strip()
+                print(f"<{item_name}> scraped: {app_df.at[data_name]}")
+
+        url = app_df.at['url'].replace('summary', 'details')
+        yield SeleniumRequest(url=url, callback=self.parse_details_item, meta={'app_df': app_df})
+
+    def parse_details_item(self, response):
+        app_df = response.meta['app_df']
+        # Further Information: 10 + 3
+        tbody = response.xpath('//*[@id="applicationDetails"]/tbody')
+        items = tbody.xpath('./tr')
+        n_items = len(items)
+        print(f"\nFurther Information Tab: {n_items}")
+        for item in items:
+            item_name = item.xpath('./th/text()').get().strip()
+            # Duplicate
+            if item_name == 'Decision':
+                continue
+            data_name = self.details_dict[item_name]
+
+            if data_name in self.df.columns:
+                # See source
+                if item_name in ['Agent Name', 'Applicant Name', 'Case Officer']:
+                    app_df.at[data_name] = item.xpath('./td/text()').get().strip()
+                    print(f"<{item_name}> scraped: {app_df.at[data_name]}")
+                # Empty
+                elif self.is_empty(app_df.at[data_name]):
+                    app_df.at[data_name] = item.xpath('./td/text()').get().strip()
+                    print(f"<{item_name}> scraped: {app_df.at[data_name]}")
+                # Filled
+                else:
+                    print(f"<{item_name}> filled.")
+            # New
+            else:
+                # if item_name in ['Actual Decision Level', 'Expected Decision Level', 'Environmental Assessment Requested']:
+                app_df[data_name] = item.xpath('./td/text()').get().strip()
+                print(f"<{item_name}> scraped: {app_df.at[data_name]}")
+
+        url = app_df.at['url'].replace('summary', 'dates')
+        yield SeleniumRequest(url=url, callback=self.parse_dates_item, meta={'app_df': app_df})
+
+    def parse_dates_item(self, response):
+        app_df = response.meta['app_df']
+        # Important Datas: 14 + 4
+        tbody = response.xpath('//*[@id="simpleDetailsTable"]/tbody')
+        items = tbody.xpath('./tr')
+        n_items = len(items)
+        print(f"\nImportant Dates Tab: {n_items}")
+        for item in items:
+            item_name = item.xpath('./th/text()').get().strip()
+            # Duplicate
+            if item_name in ['Application Received Date', 'Application Validated Date', 'Decision Issued Date']:
+                continue
+            data_name = self.dates_dict[item_name]
+
+            if data_name in self.df.columns:
+                # Empty
+                if self.is_empty(app_df.at[data_name]):
+                    date_string = item.xpath('./td/text()').get().strip()
+                    app_df.at[data_name] = self.convert_date(date_string)
+                    print(f"<{item_name}> scraped: {app_df.at[data_name]}")
+                # Filled
+                else:
+                    print(f"<{item_name}> filled.")
+            # New
+            else:
+                # if item_name in ['Agreed Expiry Date', 'Environmental Impact Assessment Received', 'Determination Deadline', 'Temporary Permission Expiry Date']:
+                date_string = item.xpath('./td/text()').get().strip()
+                app_df[data_name] = self.convert_date(date_string)
+                print(f"<{item_name}> scraped: {app_df.at[data_name]}")
+
+        url = app_df.at['url'].replace('summary', 'contacts')
+        yield SeleniumRequest(url=url, callback=self.parse_contacts_item, meta={'app_df': app_df})
+
+    def parse_contacts_item(self, response):
+        app_df = response.meta['app_df']
+        # tabcontainer = response.xpath('//*[@id="pa"]/div[3]/div[3]/div[3]')
+        tabcontainer = response.css('div.tabcontainer')
+        categories = tabcontainer.xpath('./div')
+
+        # setup the storage path.
+        uid = str(app_df.at['name'])
+        if '/' in uid:
+            uid = re.sub('/', '-', uid)
+        storage_path = f"{get_temp_storage_path()}{uid}/"
+        print(storage_path)
+        if not os.path.exists(storage_path):
+            os.mkdir(storage_path)
+
+        if len(categories) > 0:
+            contact_categories = []
+            contact_names = []
+            n_names = 0
+            """
+            contact_addresses = []
+            contact_emails = []
+            for category in categories:  # '//*[@id="pa"]/div[3]/div[3]/div[3]/div/'
+                category_name = category.xpath('./h3/text()').get()
+                names = category.xpath('./p')
+                #print(f"names: {len(names)}")
+                for i in range(len(names)):
+                    contact_categories.append(category_name)
+                    contact_names.append(category.xpath(f'./p[{i+1}]/text()').get())
+                    contact_addresses.append(category.xpath(f'./table[{i+1}]/tbody/tr[1]/td/text()').get())
+                    contact_emails.append(category.xpath(f'./table[{i+1}]/tbody/tr[2]/td/text()').get())
+            contact_df = pd.DataFrame({'category': contact_categories,
+                                       'name': contact_names,
+                                       'address': contact_addresses,
+                                       'email': contact_emails})
+            """
+            contacts = [[]]
+            max_contacts = 1
+            for category in categories:  # '//*[@id="pa"]/div[3]/div[3]/div[3]/div/'
+                category_name = category.xpath('./h3/text()').get()
+                names = category.xpath('./p')
+                # print(f"names: {len(names)}")
+                for i in range(len(names)):
+                    contact_name = category.xpath(f'./p[{i+1}]/text()').get()
+                    if contact_name is None:  # Some portals have bugs on contact tab. We need to fix the bugs.
+                        continue
+                    contact_categories.append(category_name)
+                    contact_names.append(contact_name)
+                    n_names += 1
+
+                    contact_details = category.xpath(f'./table[{i+1}]/tbody/tr')
+                    if contact_details is None:  # Has a contact name but no contact details.
+                        for j in range(max_contacts):
+                            contacts[j].append('')
+                    else:  # Has contact details.
+                        for j, contact_detail in enumerate(contact_details):
+                            contact_method = contact_detail.xpath(f'./th/text()').get()
+                            contact_content = contact_detail.xpath(f'./td/text()').get()
+                            try:
+                                contacts[j].append(f'{contact_method}: {contact_content}')
+                            except IndexError:
+                                new_contact = ([''] * (n_names - 1))
+                                new_contact.append(f'{contact_method}: {contact_content}')
+                                contacts.append(new_contact)
+                                max_contacts += 1
+                        for j in range(len(contact_details), max_contacts):
+                            contacts[j].append('')
+            print(f"max number of contact details: {max_contacts}.")
+            contact_dict = {'category': contact_categories,
+                            'name': contact_names}
+            for i in range(max_contacts):
+                contact_dict[f'contact{i+1}'] = contacts[i]
+            contact_df = pd.DataFrame(contact_dict)
+            contact_df.to_csv(f"{storage_path}contacts.csv", index=False)
+
+        # comment_url # Non_Empty
+        # app_df.at['other_fields.comment_url'] = app_df.at['url'].replace('summary', 'makeComment')
+        url = app_df.at['url'].replace('summary', 'neighbourComments')
+        yield SeleniumRequest(url=url, callback=self.parse_public_comments_item, meta={'app_df': app_df, 'storage_path': storage_path})
+
+    # Other Tabs: 6 + 1 {n_comments, n_constraints, n_documents, *constraint_url, docs_url, map_url, UPRN}
+    def parse_comments_item_USELESS(self, response):
+        app_df = response.meta['app_df']
+        # other_fields.n_comments
+        comments_str = response.xpath('//*[@id="tab_makeComment"]/span/text()').get()  # .strip()
+        n_comments = int(re.search(r"\d", comments_str).group())
+        app_df.at['other_fields.n_comments'] = n_comments
+        print(f"n_comments: {n_comments}")
+
+        url = app_df.at['url'].replace('summary', 'neighbourComments')
+        yield SeleniumRequest(url=url, callback=self.parse_public_comments_item, meta={'app_df': app_df})
+
+    def scrape_comments(self, response, comment_source, comment_date, comment_content):
+        comments = response.xpath('//*[@id="comments"]').xpath('./div')
+        for comment in comments:
+            try:  # scrape all texts in tag h2 and its sub-tags.
+                temp_source = comment.xpath('./h2/text()').get().strip()
+                for subtag in comment.xpath('./h2/*'):
+                    temp_source += subtag.xpath('./text()').get().strip()
+                    # print(subtag.xpath('./text()').get().strip())
+                comment_source.append(temp_source)
+            except AttributeError:
+                comment_source.append('')
+
+            try:  # div/h3
+                temp_date = comment.xpath('./div/h3/text()').get().strip()
+                comment_date.append(re.sub("\s+", ' ', temp_date))
+            except AttributeError:
+                comment_date.append('')
+
+            try:  # div
+                temp_content = comment.xpath('./div/text()').getall()
+                comment_content.append(re.sub("\s+", ' ', ' '.join(temp_content)).strip())
+            except AttributeError:  # div/p
+                temp_content = comment.xpath('./div/p/text()').get()
+                print(temp_content, len(temp_content))
+                comment_content.append(temp_content)
+                # comment_content.append('')
+
+    def parse_public_comments_item(self, response):
+        app_df = response.meta['app_df']
+        storage_path = response.meta['storage_path']
+        # Scrape the summary of public comments
+        strs = response.xpath('//*[@id="commentsContainer"]/ul/li[1]').get()
+        public_consulted = int(re.search(r"\d+", strs).group())
+        app_df['other_fields.n_comments_public_total_consulted'] = public_consulted
+
+        strs = response.xpath('//*[@id="commentsContainer"]/ul/li[2]').get()
+        public_received = int(re.search(r"\d+", strs).group())
+        app_df['other_fields.n_comments_public_received'] = public_received
+        if public_received == 0:
+            app_df['other_fields.n_comments_public_objections'] = 0
+            app_df['other_fields.n_comments_public_supporting'] = 0
+        else:
+            strs = response.xpath('//*[@id="commentsContainer"]/ul/li[3]').get()
+            app_df['other_fields.n_comments_public_objections'] = int(re.search(r"\d+", strs).group())
+            strs = response.xpath('//*[@id="commentsContainer"]/ul/li[4]').get()
+            app_df['other_fields.n_comments_public_supporting'] = int(re.search(r"\d+", strs).group())
+        print(f"\npublic comments: {public_consulted}, {public_received}, "
+              f"{app_df.at['other_fields.n_comments_public_objections']}, {app_df.at['other_fields.n_comments_public_supporting']}")
+
+        # Scrape comments
+        comment_source = []
+        comment_date = []
+        comment_content = []
+        remaining_consultee = public_consulted
+        if remaining_consultee > 0:
+            # try:
+            self.scrape_comments(response, comment_source, comment_date, comment_content)
+            remaining_consultee -= 10
+            # except AttributeError:
+            #    print("No comment details provided.")
+            #    remaining_consultee = 0
+
+        try:
+            if remaining_consultee > 0:  # Next public comment page
+                next_page_url = response.xpath('//*[@id="commentsListContainer"]/p[2]/a[2]/@href').get()[0]
+                next_page_url = response.urljoin(next_page_url)
+                yield SeleniumRequest(url=next_page_url, callback=self.parse_public_comments2_item,
+                                      meta={'app_df': app_df, 'storage_path': storage_path, 'comment_source': comment_source,
+                                            'comment_date': comment_date, 'comment_content': comment_content, 'remaining_consultee': remaining_consultee})
+            else:  # Move to consultee pages
+                url = app_df.at['url'].replace('summary', 'consulteeComments')
+                yield SeleniumRequest(url=url, callback=self.parse_consultee_comments_item,
+                                      meta={'app_df': app_df, 'storage_path': storage_path, 'comment_source': comment_source,
+                                            'comment_date': comment_date, 'comment_content': comment_content})
+        except TypeError:  # Public comment details can not display.
+            # Move to consultee pages
+            url = app_df.at['url'].replace('summary', 'consulteeComments')
+            yield SeleniumRequest(url=url, callback=self.parse_consultee_comments_item,
+                                  meta={'app_df': app_df, 'storage_path': storage_path, 'comment_source': comment_source,
+                                        'comment_date': comment_date, 'comment_content': comment_content})
+
+    def parse_public_comments2_item(self, response):
+        app_df = response.meta['app_df']
+        storage_path = response.meta['storage_path']
+        comment_source = response.meta['comment_source']
+        comment_date = response.meta['comment_date']
+        comment_content = response.meta['comment_content']
+        remaining_consultee = response.meta['remaining_consultee']
+        self.scrape_comments(response, comment_source, comment_date, comment_content)
+        remaining_consultee -= 10
+
+        if remaining_consultee > 0:  # Next public comment page
+            next_page_url = response.xpath('//*[@id="commentsListContainer"]/p[2]/a[2]/@href').get()[0]
+            next_page_url = response.urljoin(next_page_url)
+            yield SeleniumRequest(url=next_page_url, callback=self.parse_public_comments2_item,
+                                  meta={'app_df': app_df, 'storage_path': storage_path, 'comment_source': comment_source,
+                                        'comment_date': comment_date, 'comment_content': comment_content, 'remaining_consultee': remaining_consultee})
+        else:  # Move to consultee pages
+            url = app_df.at['url'].replace('summary', 'consulteeComments')
+            yield SeleniumRequest(url=url, callback=self.parse_consultee_comments_item,
+                                  meta={'app_df': app_df, 'storage_path': storage_path, 'comment_source': comment_source,
+                                        'comment_date': comment_date, 'comment_content': comment_content})
+
+    def parse_consultee_comments_item(self, response):
+        app_df = response.meta['app_df']
+        storage_path = response.meta['storage_path']
+        comment_source = response.meta['comment_source']
+        comment_date = response.meta['comment_date']
+        comment_content = response.meta['comment_content']
+        try:
+            # Scrape the summary of consultee comments
+            strs = response.xpath('//*[@id="commentsContainer"]/ul/li[1]').get()
+            app_df['other_fields.n_comments_consultee_total_consulted'] = int(re.search(r"\d+", strs).group())
+            strs = response.xpath('//*[@id="commentsContainer"]/ul/li[2]').get()
+            app_df['other_fields.n_comments_consultee_responded'] = int(re.search(r"\d+", strs).group())
+        except TypeError:  # Consultee page cannot display.
+            app_df['other_fields.n_comments_consultee_total_consulted'] = 0
+            app_df['other_fields.n_comments_consultee_responded'] = 0
+        print(f"consultee comments: {app_df['other_fields.n_comments_consultee_total_consulted']}, {app_df['other_fields.n_comments_consultee_responded']}")
+        n_consulted_comments = app_df['other_fields.n_comments_consultee_total_consulted'] + app_df.at['other_fields.n_comments_public_total_consulted']
+        app_df.at['other_fields.n_comments'] = app_df['other_fields.n_comments_consultee_responded'] + app_df.at['other_fields.n_comments_public_received']
+
+        # Scrape comments
+        remaining_consultee = app_df['other_fields.n_comments_consultee_total_consulted']
+        if remaining_consultee > 0:
+            self.scrape_comments(response, comment_source, comment_date, comment_content)
+            remaining_consultee -= 10
+
+        if remaining_consultee > 0:  # Next consultee comment page
+            next_page_url = response.xpath('//*[@id="commentsListContainer"]/p[2]/a[2]/@href').extract()[0]
+            next_page_url = response.urljoin(next_page_url)
+            yield SeleniumRequest(url=next_page_url, callback=self.parse_consultee_comments2_item,
+                                  meta={'app_df': app_df, 'storage_path': storage_path, 'comment_source': comment_source,
+                                        'comment_date': comment_date, 'comment_content': comment_content, 'remaining_consultee': remaining_consultee})
+        else:  # Store comments and move to constraint page
+            if n_consulted_comments > 0:
+                comment_df = pd.DataFrame({'comment_source': comment_source,
+                                           'comment_date': comment_date,
+                                           'comment_content': comment_content})
+                comment_df.to_csv(f"{storage_path}comments.csv", index=False)
+            # constraint_url  # New
+            url = app_df.at['url'].replace('summary', 'constraints')
+            app_df['other_fields.constraint_url'] = url
+            yield SeleniumRequest(url=url, callback=self.parse_constraints_item, meta={'app_df': app_df, 'storage_path': storage_path})
+
+    def parse_consultee_comments2_item(self, response):
+        app_df = response.meta['app_df']
+        storage_path = response.meta['storage_path']
+        comment_source = response.meta['comment_source']
+        comment_date = response.meta['comment_date']
+        comment_content = response.meta['comment_content']
+        remaining_consultee = response.meta['remaining_consultee']
+        self.scrape_comments(response, comment_source, comment_date, comment_content)
+        remaining_consultee -= 10
+
+        # for i in range(len(self.comment_source)):
+        #    print(f"Comment{i+1}, source:{self.comment_source[i]},  date:{self.comment_date[i]},    content:{self.comment_content[i]}")
+
+        if remaining_consultee > 0:  # Next consultee comment page
+            next_page_url = response.xpath('//*[@id="commentsListContainer"]/p[2]/a[2]/@href').get()[0]
+            next_page_url = response.urljoin(next_page_url)
+            yield SeleniumRequest(url=next_page_url, callback=self.parse_consultee_comments2_item,
+                                  meta={'app_df': app_df, 'storage_path': storage_path, 'comment_source': comment_source,
+                                        'comment_date': comment_date, 'comment_content': comment_content, 'remaining_consultee': remaining_consultee})
+        else:  # Store comments and move to constraint page
+            comment_df = pd.DataFrame({'comment_source': comment_source,
+                                       'comment_date': comment_date,
+                                       'comment_content': comment_content})
+            comment_df.to_csv(f"{storage_path}comments.csv", index=False)
+            # constraint_url  # New
+            url = app_df.at['url'].replace('summary', 'constraints')
+            app_df['other_fields.constraint_url'] = url
+            yield SeleniumRequest(url=url, callback=self.parse_constraints_item, meta={'app_df': app_df, 'storage_path': storage_path})
+
+    # optional: some Idox portals do not have this tab.
+    def parse_constraints_item(self, response):
+        app_df = response.meta['app_df']
+        storage_path = response.meta['storage_path']
+        # other_fields.n_constraints
+        try:
+            constraints_str = response.xpath('//*[@id="tab_constraints"]/span/text()').get()
+            n_constraints = int(re.search(r"\d+", constraints_str).group())
+            app_df.at['other_fields.n_constraints'] = n_constraints
+            print(f"\nn_constraints: {n_constraints}")
+            if n_constraints > 0:
+                tbody = response.xpath('//*[@id="caseConstraints"]/tbody')
+                constraint_names = []
+                constraint_types = []
+                constraint_status = []
+                for i in range(2, 2 + n_constraints):
+                    constraint_names.append(tbody.xpath(f'./tr[{i}]/td[1]/text()').get())
+                    constraint_types.append(tbody.xpath(f'./tr[{i}]/td[2]/text()').get())
+                    constraint_status.append(tbody.xpath(f'./tr[{i}]/td[3]/text()').get())
+                constraint_df = pd.DataFrame({'name': constraint_names,
+                                              'type': constraint_types,
+                                              'status': constraint_status})
+                constraint_df.to_csv(f"{storage_path}constraints.csv", index=False)
+        except TypeError:
+            print(f"\nThis portal does not have 'Constraints' tab.")
+            app_df.at['other_fields.n_constraints'] = 0
+        except AttributeError:
+            print("\nNo constraints.")
+            app_df.at['other_fields.n_constraints'] = 0
+
+        # document_url
+        if self.is_empty(app_df.at['other_fields.docs_url']):
+            tab_lis = response.xpath('//*[@id="pa"]/div[3]/div[3]/ul').xpath('./li')
+            url = ''
+            for li in tab_lis:
+                try:  # tab has a link.
+                    tab_name = li.xpath('./a/span/text()').get()
+                    if 'document' in str.lower(tab_name):
+                        url = li.xpath('./a/@href').get()
+                        url = response.urljoin(url)
+                        break
+                except TypeError:  # tab has no link.
+                    tab_name = li.xpath('./span/text()').get()
+                    if 'document' in str.lower(tab_name):
+                        url = app_df.at['url'].replace('summary', 'documents')
+                        break
+            if url == '':
+                url = app_df.at['url'].replace('summary', 'documents')
+            app_df.at['other_fields.docs_url'] = url
+            yield SeleniumRequest(url=url, callback=self.parse_documents_item, meta={'app_df': app_df, 'storage_path': storage_path})
+        else:
+            yield SeleniumRequest(url=app_df.at['other_fields.docs_url'], callback=self.parse_documents_item,
+                                  meta={'app_df': app_df, 'storage_path': storage_path})
+
+
+    def unzip_documents(self, storage_path, wait_unit=1.0, wait_total=100):
+        zipname = ''
+        n_wait = 0
+
+        while zipname == '' and n_wait < wait_total:
+            time.sleep(wait_unit)
+            n_wait += wait_unit
+            rootfiles = os.listdir(get_project_root())
+            for filename in rootfiles:
+                # print(f"{n_wait} checking: {filename}")
+                if filename.endswith('.zip'):
+                    zipname = filename
+                    break
+        print("{:.1f} secs, zipname: {:s}".format(n_wait, zipname))
+
+        unzip_dir = f"{storage_path}documents/"
+        with zipfile.ZipFile(zipname, 'r') as zip_ref:
+            zip_ref.extractall(unzip_dir)
+        os.remove(zipname)
+        return unzip_dir
+
+    def scrape_documents_by_checkbox(self, response, driver, checkboxs, n_documents, storage_path):
+        n_checkboxs = len(checkboxs)
+        def rename_documents():
+            docfiles = os.listdir(unzip_dir)
+            docfiles.sort(key=str.lower)
+            columns = response.xpath('//*[@id="Documents"]/tbody/tr[1]/th')
+            n_columns = len(columns)
+            date_column = n_columns
+            type_column = n_columns
+            description_column = n_columns
+            for i, column in enumerate(columns):
+                try:
+                    if 'date' in str.lower(column.xpath('./a/text()').get()):
+                        date_column = i+1
+                        continue
+                    if 'type' in str.lower(column.xpath('./a/text()').get()):
+                        type_column = i+1
+                        continue
+                    if 'description' in str.lower(column.xpath('./a/text()').get()):
+                        description_column = i+1
+                        continue
+                except TypeError:
+                    continue
+            print(f"date column {date_column}, type column {type_column}, description column {description_column}, n_columns {n_columns}")
+
+            # Click 'Description' button to sort documents. 点击网页上description的按钮进行排序
+            description_button = None
+            Descending = False
+            try:
+                sorting_buttons = driver.find_elements(By.CLASS_NAME, 'ascending')
+                #sorting_buttons = driver.find_elements(By.XPATH, '//*[@id="Documents"]/tbody/tr')[0]
+                for sorting_button in sorting_buttons:
+                    if 'description' in str.lower(sorting_button.text):
+                        description_button = sorting_button
+                        break
+                description_button.click()
+            except AttributeError:
+                try:
+                    sorting_buttons = driver.find_elements(By.CLASS_NAME, 'descending')
+                    for sorting_button in sorting_buttons:
+                        if 'description' in str.lower(sorting_button.text):
+                            description_button = sorting_button
+                            break
+                    description_button.click()
+                    Descending = True
+                except AttributeError:
+                    print(f"failed to sort documents items.")
+
+            # 通过driver获取排序后的文档信息
+            unpaired_bases = []
+            unpaired_extensions = []
+            unpaired_names = []
+            unpaired_identities = []
+            document_items = driver.find_elements(By.XPATH, '//*[@id="Documents"]/tbody/tr')[1:]
+            if Descending:
+                document_items = document_items[::-1]
+            print("length comparison:", len(docfiles), len(document_items))
+            for i, document_item in enumerate(document_items):
+                #item_info = document_item.text
+                #print(item_info)
+                document_date = document_item.find_element(By.XPATH, f'./td[{date_column}]').text
+                document_type = document_item.find_element(By.XPATH, f'./td[{type_column}]').text
+                document_description = document_item.find_element(By.XPATH, f'./td[{description_column}]').text
+                item_identity = document_item.find_elements(By.XPATH, './td/a')[-1].get_attribute('href').split('-')[-1]
+                item_identity = item_identity.split('.')[0]  # remove the suffix. Some doc names end with .tif but their link names end with .pdf.
+                document_name = f"date={document_date}&type={document_type}&desc={document_description}&{item_identity}"
+                print(document_name)
+                if '/' in document_name:
+                    document_name = re.sub('/', '-', document_name)
+
+                docfile_base, docfile_extension = os.path.splitext(docfiles[i])
+                if docfile_base.endswith(item_identity):
+                    os.rename(unzip_dir + docfiles[i], f"{storage_path}{document_name}{docfile_extension}")
+                else:
+                    print(i+1, "- - - ", docfile_base, docfile_extension)
+                    unpaired_bases.append(docfile_base)
+                    unpaired_extensions.append(docfile_extension)
+                    unpaired_names.append(document_name)
+                    unpaired_identities.append(item_identity)
+
+            # pair item_identity with the name of downloaded documents
+            for docfile_base, docfile_extension in zip(unpaired_bases, unpaired_extensions):
+                print(unpaired_names)
+                for i, identity in enumerate(unpaired_identities):
+                    if docfile_base.endswith(identity):
+                        paired_name = unpaired_names[i]
+                        os.rename(unzip_dir + docfile_base + docfile_extension, f"{storage_path}{paired_name}{docfile_extension}")
+                        unpaired_names.remove(paired_name)
+                        unpaired_identities.remove(identity)
+                        continue
+            os.rmdir(unzip_dir)
+
+        max_checkboxs = 24
+        n_downloads = int(np.ceil(n_checkboxs / max_checkboxs))
+        n_full_downloads = n_downloads - 1
+        print(f"Downloading {n_checkboxs} documents by {n_downloads} downloads ...")
+        download_failure = False
+        try:
+            for i in range(n_full_downloads):
+                start_index = i * max_checkboxs
+                end_index = (i + 1) * max_checkboxs
+                for checkbox in checkboxs[start_index: end_index]:
+                    checkbox.click()
+                time.sleep(0.1)
+                driver.find_element(By.ID, 'downloadFiles').click()
+                for checkbox in checkboxs[start_index: end_index]:
+                    checkbox.click()
+                # Unzip downloaded documents.
+                unzip_dir = self.unzip_documents(storage_path)
+        except FileNotFoundError as error:
+            print("Downloading Failed:", error)
+            download_failure = True
+
+        try:
+            start_index = n_full_downloads * max_checkboxs
+            end_index = n_documents
+            for checkbox in checkboxs[start_index: end_index]:
+                checkbox.click()
+            time.sleep(0.1)
+            download_time = time.time()
+            driver.find_element(By.ID, 'downloadFiles').click()
+            print("Download button time cost {:.4f} secs.".format(time.time()-download_time))
+            # Unzip downloaded documents.
+            unzip_dir = self.unzip_documents(storage_path)
+        except FileNotFoundError as error:
+            print("Downloading Failed:", error)
+            download_failure = True
+
+        if download_failure:
+            self.failures += 1
+        else:
+            rename_documents()
+
+    def scrape_documents_by_NEC(self, response, n_documents, storage_path):
+        driver = response.request.meta["driver"]
+        select = Select(driver.find_element(By.NAME, 'searchResult_length'))
+        select.select_by_visible_text('100')
+        print(f"Downloading {n_documents} documents separately ...")
+
+        checkboxs = driver.find_elements(By.NAME, 'selectCheckBox')
+        document_items = driver.find_elements(By.XPATH, '//*[@id="searchResult"]/tbody/tr')
+        unzip_dir = None
+        existing_names = []
+        for i, checkbox in enumerate(checkboxs):
+            checkbox.click()
+            driver.find_element(By.ID, 'linkDownload').click()
+            try:
+                unzip_dir = self.unzip_documents(storage_path, wait_unit=0.1, wait_total=10)
+                docfile = os.listdir(unzip_dir)[0]
+
+                document_date = document_items[i].find_element(By.XPATH, f'./td[8]').text
+                #document_date = re.sub('/', '-', document_date)
+                document_type = document_items[i].find_element(By.XPATH, f'./td[3]').text
+                document_description = document_items[i].find_element(By.XPATH, f'./td[7]').text
+                document_filetype = document_items[i].find_element(By.XPATH, f'./td[12]').text
+                document_name = f"date={document_date}&type={document_type}({document_filetype[1:].lower()})&desc={document_description}"
+                if '/' in document_name:
+                    document_name = re.sub('/', '-', document_name)
+                if document_name not in existing_names:
+                    existing_names.append(document_name)
+                else:
+                    rename_index = 2
+                    base = document_name
+                    duplicate = True
+                    while duplicate:
+                        document_name = base + str(rename_index)
+                        if document_name not in existing_names:
+                            duplicate = False
+                            existing_names.append(document_name)
+                        else:
+                            rename_index += 1
+                print(document_name)
+                docfile_extension = docfile.split('.')[-1]
+                os.rename(unzip_dir + docfile, f"{storage_path}{document_name}.{docfile_extension.lower()}")
+            except FileNotFoundError as error:
+                print(f"Downloading {i}/{n_documents} Failed: {error}")
+                self.failures += 1
+            checkbox.click()
+        if unzip_dir is not None:
+            os.rmdir(unzip_dir)
+
+    def scrape_documents_by_NEC2_USELESS(self, response, n_documents, storage_path):
+        driver = response.request.meta["driver"]
+        driver.find_element(By.ID, 'selectAll').click()
+        driver.find_element(By.ID, 'linkDownload').click()
+        print(f"Downloading {n_documents} documents by 1 download ...")
+        # process zip
+        try:
+            unzip_dir = self.unzip_documents(storage_path)
+            # Rename downloaded documents:
+            docfiles = os.listdir(unzip_dir)
+
+            driver = response.request.meta["driver"]
+            select = Select(driver.find_element(By.NAME, 'searchResult_length'))
+            select.select_by_visible_text('100')
+            # driver.refresh()
+            # time.sleep(5)
+
+            document_items = driver.find_elements(By.XPATH, '//*[@id="searchResult"]/tbody/tr')
+            # 'Correspondence for discharge of condition 53530 details of methodology and painting scheme - acceptable 17/02/2011 0 0 1.0.0 .msg'
+            day = '[0-9]{2}'
+            month = '\w*'
+            year = '[0-9]{4}'
+            pattern_date = f'{day}/{month}/{year}'
+            existing_names = []
+
+            for i, document_item in enumerate(document_items):
+                document_info = document_item.text
+                date_received = re.search(pattern_date, document_info, re.I).group()
+                document_info = document_info.split(date_received)[0]
+                date_received = re.sub('/', '-', date_received)
+
+                case_number = re.search('\d+', document_info, re.I).group()
+                document_info = document_info.split(case_number)
+                document_type = document_info[0].strip()
+                description = document_info[1].strip()
+                docname = f"date={date_received}&type={document_type}&case_num={case_number}&desc={description}"
+                if docname not in existing_names:
+                    existing_names.append(docname)
+                else:
+                    rename_index = 2
+                    base = docname
+                    duplicate = True
+                    while duplicate:
+                        docname = base + str(rename_index)
+                        if docname not in existing_names:
+                            duplicate = False
+                            existing_names.append(docname)
+                        else:
+                            rename_index += 1
+                print(i, unzip_dir + docfiles[i], f"{storage_path}{docname+docfiles[i][-4:]}")
+                os.rename(unzip_dir + docfiles[i], f"{storage_path}{docname+docfiles[i][-4:]}")
+                """
+                date_received = document_item.xpath(f'./td[8]/text()').get()
+                date_received = re.sub('/', '-', date_received)
+                document_type = document_item.xpath(f'./td[3]/text()').get()
+                case_number = document_item.xpath(f'./td[5]/text()').get()
+                description = document_item.xpath(f'./td[7]/text()').get()
+                docname = f"date={date_received}&type={document_type}&case_num={case_number}&desc={description}"
+                os.rename(unzip_dir + docfiles[i], f"{storage_path}{docname+docfiles[-4:]}")
+                #"""
+
+            # n_remaining_documents = n_documents - 10
+            # if n_remaining_documents > 0:
+            #    docfiles = docfiles[10:]
+            # """
+            os.rmdir(unzip_dir)
+        except FileNotFoundError as error:
+            print("Downloading Failed:", error)
+            self.failures += 1
+
+    def parse_documents_item(self, response):
+        app_df = response.meta['app_df']
+        storage_path = response.meta['storage_path']
+        try:
+            mode_str = response.request.url.split('activeTab=')[1]
+            mode = mode_str.split('&')[0]
+        except IndexError as error:
+            mode = 'associatedDocuments'
+
+        if mode == 'documents':
+            documents_str = response.xpath('//*[@id="tab_documents"]/span/text()').get()
+            if documents_str is None:
+                documents_str = response.xpath('//*[@id="pa"]/div[3]/div[3]/ul/li[3]/span/text()').get()
+
+            if documents_str is None:
+                n_documents = 0
+                print(f"<doc mode> n_documents: {n_documents}. (None)")
+            else:
+                n_documents = int(re.search(r"\d+", documents_str).group())
+                print(f"<doc mode> n_documents: {n_documents}")
+            # other_fields.n_documents
+            app_df.at['other_fields.n_documents'] = n_documents
+            """
+            for i in range(1, 5):
+            name = response.xpath(f'//*[@id="caseDetailsForm"]/input[{i}]/@name').get() 
+            value = response.xpath(f'//*[@id="caseDetailsForm"]/input[{i}]/@value').get()
+            print(f"{i}, Name: {name}, value: {value}")
+
+            #1, Name: org.apache.struts.taglib.html.TOKEN, value: 42ea9be7aff5f74692871d7bea505646
+            #2, Name: _csrf, value: bf238315-17d2-416a-b7a8-d99a72bdc57f
+            #3, Name: resetFilter, value: false
+            #4, Name: reloadDocTypes, value: false
+            #cookie = response.headers.getlist('Set-Cookie')#[0].split(";")[0].split("=")[1]
+            #cookie = response.cookies
+            #print(cookie)
+            csrf = response.xpath('//*[@id="caseDetailsForm"]/input[2]/@value').get()
+            #"""
+            if n_documents > 0:
+                # Attempt to download through file-links 24-02-15
+                """ 
+                tbody = response.xpath('//*[@id="Documents"]/tbody')
+                file_urls = []
+                for i in range(2, 2+n_documents):
+                url = tbody.xpath(f'./tr[{i}]/td[7]/a/@href').get()
+                #file_urls.append(response.urljoin(url))
+                file_urls.append(response.urljoin(url) + csrf)
+                print(file_urls[i-2])
+                item = DownloadFilesItem()
+                item['file_urls'] = file_urls
+                yield item
+                """
+                # Attempt to download through fake csrf+payload request 24-02-16
+                """ 
+            files = []
+            files.append('BBD980660563FF4676675C423585A42F/Added_for_DMS_planning_transfer-1340871.tif')
+            files.append('1D5231443CE66B67A86BFD8B2457BE82/-936040.pdf')
+            files.append('53C9434D48E272F0C1CA969770BC5B21/1069_-_PARKING_AND_LANDSCAPE_REV_A-935243.pdf')
+            files.append('BCE6C9F094D5CAE5BC91833F934A36C3/PLAN_LAYOUT-852787.pdf')
+            files.append('08F2497F665A0F5ABA3A25C923805435/PLAN-_GENERAL-842952.tif')
+            #url = '/online-applications/download/'
+            url = '/download/'
+            for file in files:
+            url = url + 'FILENAME' + file
+            url = url + 'FILENAME' + csrf
+            item = DownloadFilesItem()
+            item['file_urls'] = [response.urljoin(url)]
+            yield item
+            #"""
+                # Download through checkboxs 24-02-17
+                driver = response.request.meta["driver"]
+                checkboxs = driver.find_elements(By.NAME, 'file')
+                if len(checkboxs) != 0:
+                    self.scrape_documents_by_checkbox(response, driver, checkboxs, n_documents, storage_path)
+                else:  # No checkboxs and the download button.
+                    # csrf = response.xpath('//*[@id="caseDownloadForm"]/input[2]/@value').get()
+                    csrf = response.xpath('//*[@id="caseDownloadForm"]/input[1]/@value').get()
+                    print("csrf:", csrf)
+
+                    tbody = response.xpath('//*[@id="Documents"]/tbody')
+                    file_urls = []
+                    for i in range(2, 2 + n_documents):
+                        url = tbody.xpath(f'./tr[{i}]').css('a::attr(href)').get() + 'CSRF_BYPASS' + csrf
+                        # url = tr.css('a::attr(href)').get()
+                        # print(url)
+
+                        file_urls.append(response.urljoin(url))
+                        print(file_urls[i - 2])
+                    item = DownloadFilesItem()
+                    item['file_urls'] = file_urls
+                    yield item
+        elif mode == 'externalDocuments':
+            # self.scrape_external_documents(response, app_df, storage_path)
+            docs_url = response.xpath('//*[@id="pa"]/div[3]/div[3]/div[3]/p/a/@href').get()
+            app_df.at['other_fields.docs_url'] = docs_url
+            print(f'<{mode}> external document link:', docs_url)
+            yield SeleniumRequest(url=docs_url, callback=self.parse_documents_item, meta={'app_df': app_df, 'storage_path': storage_path})
+            return
+        elif mode == 'associatedDocuments':
+            mode_str = response.request.url.split('?')[1]
+            mode_str = mode_str.split('=')[0]
+            if mode_str == 'SDescription':
+                system_name = 'Civica'
+            elif mode_str == 'SEARCH_TYPE':  # 'FileSystemId':
+                system_name = 'NEC'
+            else:
+                system_name = 'Unknown'
+                print('Unknown document system.')
+
+            if system_name == 'NEC':  # Bury
+                documents_str = response.xpath('//*[@id="searchResult_info"]/text()').get()
+                documents_str = documents_str.split('of')[1]
+                n_documents = int(re.search(r"\d+", documents_str).group())
+                print(f"<NEC mode> n_documents: {n_documents}")
+                app_df.at['other_fields.n_documents'] = n_documents
+                if n_documents > 0:
+                    self.scrape_documents_by_NEC(response, n_documents, storage_path)
+            if system_name == 'Civica':  # Ryedale
+                pass
+
+        else:
+            print('Unknown document mode.')
+
+        if self.is_empty(app_df.at['other_fields.uprn']):
+            url = app_df.at['url'].replace('summary', 'relatedCases')
+            yield SeleniumRequest(url=url, callback=self.parse_uprn_item, meta={'app_df': app_df})
+        else:
+            # map_url
+            url = app_df.at['url'].replace('summary', 'map')
+            app_df.at['other_fields.map_url'] = url
+            yield SeleniumRequest(url=url, callback=self.parse_map_item, meta={'app_df': app_df})
+
+    def parse_uprn_item(self, response):
+        app_df = response.meta['app_df']
+        try:
+            n_properties = response.xpath('//*[@id="Property"]/h2/span/text()').get()
+            if n_properties is None:
+                n_properties = response.xpath('//*[@id="Property"]/h3/span/text()').get()
+            n_properties = int(re.search(r"\d+", n_properties).group())
+            print(f"n_properties in Related Cases: {n_properties}")
+        except TypeError:  # No related case or property
+            n_properties = 0
+
+        if n_properties > 0:
+            if n_properties == 1:
+                url = response.xpath('//*[@id="Property"]/ul/li/a/@href').get()
+            else:  # n_properties > 1
+                properties = response.xpath('//*[@id="Property"]/ul/li')
+                property_names = []
+                for property_item in properties:
+                    property_names.append(property_item.xpath('./a/text()').get().strip())
+                #print(property_names)
+                try:
+                    matched_property = difflib.get_close_matches(app_df.at['address'], property_names, n=1)[0]
+                    matched_index = property_names.index(matched_property)
+                    #print(matched_index, matched_property)
+                    url = response.xpath(f'//*[@id="Property"]/ul/li[{matched_index+1}]/a/@href').get()
+                except IndexError as error:
+                    url = None
+            if url is not None:
+                url = response.urljoin(url)
+                print("UPRN url:", url)
+                yield SeleniumRequest(url=url, callback=self.parse_uprn_property_item, meta={'app_df': app_df})
+            else:
+                print("No UPRN.")
+                # map_url
+                url = app_df.at['url'].replace('summary', 'map')
+                app_df.at['other_fields.map_url'] = url
+                yield SeleniumRequest(url=url, callback=self.parse_map_item, meta={'app_df': app_df})
+        else:  # n_properties == 0
+            print("No UPRN.")
+            # map_url
+            url = app_df.at['url'].replace('summary', 'map')
+            app_df.at['other_fields.map_url'] = url
+            yield SeleniumRequest(url=url, callback=self.parse_map_item, meta={'app_df': app_df})
+
+
+    def parse_uprn_property_item(self, response):
+        app_df = response.meta['app_df']
+        app_df.at['other_fields.uprn'] = response.xpath('//*[@id="propertyAddress"]/tbody/tr[1]/td/text()').get()
+        print(f"<UPRN> scraped: {app_df.at['other_fields.uprn']}")
+        # map_url
+        url = app_df.at['url'].replace('summary', 'map')
+        app_df.at['other_fields.map_url'] = url
+        yield SeleniumRequest(url=url, callback=self.parse_map_item, meta={'app_df': app_df})
+
+    def parse_map_item(self, response):
+        print("it is parse_map_item")
+
+        # self.ending_scraper(response)
+        print("ending of an application ...")
+        app_df = response.meta['app_df']
+        app_df2 = pd.DataFrame(app_df).T
+        # Derivative data: 11
+        # postcode (from address), associated_id
+        # app_size, app_state, app_type, start_date, decided_date, consulted_date, reference
+        # other_fields.n_dwellings, other_fields.n_statutory_days
+
+        # self.result_df = pd.concat([self.result_df, pd.DataFrame(self.app_df).T], ignore_index=True)
+        # self.result_df.to_csv(f"{get_temp_storage_path()}result.csv")  # , index=False)
+        uid = str(app_df.at['name'])
+        if '/' in uid:
+            uid = re.sub('/', '-', uid)
+        app_df2.to_csv(f"{self.result_storage_path}{uid}.csv", index=False)
+        # self.app_df.T.to_csv(f"{get_temp_storage_path()}{self.auth}.csv")  # , index=False)
+
+        self.index += 1
+        time_cost = time.time() - self.start_time
+        print("time_cost: {:.0f} mins {:.4f} secs.".format(time_cost // 60, time_cost % 60))
+        print("Download failures {:d}".format(self.failures))
+        try:
+            url = self.start_urls[self.index]
+            print(f"{self.index}, start url: {url}")
+            yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df': self.app_dfs[self.index]})
+        except:
+            print("Scraping compelted.")
+
+
+
+            # Unknown: 8
+            # other_fields.appeal_date:
+            # other_fields.appeal_decision_date:
+            # other_fields.appeal_reference
+            # other_fields.appeal_type
+            # other_fields.applicant_company
+            # other_fields.development_type
+            # other_fields.first_advertised_date
+            # other_fields.id_type
+
+
+            # other_fields.comment_date
+            # other_fields.decided_by: "Further Information, Actual Decision Level or Further Information, Expected Decision Level"
+            # other_fields.planning_portal_id
+
+    def parse_item_reCaptcha(self, response):
+        # bypass reCaptcha
+        """
+        # get token
+        anchorr_url = response.css('iframe::attr(src)').extract_first()
+        print(anchorr_url)
+        reload_url = 'https://www.google.com/recaptcha/api2/reload?k=6LdT06weAAAAAKs4g6QtDnk3bus_DX2Vhu3yKnfi'
+        token = bypass_reCaptcha(anchorr_url, reload_url)
+
+        # find the response textarea
+        driver = response.request.meta["driver"]
+        reCaptcha = driver.find_element(By.ID, 'g-recaptcha-response-100000')
+
+        # set textarea value = token
+        #reCaptcha.innerHTML = token
+        #reCaptcha.value = token
+        #reCaptcha.send_keys(token)
+
+        #script = "document.getElementById('g-recaptcha-response-100000').value = 'Your text goes here';"
+        script = "document.getElementById('g-recaptcha-response-100000').value = '{:s}';".format(token)
+        print(script)
+        #script = "document.getElementById('g-recaptcha-response-100000').innerHTML = {:s};".format(token)
+        driver.execute_script(script)
+        print('set token.')
+        time.sleep(random.uniform(20.5, 21.5))
+        #"""
+
+        file_url = response.css('.recaptcha-link::attr(href)').get()
+        # file_url = response.css('html').get()
+
+        print("***************************test:", file_url)
+        file_url = response.urljoin(file_url)
+        print("***************************test:", file_url)
+        file_urls = [file_url]
+        item = DownloadFilesItem()
+        item['file_urls'] = file_urls
+        yield item
+
