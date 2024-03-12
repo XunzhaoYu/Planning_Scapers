@@ -140,7 +140,7 @@ class UKPlanning_Scraper(scrapy.Spider):
     sample_index = 5
     start_urls = []
     app_dfs = []
-    auth_index = 1
+    auth_index = 14
     for auth in auth_names[auth_index:auth_index + 1]:  # 5, 15, 16, 18
         # auth = 'Bexley'
         for year in years:
@@ -996,11 +996,15 @@ class UKPlanning_Scraper(scrapy.Spider):
                     # csrf = response.xpath('//*[@id="caseDownloadForm"]/input[2]/@value').get()
                     csrf = response.xpath('//*[@id="caseDownloadForm"]/input[1]/@value').get()
                     print("csrf:", csrf)
+                    cookies = driver.get_cookies()
+                    print("cookies:", cookies)
+                    #cookie = cookies[0]['value']
+                    #print(cookie)
 
                     tbody = response.xpath('//*[@id="Documents"]/tbody')
                     file_urls = []
                     for i in range(2, 2 + n_documents):
-                        url = tbody.xpath(f'./tr[{i}]').css('a::attr(href)').get() + 'CSRF_BYPASS' + csrf
+                        url = tbody.xpath(f'./tr[{i}]').css('a::attr(href)').get()  # + 'CSRF_BYPASS' + csrf
                         # url = tr.css('a::attr(href)').get()
                         # print(url)
 
@@ -1008,6 +1012,8 @@ class UKPlanning_Scraper(scrapy.Spider):
                         print(file_urls[i - 2])
                     item = DownloadFilesItem()
                     item['file_urls'] = file_urls
+                    #item['session_csrf'] = csrf
+                    item['session_cookie'] = cookies
                     yield item
         elif mode == 'externalDocuments':
             # self.scrape_external_documents(response, app_df, storage_path)
