@@ -5,6 +5,9 @@
 from scrapy.pipelines.files import FilesPipeline
 from scrapy import Request
 import json, time, requests
+from io import BytesIO
+from scrapy.utils.misc import md5sum
+from contextlib import suppress
 
 # useful for handling different item types with a single interface
 from itemadapter import ItemAdapter
@@ -14,29 +17,13 @@ class UkplanningPipeline:
     def process_item(self, item, spider):
         return item
 
-
+# https://docs.scrapy.org/en/latest/_modules/scrapy/pipelines/files.html#FilesPipeline.get_media_requests
 class DownloadFilesPipeline(FilesPipeline):
-    def file_path(self, request, response=None, info=None):
-        file_name: str = request.url.split('/')[-1]
-        #print("downloading...", request.url.split('/')[-1])
-        """
-        origin_name = request.url.split('/')[-1]
-        # Example: csv?auth=Barnet&no_kin=0&pg_sz=500&page=1&start_date=2015-03-01&end_date=2015-03-31&compress=on
-        strs = origin_name.split('&')
-        # Example: csv?auth=Barnet    no_kin=0    pg_sz=500   page=1  start_date=2015-03-01   end_date=2015-03-31     compress=on
-        auth = strs[0].split('=')[-1]
-        file_name: str = f"{auth}/{strs[4]}&{strs[5]}-{4-int(strs[3][-1])}.csv"
-        """
-        return file_name
-
     def get_media_requests(self, item, info):
         file_urls = item.get(self.FILES_URLS_FIELD)
-        try:
-            #csrf = item.get('session_csrf')
-            cookie = item.get('session_cookie')
-        except TypeError:
-            #csrf = None
-            cookie = None
+        document_names = item.get('document_names')
+        # csrf = item.get('session_csrf')
+        cookies = item.get('session_cookies')
 
         requests = []
         """
@@ -63,8 +50,13 @@ class DownloadFilesPipeline(FilesPipeline):
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
         }
         #"""
-        for file_url in file_urls:
-            #payload = csrf
-            #requests.append(Request(file_url, headers=header, method="POST", body=json.dumps(payload)))
-            requests.append(Request(file_url, method="GET", cookies=cookie))
+        for index in range(len(file_urls)):
+            # payload = csrf
+            # requests.append(Request(file_urls[index], headers=header, method="POST", body=json.dumps(payload)))
+            requests.append(Request(file_urls[index], method="GET", cookies=cookies, meta={'document_name': document_names[index]}))
         return requests
+
+    def file_path(self, request, response=None, info=None, *, item=None):
+        #print(info.spider.crawler.stats.get_value('file_count'))
+        #print(info.spider.crawler.stats.get_value(f"file_status_count/{200}"))
+        return request.meta.get('document_name')

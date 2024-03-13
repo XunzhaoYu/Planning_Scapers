@@ -117,7 +117,7 @@ class UKPlanning_Scraper(scrapy.Spider):
     # Chelmsford
 
     #years = np.linspace(2002, 2021, 20, dtype=int)
-    years = np.linspace(2020, 2021, 1, dtype=int)  # 11
+    years = np.linspace(2017, 2021, 1, dtype=int)  # 11
     # years = np.append(years[:14], years[15:])
     # print(years)
     # 2002 2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018 2019 2020 2021
@@ -140,7 +140,7 @@ class UKPlanning_Scraper(scrapy.Spider):
     sample_index = 5
     start_urls = []
     app_dfs = []
-    auth_index = 14
+    auth_index = 1
     for auth in auth_names[auth_index:auth_index + 1]:  # 5, 15, 16, 18
         # auth = 'Bexley'
         for year in years:
@@ -225,7 +225,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             print("Scraping compelted.")
 
     def parse_summary_item(self, response):
-        # driver = response.request.meta["driver"]
+        #driver = response.request.meta["driver"]
         app_df = response.meta['app_df']
         # Summary: 10
         tbody = response.xpath('//*[@id="simpleDetailsTable"]/tbody')
@@ -668,30 +668,34 @@ class UKPlanning_Scraper(scrapy.Spider):
         os.remove(zipname)
         return unzip_dir
 
+    def get_document_info_columns(self, response):
+        columns = response.xpath('//*[@id="Documents"]/tbody/tr[1]/th')
+        n_columns = len(columns)
+        date_column = n_columns
+        type_column = n_columns
+        description_column = n_columns
+        for i, column in enumerate(columns):
+            try:
+                if 'date' in str.lower(column.xpath('./a/text()').get()):
+                    date_column = i + 1
+                    continue
+                if 'type' in str.lower(column.xpath('./a/text()').get()):
+                    type_column = i + 1
+                    continue
+                if 'description' in str.lower(column.xpath('./a/text()').get()):
+                    description_column = i + 1
+                    continue
+            except TypeError:
+                continue
+        print(f"date column {date_column}, type column {type_column}, description column {description_column}, n_columns {n_columns}")
+        return date_column, type_column, description_column
+
     def scrape_documents_by_checkbox(self, response, driver, checkboxs, n_documents, storage_path):
         n_checkboxs = len(checkboxs)
         def rename_documents():
             docfiles = os.listdir(unzip_dir)
             docfiles.sort(key=str.lower)
-            columns = response.xpath('//*[@id="Documents"]/tbody/tr[1]/th')
-            n_columns = len(columns)
-            date_column = n_columns
-            type_column = n_columns
-            description_column = n_columns
-            for i, column in enumerate(columns):
-                try:
-                    if 'date' in str.lower(column.xpath('./a/text()').get()):
-                        date_column = i+1
-                        continue
-                    if 'type' in str.lower(column.xpath('./a/text()').get()):
-                        type_column = i+1
-                        continue
-                    if 'description' in str.lower(column.xpath('./a/text()').get()):
-                        description_column = i+1
-                        continue
-                except TypeError:
-                    continue
-            print(f"date column {date_column}, type column {type_column}, description column {description_column}, n_columns {n_columns}")
+            date_column, type_column, description_column = self.get_document_info_columns(response)
 
             # Click 'Description' button to sort documents. 点击网页上description的按钮进行排序
             description_button = None
@@ -800,6 +804,34 @@ class UKPlanning_Scraper(scrapy.Spider):
             self.failures += 1
         else:
             rename_documents()
+
+    # similar to the rename_documents() in scrape_documents_by_checkbox(), but without: 1>. clicking sort button 2>. pair un-matched documents.
+    def rename_documents_and_get_file_urls(self, response, folder_name):
+        date_column, type_column, description_column = self.get_document_info_columns(response)
+        document_items = response.xpath('//*[@id="Documents"]/tbody/tr')[1:]
+        document_names = []
+        file_urls = []
+        for i, document_item in enumerate(document_items):
+            document_date = document_item.xpath(f'./td[{date_column}]/text()').get().strip()
+            document_type = document_item.xpath(f'./td[{type_column}]/text()').get().strip()
+            document_description = document_item.xpath(f'./td[{description_column}]/text()').get().strip()
+            file_url = document_item.xpath('./td/a')[-1].xpath('./@href').get()
+            # file_url = document_item.css('a::attr(href)').get()
+            """ # the docs downloaded by file links are different from the docs downloaded from download button (.zip). Set extensions could results in crashed docs.
+            try:
+                item_identity = document_item.xpath('./td/input')[0].xpath('./@value').get().strip().split('-')[-1]
+                print(i, item_identity)
+            except TypeError:
+                item_identity = file_url.split('-')[-1]
+            """
+            item_identity = file_url.split('-')[-1]
+            document_name = f"date={document_date}&type={document_type}&desc={document_description}&{item_identity}"
+            print(document_name)
+            if '/' in document_name:
+                document_name = re.sub('/', '-', document_name)
+            document_names.append(folder_name + document_name)
+            file_urls.append(response.urljoin(file_url))
+        return document_names, file_urls
 
     def scrape_documents_by_NEC(self, response, n_documents, storage_path):
         driver = response.request.meta["driver"]
@@ -941,79 +973,25 @@ class UKPlanning_Scraper(scrapy.Spider):
                 print(f"<doc mode> n_documents: {n_documents}")
             # other_fields.n_documents
             app_df.at['other_fields.n_documents'] = n_documents
-            """
-            for i in range(1, 5):
-            name = response.xpath(f'//*[@id="caseDetailsForm"]/input[{i}]/@name').get() 
-            value = response.xpath(f'//*[@id="caseDetailsForm"]/input[{i}]/@value').get()
-            print(f"{i}, Name: {name}, value: {value}")
-
-            #1, Name: org.apache.struts.taglib.html.TOKEN, value: 42ea9be7aff5f74692871d7bea505646
-            #2, Name: _csrf, value: bf238315-17d2-416a-b7a8-d99a72bdc57f
-            #3, Name: resetFilter, value: false
-            #4, Name: reloadDocTypes, value: false
-            #cookie = response.headers.getlist('Set-Cookie')#[0].split(";")[0].split("=")[1]
-            #cookie = response.cookies
-            #print(cookie)
-            csrf = response.xpath('//*[@id="caseDetailsForm"]/input[2]/@value').get()
-            #"""
             if n_documents > 0:
-                # Attempt to download through file-links 24-02-15
-                """ 
-                tbody = response.xpath('//*[@id="Documents"]/tbody')
-                file_urls = []
-                for i in range(2, 2+n_documents):
-                url = tbody.xpath(f'./tr[{i}]/td[7]/a/@href').get()
-                #file_urls.append(response.urljoin(url))
-                file_urls.append(response.urljoin(url) + csrf)
-                print(file_urls[i-2])
-                item = DownloadFilesItem()
-                item['file_urls'] = file_urls
-                yield item
-                """
-                # Attempt to download through fake csrf+payload request 24-02-16
-                """ 
-            files = []
-            files.append('BBD980660563FF4676675C423585A42F/Added_for_DMS_planning_transfer-1340871.tif')
-            files.append('1D5231443CE66B67A86BFD8B2457BE82/-936040.pdf')
-            files.append('53C9434D48E272F0C1CA969770BC5B21/1069_-_PARKING_AND_LANDSCAPE_REV_A-935243.pdf')
-            files.append('BCE6C9F094D5CAE5BC91833F934A36C3/PLAN_LAYOUT-852787.pdf')
-            files.append('08F2497F665A0F5ABA3A25C923805435/PLAN-_GENERAL-842952.tif')
-            #url = '/online-applications/download/'
-            url = '/download/'
-            for file in files:
-            url = url + 'FILENAME' + file
-            url = url + 'FILENAME' + csrf
-            item = DownloadFilesItem()
-            item['file_urls'] = [response.urljoin(url)]
-            yield item
-            #"""
-                # Download through checkboxs 24-02-17
                 driver = response.request.meta["driver"]
                 checkboxs = driver.find_elements(By.NAME, 'file')
-                if len(checkboxs) != 0:
+                if len(checkboxs) < 0:  # Download through checkboxs 24-02-17, ***Discarded. To use this approach, set 'len(checkboxs) > 0'.
                     self.scrape_documents_by_checkbox(response, driver, checkboxs, n_documents, storage_path)
                 else:  # No checkboxs and the download button.
-                    # csrf = response.xpath('//*[@id="caseDownloadForm"]/input[2]/@value').get()
-                    csrf = response.xpath('//*[@id="caseDownloadForm"]/input[1]/@value').get()
-                    print("csrf:", csrf)
-                    cookies = driver.get_cookies()
-                    print("cookies:", cookies)
-                    #cookie = cookies[0]['value']
-                    #print(cookie)
-
-                    tbody = response.xpath('//*[@id="Documents"]/tbody')
-                    file_urls = []
-                    for i in range(2, 2 + n_documents):
-                        url = tbody.xpath(f'./tr[{i}]').css('a::attr(href)').get()  # + 'CSRF_BYPASS' + csrf
-                        # url = tr.css('a::attr(href)').get()
-                        # print(url)
-
-                        file_urls.append(response.urljoin(url))
-                        print(file_urls[i - 2])
+                    folder_name = storage_path.split('/')[-2] + '/'
+                    document_names, file_urls = self.rename_documents_and_get_file_urls(response, folder_name)
                     item = DownloadFilesItem()
                     item['file_urls'] = file_urls
-                    #item['session_csrf'] = csrf
-                    item['session_cookie'] = cookies
+                    item['document_names'] = document_names
+                    """
+                    csrf = response.xpath('//*[@id="caseDownloadForm"]/input[1]/@value').get()
+                    print("csrf:", csrf)
+                    item['session_csrf'] = csrf
+                    """
+                    cookies = driver.get_cookies()
+                    print("cookies:", cookies)
+                    item['session_cookies'] = cookies
                     yield item
         elif mode == 'externalDocuments':
             # self.scrape_external_documents(response, app_df, storage_path)

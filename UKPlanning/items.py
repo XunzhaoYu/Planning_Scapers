@@ -16,7 +16,8 @@ class DownloadFilesItem(scrapy.Item):
     # define the fields for your item here like:
     file_urls = scrapy.Field()
     files = scrapy.Field()
-    session_cookie = scrapy.Field()
+    document_names = scrapy.Field()
+    session_cookies = scrapy.Field()
     #session_csrf = scrapy.Field()
 
     def __repr__(self):
