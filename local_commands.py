@@ -5,8 +5,6 @@ command_argv = sys.argv[2]
 key_pairs = '/Users/xunzhaoyu/Documents/Work/UKPlanning.pem'
 local_path = '/Users/xunzhaoyu/Documents/Work/24-01 to 24-06 Warwick/Planning&Nimbyism/'
 EC2_path = f'ec2-user@ec{IPv4}.eu-west-2.compute.amazonaws.com:'
-local_lib_path = '/Users/xunzhaoyu/Documents/Anaconda/anaconda3/lib/python3.7/site-packages/'
-EC2_lib_path = EC2_path + 'scraper_env/lib/python3.7/site-packages/'
 
 def execute_commands(commands, print_bool=True):
     for command in commands:
@@ -38,8 +36,7 @@ def upload_settings():
     execute_commands([command])
 
 def upload_middlewares():
-    #command = ['scp', '-i', key_pairs, local_lib_path + 'scrapy_selenium/middlewares.py', EC2_lib_path + 'scrapy_selenium/middlewares.py']
-    command = ['scp', '-i', key_pairs, local_lib_path + 'scrapy_selenium/middlewares_linux.py', EC2_lib_path + 'scrapy_selenium/middlewares.py']
+    command = ['scp', '-i', key_pairs, local_path + 'UKPlanning/middlewares.py', EC2_path + 'UKPlanning/middlewares.py']
     execute_commands([command])
 
 def upload_scraper():
@@ -68,4 +65,4 @@ else:
 
 # python /Users/xunzhaoyu/Documents/Work/24-01\ to\ 24-06\ Warwick/Planning\&Nimbyism/local_commands.py 2-18-132-203-252 init
 # python /Users/xunzhaoyu/Documents/Work/24-01\ to\ 24-06\ Warwick/Planning\&Nimbyism/local_commands.py 2-18-132-203-252 Data
-# python /Users/xunzhaoyu/Documents/Work/24-01\ to\ 24-06\ Warwick/Planning\&Nimbyism/local_commands.py 2-18-132-203-252 middlewares
+# (optional) python /Users/xunzhaoyu/Documents/Work/24-01\ to\ 24-06\ Warwick/Planning\&Nimbyism/local_commands.py 2-18-132-203-252 middlewares

@@ -18,7 +18,7 @@ def init():
 
     commands.append(['rm', 'UKPlanning/settings_linux.py'])
     commands.append(['rm', 'UKPlanning/main_yu.py'])
-    commands.append(['rm', 'UKPlanning/pipelines_yu.py'])
+    commands.append(['rm', 'UKPlanning/pipelines_(UKPlanIt_API).py'])
     commands.append(['rm', 'UKPlanning/spiders/UKPlanIt_API_yu.py'])
     commands.append(['rm', 'UKPlanning/data_to_scrape.numbers'])
     commands.append(['rm', 'UKPlanning/scrape_name.numbers'])
