@@ -7,7 +7,7 @@ from scrapy import signals
 
 # useful for handling different item types with a single interface
 from itemadapter import is_item, ItemAdapter
-
+#from spiders.UKPlanning_Scraper import
 
 class UkplanningSpiderMiddleware:
     # Not all methods need to be defined. If a method is not defined,
@@ -112,7 +112,6 @@ class SeleniumMiddleware:
     @classmethod
     def from_crawler(cls, crawler):
         """Initialize the middleware with the crawler settings"""
-
         driver_name = crawler.settings.get('SELENIUM_DRIVER_NAME')
         driver_executable_path = crawler.settings.get('SELENIUM_DRIVER_EXECUTABLE_PATH')
         browser_executable_path = crawler.settings.get('SELENIUM_BROWSER_EXECUTABLE_PATH')
@@ -135,8 +134,8 @@ class SeleniumMiddleware:
         )
 
         crawler.signals.connect(middleware.spider_closed, signals.spider_closed)
-
         return middleware
+
 
     def __init__(self, driver_name, driver_executable_path,
                  browser_executable_path, command_executor, driver_arguments):
@@ -208,28 +207,18 @@ class SeleniumMiddleware:
 
     def process_request(self, request, spider):
         """Process a request using the selenium driver if applicable"""
-
         if not isinstance(request, SeleniumRequest):
             return None
 
         self.driver.get(request.url)
 
         for cookie_name, cookie_value in request.cookies.items():
-            self.driver.add_cookie(
-                {
-                    'name': cookie_name,
-                    'value': cookie_value
-                }
-            )
+            self.driver.add_cookie({'name': cookie_name, 'value': cookie_value})
 
         if request.wait_until:
-            WebDriverWait(self.driver, request.wait_time).until(
-                request.wait_until
-            )
-
+            WebDriverWait(self.driver, request.wait_time).until(request.wait_until)
         if request.screenshot:
             request.meta['screenshot'] = self.driver.get_screenshot_as_png()
-
         if request.script:
             self.driver.execute_script(request.script)
 
@@ -247,7 +236,6 @@ class SeleniumMiddleware:
 
     def spider_closed(self):
         """Shutdown the driver when spider is closed"""
-
         self.driver.quit()
 
 

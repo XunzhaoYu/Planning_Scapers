@@ -9,6 +9,7 @@ import numpy as np
 #from scrapy.linkextractors import LinkExtractor
 from items import DownloadFilesItem
 #from scrapy import cmdline
+from scrapy import signals
 #from tools.bypass_reCaptcha import bypass_reCaptcha
 from scrapy_selenium import SeleniumRequest
 from selenium.webdriver.common.by import By
@@ -116,8 +117,8 @@ class UKPlanning_Scraper(scrapy.Spider):
     # print(auth_names)
     # Chelmsford
 
-    #years = np.linspace(2002, 2021, 20, dtype=int)
-    years = np.linspace(2017, 2021, 1, dtype=int)  # 11
+    years = np.linspace(2002, 2021, 20, dtype=int)
+    #years = np.linspace(2017, 2021, 2, dtype=int)  # 11
     # years = np.append(years[:14], years[15:])
     # print(years)
     # 2002 2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018 2019 2020 2021
@@ -172,18 +173,29 @@ class UKPlanning_Scraper(scrapy.Spider):
     # allowed_domains = ['pa.brent.gov.uk']
     # start_urls = ['https://pa.brent.gov.uk/online-applications/applicationDetails.do?activeTab=documents&keyVal=DCAPR_159180']
 
-    index = 0
+    @classmethod
+    def from_crawler(cls, crawler, *args, **kwargs):
+        spider = super(UKPlanning_Scraper, cls).from_crawler(crawler, *args, **kwargs)
+        crawler.signals.connect(spider.spider_closed, signal=signals.spider_closed)
+        return spider
 
+    def spider_closed(self, spider):
+        time_cost = time.time() - self.start_time
+        print("final time_cost: {:.0f} mins {:.4f} secs.".format(time_cost // 60, time_cost % 60))
+        print("Download failures {:d}".format(self.failures))
+
+    index = 0
     def start_requests(self):
         """
         for index, url in enumerate(self.start_urls):
             print(f"{index}, start url: {url}")
             #yield scrapy.Request(url=url, callback=self.parse_item)
-            yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df':self.app_dfs[index]})#, cookies={'JSESSIONID':'KeJWLx7xuKxSHXwhcXQLqlvAnFPRgFrrNu5BJwvJ.pawebhst47a'})
+            yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df':self.app_dfs[index]})
         """
         url = self.start_urls[self.index]
         print(f"{self.index}, start url: {url}")
         yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df': self.app_dfs[self.index]})
+        #"""
 
     def is_empty(self, cell):
         return pd.isnull(cell)
@@ -197,32 +209,6 @@ class UKPlanning_Scraper(scrapy.Spider):
             return f"{year}-{month}-{day}"
         else:
             return date_string
-
-    def ending_scraper(self, response):
-        print("ending of an application ...")
-        app_df = response.meta['app_df']
-        app_df2 = pd.DataFrame(app_df).T
-        # Derivative data: 11
-        # postcode (from address), associated_id
-        # app_size, app_state, app_type, start_date, decided_date, consulted_date, reference
-        # other_fields.n_dwellings, other_fields.n_statutory_days
-
-        # self.result_df = pd.concat([self.result_df, pd.DataFrame(self.app_df).T], ignore_index=True)
-        # self.result_df.to_csv(f"{get_temp_storage_path()}result.csv")  # , index=False)
-        uid = str(app_df.at['name'])
-        if '/' in uid:
-            uid = re.sub('/', '-', uid)
-        app_df2.to_csv(f"{self.result_storage_path}{uid}.csv", index=False)
-        # self.app_df.T.to_csv(f"{get_temp_storage_path()}{self.auth}.csv")  # , index=False)
-
-        self.index += 1
-        print(f"start application {self.index}.")
-        try:
-            url = self.start_urls[self.index]
-            print(f"{self.index}, start url: {url}")
-            yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df': self.app_dfs[self.index]})
-        except:
-            print("Scraping compelted.")
 
     def parse_summary_item(self, response):
         #driver = response.request.meta["driver"]
@@ -976,7 +962,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             if n_documents > 0:
                 driver = response.request.meta["driver"]
                 checkboxs = driver.find_elements(By.NAME, 'file')
-                if len(checkboxs) < 0:  # Download through checkboxs 24-02-17, ***Discarded. To use this approach, set 'len(checkboxs) > 0'.
+                if len(checkboxs) > 0:  # Download through checkboxs 24-02-17, ***Discarded. To use this approach, set 'len(checkboxs) > 0'.
                     self.scrape_documents_by_checkbox(response, driver, checkboxs, n_documents, storage_path)
                 else:  # No checkboxs and the download button.
                     folder_name = storage_path.split('/')[-2] + '/'
@@ -1089,9 +1075,8 @@ class UKPlanning_Scraper(scrapy.Spider):
         yield SeleniumRequest(url=url, callback=self.parse_map_item, meta={'app_df': app_df})
 
     def parse_map_item(self, response):
-        print("it is parse_map_item")
+        #print("it is parse_map_item")
 
-        # self.ending_scraper(response)
         print("ending of an application ...")
         app_df = response.meta['app_df']
         app_df2 = pd.DataFrame(app_df).T
@@ -1108,16 +1093,17 @@ class UKPlanning_Scraper(scrapy.Spider):
         app_df2.to_csv(f"{self.result_storage_path}{uid}.csv", index=False)
         # self.app_df.T.to_csv(f"{get_temp_storage_path()}{self.auth}.csv")  # , index=False)
 
-        self.index += 1
         time_cost = time.time() - self.start_time
         print("time_cost: {:.0f} mins {:.4f} secs.".format(time_cost // 60, time_cost % 60))
-        print("Download failures {:d}".format(self.failures))
+        #"""
+        self.index += 1
         try:
             url = self.start_urls[self.index]
             print(f"{self.index}, start url: {url}")
             yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df': self.app_dfs[self.index]})
         except:
             print("Scraping compelted.")
+        #"""
 
 
 
