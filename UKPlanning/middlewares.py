@@ -7,7 +7,7 @@ from scrapy import signals
 
 # useful for handling different item types with a single interface
 from itemadapter import is_item, ItemAdapter
-#from spiders.UKPlanning_Scraper import
+
 
 class UkplanningSpiderMiddleware:
     # Not all methods need to be defined. If a method is not defined,

@@ -8,7 +8,6 @@ import numpy as np
 #from scrapy.spiders import CrawlSpider, Rule
 #from scrapy.linkextractors import LinkExtractor
 from items import DownloadFilesItem
-#from scrapy import cmdline
 from scrapy import signals
 #from tools.bypass_reCaptcha import bypass_reCaptcha
 from scrapy_selenium import SeleniumRequest
@@ -18,7 +17,9 @@ from tools.utils import get_project_root, get_storage_path, get_temp_storage_pat
 import time, random, timeit, re, os
 import zipfile
 import difflib  # for UPRN
+import warnings
 
+PRINT = False
 
 class UKPlanning_Scraper(scrapy.Spider):
     name = 'UKPlanning_Scraper'
@@ -47,7 +48,6 @@ class UKPlanning_Scraper(scrapy.Spider):
                 ['last_scraped', 'last_different', 'last_changed', 'other_fields.comment_url']  # 10 = 6 + 4
     Locations = ['location', 'location_x', 'location_y', 'other_fields.easting', 'other_fields.lat', 'other_fields.latitude'] + \
                 ['other_fields.lng', 'other_fields.longitude', 'other_fields.northing']  # 9 = 6 + 3
-    # '/html/body/div[1]/div/div[6]'
 
     # self.app_df 81 - 19 + 8 = 70
     # Summary: 10 + 2*
@@ -109,69 +109,56 @@ class UKPlanning_Scraper(scrapy.Spider):
                   }
 
     start_time = time.time()
-    failures = 0
     # auth_names = get_scraper_by_type()
     auth_names = os.listdir(get_storage_path())
     auth_names = [auth_name for auth_name in auth_names if not auth_name.startswith('.')]
     auth_names.sort(key=str.lower)
     # print(auth_names)
-    # Chelmsford
 
-    years = np.linspace(2002, 2021, 20, dtype=int)
-    #years = np.linspace(2017, 2021, 2, dtype=int)  # 11
-    # years = np.append(years[:14], years[15:])
-    # print(years)
-    # 2002 2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018 2019 2020 2021
-
-    result_storage_path = f"{get_temp_storage_path()}0.results/"
-    if not os.path.exists(result_storage_path):
-        os.mkdir(result_storage_path)
-
-    # auth_names = np.array(auth_names)
     # auth_names = auth_names[[0, 1, 2, 3[ExternalDoc], 4, 6, 7, 8[2003-2022], 9[no 2016], 11, 12
     # 10[too many requests], 13[too many requests], 14, 17, 19]]
-    # print(auth_names, type(auth_names), len(auth_names))
-    header = {
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Accept-Language': 'en-GB,en;q=0.9,en-US;q=0.8,zh-CN;q=0.7,zh;q=0.6,zh-TW;q=0.5',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
-        }
+    # Chelmsford
 
-    sample_index = 5
-    start_urls = []
+    """ # for testing some samples from an authority
     app_dfs = []
     auth_index = 1
+    years = np.linspace(2002, 2021, 20, dtype=int)
+    # years = np.linspace(2017, 2021, 2, dtype=int)  # 11
+    # years = np.append(years[:14], years[15:])
+    # print(years)
+    # 2002 2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018 2019 2020 2021  
+    sample_index = 5
     for auth in auth_names[auth_index:auth_index + 1]:  # 5, 15, 16, 18
-        # auth = 'Bexley'
         for year in years:
             file_path = f"{get_storage_path()}{auth}/{auth}{year}.csv"
-            df = pd.read_csv(file_path)  # , index_col=0)
+            df = pd.read_csv(file_path)  # , index_col=0)  # <class 'pandas.core.frame.DataFrame'>
             # app_df = df.iloc[[sample_index], :]
             app_df = df.iloc[sample_index, :]
-            print(app_df)
             # print(pd.DataFrame(app_df).T)
             app_dfs.append(app_df)
+    app_dfs = pd.concat([pd.DataFrame(app_df).T for app_df in app_dfs], ignore_index=True)
+    """
+    auth = auth_names[0]
+    src_path = f"{get_storage_path()}{auth}/"
+    src_filenames = os.listdir(src_path)
+    src_filenames.sort(key=str.lower)
 
-            """
-            # setup the storage path.
-            uid = str(app_df.at['uid'])
-            print(auth, year, app_df.at['uid'])
-            if '/' in uid:
-                uid = re.sub('/', '-', uid)
-            storage_path = f"{get_temp_storage_path()}{auth}{uid}/"
-            print(storage_path)
-            if not os.path.exists(storage_path):
-                os.mkdir(storage_path)
-            """
-
-            start_urls.append(app_df.at['url'])
+    src_files = []
+    for filename in src_filenames:
+        if not filename.startswith('.'):
+            src_files.append(src_path+filename)
+    #src_files = [src_path+filename for filename in src_filenames if not filename.startswith('.')]
+    app_dfs = pd.concat([pd.read_csv(file) for file in src_files], ignore_index=True)
+    #"""
 
     # allowed_domains = ['pa.bexley.gov.uk']
     # start_urls = ['https://pa.bexley.gov.uk/online-applications/applicationDetails.do?keyVal=LELZV9BE01D00&activeTab=summary']
-
-    # allowed_domains = ['pa.brent.gov.uk']
-    # start_urls = ['https://pa.brent.gov.uk/online-applications/applicationDetails.do?activeTab=documents&keyVal=DCAPR_159180']
+    index = 0
+    failures = 0
+    failed_apps = []
+    result_storage_path = f"{get_temp_storage_path()}0.results/"
+    if not os.path.exists(result_storage_path):
+        os.mkdir(result_storage_path)
 
     @classmethod
     def from_crawler(cls, crawler, *args, **kwargs):
@@ -180,11 +167,19 @@ class UKPlanning_Scraper(scrapy.Spider):
         return spider
 
     def spider_closed(self, spider):
+        filenames = os.listdir(self.result_storage_path)
+        filenames.sort(key=str.lower)
+        files = [self.result_storage_path + filename for filename in filenames if not filename.startswith('.')]
+        append_df = pd.concat([pd.read_csv(file) for file in files], ignore_index=True)
+        append_df.to_csv(get_temp_storage_path() + 'result.csv', index=False)
+
         time_cost = time.time() - self.start_time
         print("final time_cost: {:.0f} mins {:.4f} secs.".format(time_cost // 60, time_cost % 60))
-        print("Download failures {:d}".format(self.failures))
 
-    index = 0
+        print("Download failures {:d}".format(self.failures))
+        failed_df = pd.concat([pd.DataFrame(failed_app_df).T for failed_app_df in self.failed_apps], ignore_index=True)
+        failed_df.to_csv(get_temp_storage_path() + 'failed_list.csv', index=False)
+
     def start_requests(self):
         """
         for index, url in enumerate(self.start_urls):
@@ -192,10 +187,12 @@ class UKPlanning_Scraper(scrapy.Spider):
             #yield scrapy.Request(url=url, callback=self.parse_item)
             yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df':self.app_dfs[index]})
         """
-        url = self.start_urls[self.index]
+        app_df = self.app_dfs.iloc[self.index, :]
+        url = app_df.at['url']
         print(f"{self.index}, start url: {url}")
-        yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df': self.app_dfs[self.index]})
-        #"""
+        print(app_df)
+        yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df': app_df})
+
 
     def is_empty(self, cell):
         return pd.isnull(cell)
@@ -210,187 +207,212 @@ class UKPlanning_Scraper(scrapy.Spider):
         else:
             return date_string
 
+    def move_to_next_app(self, failed_app_df, error):
+        warnings.warn("\nUnable to scrape this app:", error)
+        self.failed_apps.append(failed_app_df)
+        self.failures += 1
+
+        self.index += 1
+        app_df = self.app_dfs.iloc[self.index, :]
+        url = app_df.at['url']
+        print(f"{self.index}, start url: {url}")
+        print(app_df)
+        return app_df, url
+
     def parse_summary_item(self, response):
         #driver = response.request.meta["driver"]
         app_df = response.meta['app_df']
-        # Summary: 10
-        tbody = response.xpath('//*[@id="simpleDetailsTable"]/tbody')
-        items = tbody.xpath('./tr')  # .getall()
-        n_items = len(items)
-        print(f"\nSummary Tab: {n_items}")
-        for item in items:
-            item_name = item.xpath('./th/text()').get().strip()
-            data_name = self.summary_dict[item_name]
+        try:  # Summary: 10
+            tbody = response.xpath('//*[@id="simpleDetailsTable"]/tbody')
+            items = tbody.xpath('./tr')  # .getall()
+            n_items = len(items)
+            print(f"\nSummary Tab: {n_items}")
+            for item in items:
+                item_name = item.xpath('./th/text()').get().strip()
+                data_name = self.summary_dict[item_name]
 
-            if data_name in self.df.columns:
-                # Empty
-                if self.is_empty(app_df.at[data_name]):
-                    # Date
-                    if item_name in ['Application Received', 'Application Validated', 'Decision Issued Date']:
-                        date_string = item.xpath('./td/text()').get().strip()
-                        app_df.at[data_name] = self.convert_date(date_string)
-                    # Non-Date
+                if data_name in self.app_dfs.columns:
+                    # Empty
+                    if self.is_empty(app_df.at[data_name]):
+                        # Date
+                        if item_name in ['Application Received', 'Application Validated', 'Decision Issued Date']:
+                            date_string = item.xpath('./td/text()').get().strip()
+                            app_df.at[data_name] = self.convert_date(date_string)
+                        # Non-Date
+                        else:
+                            app_df.at[data_name] = item.xpath('./td/text()').get().strip()
+                        print(f"<{item_name}> scraped: {app_df.at[data_name]}") if PRINT else None
+                    # Filled
                     else:
-                        app_df.at[data_name] = item.xpath('./td/text()').get().strip()
-                    print(f"<{item_name}> scraped: {app_df.at[data_name]}")
-                # Filled
+                        print(f"<{item_name}> filled.") if PRINT else None
+                # New (Non-Date)
                 else:
-                    print(f"<{item_name}> filled.")
-            # New (Non-Date)
-            else:
-                app_df[data_name] = item.xpath('./td/text()').get().strip()
-                print(f"<{item_name}> scraped: {app_df.at[data_name]}")
+                    app_df[data_name] = item.xpath('./td/text()').get().strip()
+                    print(f"<{item_name}> scraped: {app_df.at[data_name]}") if PRINT else None
 
-        url = app_df.at['url'].replace('summary', 'details')
-        yield SeleniumRequest(url=url, callback=self.parse_details_item, meta={'app_df': app_df})
+            url = app_df.at['url'].replace('summary', 'details')
+            yield SeleniumRequest(url=url, callback=self.parse_details_item, meta={'app_df': app_df})
+        except TypeError as error:  # The application page is not available.
+            app_df, url = self.move_to_next_app(app_df, error)
+            yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df': app_df})
 
     def parse_details_item(self, response):
         app_df = response.meta['app_df']
-        # Further Information: 10 + 3
-        tbody = response.xpath('//*[@id="applicationDetails"]/tbody')
-        items = tbody.xpath('./tr')
-        n_items = len(items)
-        print(f"\nFurther Information Tab: {n_items}")
-        for item in items:
-            item_name = item.xpath('./th/text()').get().strip()
-            # Duplicate
-            if item_name == 'Decision':
-                continue
-            data_name = self.details_dict[item_name]
+        try:  # Further Information: 10 + 3
+            tbody = response.xpath('//*[@id="applicationDetails"]/tbody')
+            items = tbody.xpath('./tr')
+            n_items = len(items)
+            print(f"\nFurther Information Tab: {n_items}") if PRINT else print(f"Further Information Tab: {n_items}")
+            for item in items:
+                item_name = item.xpath('./th/text()').get().strip()
+                # Duplicate
+                if item_name == 'Decision':
+                    continue
+                data_name = self.details_dict[item_name]
 
-            if data_name in self.df.columns:
-                # See source
-                if item_name in ['Agent Name', 'Applicant Name', 'Case Officer']:
-                    app_df.at[data_name] = item.xpath('./td/text()').get().strip()
-                    print(f"<{item_name}> scraped: {app_df.at[data_name]}")
-                # Empty
-                elif self.is_empty(app_df.at[data_name]):
-                    app_df.at[data_name] = item.xpath('./td/text()').get().strip()
-                    print(f"<{item_name}> scraped: {app_df.at[data_name]}")
-                # Filled
+                if data_name in self.app_dfs.columns:
+                    # See source
+                    if item_name in ['Agent Name', 'Applicant Name', 'Case Officer']:
+                        app_df.at[data_name] = item.xpath('./td/text()').get().strip()
+                        print(f"<{item_name}> scraped: {app_df.at[data_name]}") if PRINT else None
+                    # Empty
+                    elif self.is_empty(app_df.at[data_name]):
+                        app_df.at[data_name] = item.xpath('./td/text()').get().strip()
+                        print(f"<{item_name}> scraped: {app_df.at[data_name]}") if PRINT else None
+                    # Filled
+                    else:
+                        print(f"<{item_name}> filled.") if PRINT else None
+                # New
                 else:
-                    print(f"<{item_name}> filled.")
-            # New
-            else:
-                # if item_name in ['Actual Decision Level', 'Expected Decision Level', 'Environmental Assessment Requested']:
-                app_df[data_name] = item.xpath('./td/text()').get().strip()
-                print(f"<{item_name}> scraped: {app_df.at[data_name]}")
+                    # if item_name in ['Actual Decision Level', 'Expected Decision Level', 'Environmental Assessment Requested']:
+                    app_df[data_name] = item.xpath('./td/text()').get().strip()
+                    print(f"<{item_name}> scraped: {app_df.at[data_name]}") if PRINT else None
 
-        url = app_df.at['url'].replace('summary', 'dates')
-        yield SeleniumRequest(url=url, callback=self.parse_dates_item, meta={'app_df': app_df})
+            url = app_df.at['url'].replace('summary', 'dates')
+            yield SeleniumRequest(url=url, callback=self.parse_dates_item, meta={'app_df': app_df})
+        except TypeError as error:  # The application page is not available.
+            app_df, url = self.move_to_next_app(app_df, error)
+            yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df': app_df})
 
     def parse_dates_item(self, response):
         app_df = response.meta['app_df']
-        # Important Datas: 14 + 4
-        tbody = response.xpath('//*[@id="simpleDetailsTable"]/tbody')
-        items = tbody.xpath('./tr')
-        n_items = len(items)
-        print(f"\nImportant Dates Tab: {n_items}")
-        for item in items:
-            item_name = item.xpath('./th/text()').get().strip()
-            # Duplicate
-            if item_name in ['Application Received Date', 'Application Validated Date', 'Decision Issued Date']:
-                continue
-            data_name = self.dates_dict[item_name]
+        try: # Important Datas: 14 + 4
+            tbody = response.xpath('//*[@id="simpleDetailsTable"]/tbody')
+            items = tbody.xpath('./tr')
+            n_items = len(items)
+            print(f"\nImportant Dates Tab: {n_items}") if PRINT else print(f"Important Dates Tab: {n_items}")
+            for item in items:
+                item_name = item.xpath('./th/text()').get().strip()
+                # Duplicate
+                if item_name in ['Application Received Date', 'Application Validated Date', 'Decision Issued Date']:
+                    continue
+                data_name = self.dates_dict[item_name]
 
-            if data_name in self.df.columns:
-                # Empty
-                if self.is_empty(app_df.at[data_name]):
-                    date_string = item.xpath('./td/text()').get().strip()
-                    app_df.at[data_name] = self.convert_date(date_string)
-                    print(f"<{item_name}> scraped: {app_df.at[data_name]}")
-                # Filled
+                if data_name in self.app_dfs.columns:
+                    # Empty
+                    if self.is_empty(app_df.at[data_name]):
+                        date_string = item.xpath('./td/text()').get().strip()
+                        app_df.at[data_name] = self.convert_date(date_string)
+                        print(f"<{item_name}> scraped: {app_df.at[data_name]}") if PRINT else None
+                    # Filled
+                    else:
+                        print(f"<{item_name}> filled.") if PRINT else None
+                # New
                 else:
-                    print(f"<{item_name}> filled.")
-            # New
-            else:
-                # if item_name in ['Agreed Expiry Date', 'Environmental Impact Assessment Received', 'Determination Deadline', 'Temporary Permission Expiry Date']:
-                date_string = item.xpath('./td/text()').get().strip()
-                app_df[data_name] = self.convert_date(date_string)
-                print(f"<{item_name}> scraped: {app_df.at[data_name]}")
+                    # if item_name in ['Agreed Expiry Date', 'Environmental Impact Assessment Received', 'Determination Deadline', 'Temporary Permission Expiry Date']:
+                    date_string = item.xpath('./td/text()').get().strip()
+                    app_df[data_name] = self.convert_date(date_string)
+                    print(f"<{item_name}> scraped: {app_df.at[data_name]}") if PRINT else None
 
-        url = app_df.at['url'].replace('summary', 'contacts')
-        yield SeleniumRequest(url=url, callback=self.parse_contacts_item, meta={'app_df': app_df})
+            url = app_df.at['url'].replace('summary', 'contacts')
+            yield SeleniumRequest(url=url, callback=self.parse_contacts_item, meta={'app_df': app_df})
+        except TypeError as error:  # The application page is not available.
+            app_df, url = self.move_to_next_app(app_df, error)
+            yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df': app_df})
 
     def parse_contacts_item(self, response):
         app_df = response.meta['app_df']
-        # tabcontainer = response.xpath('//*[@id="pa"]/div[3]/div[3]/div[3]')
-        tabcontainer = response.css('div.tabcontainer')
-        categories = tabcontainer.xpath('./div')
+        try:
+            # tabcontainer = response.xpath('//*[@id="pa"]/div[3]/div[3]/div[3]')
+            tabcontainer = response.css('div.tabcontainer')
+            categories = tabcontainer.xpath('./div')
 
-        # setup the storage path.
-        uid = str(app_df.at['name'])
-        if '/' in uid:
-            uid = re.sub('/', '-', uid)
-        storage_path = f"{get_temp_storage_path()}{uid}/"
-        print(storage_path)
-        if not os.path.exists(storage_path):
-            os.mkdir(storage_path)
+            # setup the storage path.
+            uid = str(app_df.at['name'])
+            if '/' in uid:
+                uid = re.sub('/', '-', uid)
+            storage_path = f"{get_temp_storage_path()}{uid}/"
+            print(storage_path)
+            if not os.path.exists(storage_path):
+                os.mkdir(storage_path)
 
-        if len(categories) > 0:
-            contact_categories = []
-            contact_names = []
-            n_names = 0
-            """
-            contact_addresses = []
-            contact_emails = []
-            for category in categories:  # '//*[@id="pa"]/div[3]/div[3]/div[3]/div/'
-                category_name = category.xpath('./h3/text()').get()
-                names = category.xpath('./p')
-                #print(f"names: {len(names)}")
-                for i in range(len(names)):
+            if len(categories) > 0:
+                contact_categories = []
+                contact_names = []
+                n_names = 0
+                """
+                    contact_addresses = []
+                    contact_emails = []
+                    for category in categories:  # '//*[@id="pa"]/div[3]/div[3]/div[3]/div/'
+                    category_name = category.xpath('./h3/text()').get()
+                    names = category.xpath('./p')
+                    #print(f"names: {len(names)}")
+                    for i in range(len(names)):
                     contact_categories.append(category_name)
                     contact_names.append(category.xpath(f'./p[{i+1}]/text()').get())
                     contact_addresses.append(category.xpath(f'./table[{i+1}]/tbody/tr[1]/td/text()').get())
                     contact_emails.append(category.xpath(f'./table[{i+1}]/tbody/tr[2]/td/text()').get())
-            contact_df = pd.DataFrame({'category': contact_categories,
-                                       'name': contact_names,
-                                       'address': contact_addresses,
-                                       'email': contact_emails})
-            """
-            contacts = [[]]
-            max_contacts = 1
-            for category in categories:  # '//*[@id="pa"]/div[3]/div[3]/div[3]/div/'
-                category_name = category.xpath('./h3/text()').get()
-                names = category.xpath('./p')
-                # print(f"names: {len(names)}")
-                for i in range(len(names)):
-                    contact_name = category.xpath(f'./p[{i+1}]/text()').get()
-                    if contact_name is None:  # Some portals have bugs on contact tab. We need to fix the bugs.
-                        continue
-                    contact_categories.append(category_name)
-                    contact_names.append(contact_name)
-                    n_names += 1
+                    contact_df = pd.DataFrame({'category': contact_categories,
+                    'name': contact_names,
+                    'address': contact_addresses,
+                    'email': contact_emails})
+                    """
+                contacts = [[]]
+                max_contacts = 1
+                for category in categories:  # '//*[@id="pa"]/div[3]/div[3]/div[3]/div/'
+                    category_name = category.xpath('./h3/text()').get()
+                    names = category.xpath('./p')
+                    # print(f"names: {len(names)}")
+                    for i in range(len(names)):
+                        contact_name = category.xpath(f'./p[{i+1}]/text()').get()
+                        if contact_name is None:  # Some portals have bugs on contact tab. We need to fix the bugs.
+                            continue
+                        contact_categories.append(category_name)
+                        contact_names.append(contact_name)
+                        n_names += 1
 
-                    contact_details = category.xpath(f'./table[{i+1}]/tbody/tr')
-                    if contact_details is None:  # Has a contact name but no contact details.
-                        for j in range(max_contacts):
-                            contacts[j].append('')
-                    else:  # Has contact details.
-                        for j, contact_detail in enumerate(contact_details):
-                            contact_method = contact_detail.xpath(f'./th/text()').get()
-                            contact_content = contact_detail.xpath(f'./td/text()').get()
-                            try:
-                                contacts[j].append(f'{contact_method}: {contact_content}')
-                            except IndexError:
-                                new_contact = ([''] * (n_names - 1))
-                                new_contact.append(f'{contact_method}: {contact_content}')
-                                contacts.append(new_contact)
-                                max_contacts += 1
-                        for j in range(len(contact_details), max_contacts):
-                            contacts[j].append('')
-            print(f"max number of contact details: {max_contacts}.")
-            contact_dict = {'category': contact_categories,
-                            'name': contact_names}
-            for i in range(max_contacts):
-                contact_dict[f'contact{i+1}'] = contacts[i]
-            contact_df = pd.DataFrame(contact_dict)
-            contact_df.to_csv(f"{storage_path}contacts.csv", index=False)
+                        contact_details = category.xpath(f'./table[{i+1}]/tbody/tr')
+                        if contact_details is None:  # Has a contact name but no contact details.
+                            for j in range(max_contacts):
+                                contacts[j].append('')
+                        else:  # Has contact details.
+                            for j, contact_detail in enumerate(contact_details):
+                                contact_method = contact_detail.xpath(f'./th/text()').get()
+                                contact_content = contact_detail.xpath(f'./td/text()').get()
+                                try:
+                                    contacts[j].append(f'{contact_method}: {contact_content}')
+                                except IndexError:
+                                    new_contact = ([''] * (n_names - 1))
+                                    new_contact.append(f'{contact_method}: {contact_content}')
+                                    contacts.append(new_contact)
+                                    max_contacts += 1
+                            for j in range(len(contact_details), max_contacts):
+                                contacts[j].append('')
+                print(f"max number of contact details: {max_contacts}.") if PRINT else None
+                contact_dict = {'category': contact_categories,
+                                'name': contact_names}
+                for i in range(max_contacts):
+                    contact_dict[f'contact{i+1}'] = contacts[i]
+                contact_df = pd.DataFrame(contact_dict)
+                contact_df.to_csv(f"{storage_path}contacts.csv", index=False)
 
-        # comment_url # Non_Empty
-        # app_df.at['other_fields.comment_url'] = app_df.at['url'].replace('summary', 'makeComment')
-        url = app_df.at['url'].replace('summary', 'neighbourComments')
-        yield SeleniumRequest(url=url, callback=self.parse_public_comments_item, meta={'app_df': app_df, 'storage_path': storage_path})
+            # comment_url # Non_Empty
+            # app_df.at['other_fields.comment_url'] = app_df.at['url'].replace('summary', 'makeComment')
+            url = app_df.at['url'].replace('summary', 'neighbourComments')
+            yield SeleniumRequest(url=url, callback=self.parse_public_comments_item, meta={'app_df': app_df, 'storage_path': storage_path})
+        except TypeError as error:  # The application page is not available.
+            app_df, url = self.move_to_next_app(app_df, error)
+            yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df': app_df})
 
     # Other Tabs: 6 + 1 {n_comments, n_constraints, n_documents, *constraint_url, docs_url, map_url, UPRN}
     def parse_comments_item_USELESS(self, response):
@@ -451,7 +473,10 @@ class UKPlanning_Scraper(scrapy.Spider):
             strs = response.xpath('//*[@id="commentsContainer"]/ul/li[4]').get()
             app_df['other_fields.n_comments_public_supporting'] = int(re.search(r"\d+", strs).group())
         print(f"\npublic comments: {public_consulted}, {public_received}, "
+              f"{app_df.at['other_fields.n_comments_public_objections']}, {app_df.at['other_fields.n_comments_public_supporting']}") if PRINT else \
+            print(f"public comments: {public_consulted}, {public_received}, "
               f"{app_df.at['other_fields.n_comments_public_objections']}, {app_df.at['other_fields.n_comments_public_supporting']}")
+
 
         # Scrape comments
         comment_source = []
@@ -602,10 +627,10 @@ class UKPlanning_Scraper(scrapy.Spider):
                                               'status': constraint_status})
                 constraint_df.to_csv(f"{storage_path}constraints.csv", index=False)
         except TypeError:
-            print(f"\nThis portal does not have 'Constraints' tab.")
+            print(f"\nThis portal does not have 'Constraints' tab.") if PRINT else print(f"This portal does not have 'Constraints' tab.")
             app_df.at['other_fields.n_constraints'] = 0
         except AttributeError:
-            print("\nNo constraints.")
+            print("\nNo constraints.") if PRINT else print("No constraints.")
             app_df.at['other_fields.n_constraints'] = 0
 
         # document_url
@@ -673,7 +698,7 @@ class UKPlanning_Scraper(scrapy.Spider):
                     continue
             except TypeError:
                 continue
-        print(f"date column {date_column}, type column {type_column}, description column {description_column}, n_columns {n_columns}")
+        print(f"date column {date_column}, type column {type_column}, description column {description_column}, n_columns {n_columns}") if PRINT else None
         return date_column, type_column, description_column
 
     def scrape_documents_by_checkbox(self, response, driver, checkboxs, n_documents, storage_path):
@@ -714,7 +739,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             document_items = driver.find_elements(By.XPATH, '//*[@id="Documents"]/tbody/tr')[1:]
             if Descending:
                 document_items = document_items[::-1]
-            print("length comparison:", len(docfiles), len(document_items))
+            print("length comparison:", len(docfiles), len(document_items)) if PRINT else None
             for i, document_item in enumerate(document_items):
                 #item_info = document_item.text
                 #print(item_info)
@@ -724,7 +749,7 @@ class UKPlanning_Scraper(scrapy.Spider):
                 item_identity = document_item.find_elements(By.XPATH, './td/a')[-1].get_attribute('href').split('-')[-1]
                 item_identity = item_identity.split('.')[0]  # remove the suffix. Some doc names end with .tif but their link names end with .pdf.
                 document_name = f"date={document_date}&type={document_type}&desc={document_description}&{item_identity}"
-                print(document_name)
+                print(document_name) if PRINT else None
                 if '/' in document_name:
                     document_name = re.sub('/', '-', document_name)
 
@@ -732,7 +757,7 @@ class UKPlanning_Scraper(scrapy.Spider):
                 if docfile_base.endswith(item_identity):
                     os.rename(unzip_dir + docfiles[i], f"{storage_path}{document_name}{docfile_extension}")
                 else:
-                    print(i+1, "- - - ", docfile_base, docfile_extension)
+                    print(i+1, "- - - ", docfile_base, docfile_extension) if PRINT else None
                     unpaired_bases.append(docfile_base)
                     unpaired_extensions.append(docfile_extension)
                     unpaired_names.append(document_name)
@@ -740,7 +765,7 @@ class UKPlanning_Scraper(scrapy.Spider):
 
             # pair item_identity with the name of downloaded documents
             for docfile_base, docfile_extension in zip(unpaired_bases, unpaired_extensions):
-                print(unpaired_names)
+                print(unpaired_names) if PRINT else None
                 for i, identity in enumerate(unpaired_identities):
                     if docfile_base.endswith(identity):
                         paired_name = unpaired_names[i]
@@ -779,7 +804,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             time.sleep(0.1)
             download_time = time.time()
             driver.find_element(By.ID, 'downloadFiles').click()
-            print("Download button time cost {:.4f} secs.".format(time.time()-download_time))
+            print("Download button time cost {:.4f} secs.".format(time.time()-download_time)) if PRINT else None
             # Unzip downloaded documents.
             unzip_dir = self.unzip_documents(storage_path)
         except FileNotFoundError as error:
@@ -812,7 +837,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             """
             item_identity = file_url.split('-')[-1]
             document_name = f"date={document_date}&type={document_type}&desc={document_description}&{item_identity}"
-            print(document_name)
+            print(document_name) if PRINT else None
             if '/' in document_name:
                 document_name = re.sub('/', '-', document_name)
             document_names.append(folder_name + document_name)
@@ -857,7 +882,7 @@ class UKPlanning_Scraper(scrapy.Spider):
                             existing_names.append(document_name)
                         else:
                             rename_index += 1
-                print(document_name)
+                print(document_name) if PRINT else None
                 docfile_extension = docfile.split('.')[-1]
                 os.rename(unzip_dir + docfile, f"{storage_path}{document_name}.{docfile_extension.lower()}")
             except FileNotFoundError as error:
@@ -916,7 +941,7 @@ class UKPlanning_Scraper(scrapy.Spider):
                             existing_names.append(docname)
                         else:
                             rename_index += 1
-                print(i, unzip_dir + docfiles[i], f"{storage_path}{docname+docfiles[i][-4:]}")
+                print(i, unzip_dir + docfiles[i], f"{storage_path}{docname+docfiles[i][-4:]}") if PRINT else None
                 os.rename(unzip_dir + docfiles[i], f"{storage_path}{docname+docfiles[i][-4:]}")
                 """
                 date_received = document_item.xpath(f'./td[8]/text()').get()
@@ -962,7 +987,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             if n_documents > 0:
                 driver = response.request.meta["driver"]
                 checkboxs = driver.find_elements(By.NAME, 'file')
-                if len(checkboxs) > 0:  # Download through checkboxs 24-02-17, ***Discarded. To use this approach, set 'len(checkboxs) > 0'.
+                if len(checkboxs) < 0:  # Download through checkboxs 24-02-17, ***Discarded. To use this approach, set 'len(checkboxs) > 0'.
                     self.scrape_documents_by_checkbox(response, driver, checkboxs, n_documents, storage_path)
                 else:  # No checkboxs and the download button.
                     folder_name = storage_path.split('/')[-2] + '/'
@@ -976,7 +1001,7 @@ class UKPlanning_Scraper(scrapy.Spider):
                     item['session_csrf'] = csrf
                     """
                     cookies = driver.get_cookies()
-                    print("cookies:", cookies)
+                    print("cookies:", cookies) if PRINT else None
                     item['session_cookies'] = cookies
                     yield item
         elif mode == 'externalDocuments':
@@ -1068,7 +1093,7 @@ class UKPlanning_Scraper(scrapy.Spider):
     def parse_uprn_property_item(self, response):
         app_df = response.meta['app_df']
         app_df.at['other_fields.uprn'] = response.xpath('//*[@id="propertyAddress"]/tbody/tr[1]/td/text()').get()
-        print(f"<UPRN> scraped: {app_df.at['other_fields.uprn']}")
+        print(f"<UPRN> scraped: {app_df.at['other_fields.uprn']}") if PRINT else None
         # map_url
         url = app_df.at['url'].replace('summary', 'map')
         app_df.at['other_fields.map_url'] = url
@@ -1077,16 +1102,14 @@ class UKPlanning_Scraper(scrapy.Spider):
     def parse_map_item(self, response):
         #print("it is parse_map_item")
 
-        print("ending of an application ...")
-        app_df = response.meta['app_df']
-        app_df2 = pd.DataFrame(app_df).T
         # Derivative data: 11
         # postcode (from address), associated_id
         # app_size, app_state, app_type, start_date, decided_date, consulted_date, reference
         # other_fields.n_dwellings, other_fields.n_statutory_days
+        print("ending of an application ...") if PRINT else None
+        app_df = response.meta['app_df']
+        app_df2 = pd.DataFrame(app_df).T
 
-        # self.result_df = pd.concat([self.result_df, pd.DataFrame(self.app_df).T], ignore_index=True)
-        # self.result_df.to_csv(f"{get_temp_storage_path()}result.csv")  # , index=False)
         uid = str(app_df.at['name'])
         if '/' in uid:
             uid = re.sub('/', '-', uid)
@@ -1098,14 +1121,14 @@ class UKPlanning_Scraper(scrapy.Spider):
         #"""
         self.index += 1
         try:
-            url = self.start_urls[self.index]
+            app_df = self.app_dfs.iloc[self.index, :]
+            url = app_df.at['url']
             print(f"{self.index}, start url: {url}")
-            yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df': self.app_dfs[self.index]})
+            print(app_df)
+            yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df': app_df})
         except:
             print("Scraping compelted.")
         #"""
-
-
 
             # Unknown: 8
             # other_fields.appeal_date:
