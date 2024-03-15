@@ -21,7 +21,7 @@ def init():
     commands.append(['rm', 'UKPlanning/pipelines_(UKPlanIt_API).py'])
     commands.append(['rm', 'UKPlanning/spiders/UKPlanIt_API_yu.py'])
     commands.append(['rm', 'UKPlanning/data_to_scrape.numbers'])
-    commands.append(['rm', 'UKPlanning/scrape_name.numbers'])
+    commands.append(['rm', 'UKPlanning/scraper_name.numbers'])
 
     commands.append(['sudo', 'yum', 'install', 'python-virtualenv'])
     commands.append(['virtualenv', '-p', 'python3.7', 'scraper_env'])
@@ -58,7 +58,7 @@ def configure_env():
     commands.append(['pip', 'install', 'pandas'])
     #commands.append(['pip', 'install', 'webdriver-manager'])
     commands.append(['pip', 'install', 'urllib3 <=1.26.18'])
-    coomands.append(['pip', 'install', 'Twisted==22.10.0'])
+    commands.append(['pip', 'install', 'Twisted==22.10.0'])
     execute_commands(commands)
 
 if command_argv == 'init':

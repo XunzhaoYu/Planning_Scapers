@@ -8,9 +8,10 @@
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 #
 # Three differences with settings.py:
-# 1. Driver settings
+# 1. Driver settings.
 # 2. USER-AGENT commented.
-# 3. FILES_STORE
+# 3. DOWNLOADER_MIDDLEWARES.
+# 4. CLOUD_MODE.
 from shutil import which
 SELENIUM_DRIVER_NAME = 'chrome'
 SELENIUM_DRIVER_EXECUTABLE_PATH = which('chromedriver')
@@ -90,6 +91,13 @@ ITEM_PIPELINES = {
 }
 FILES_STORE = "../Data_Temp/"
 #FILES_STORE = "Data_Temp/"
+
+CLOUD_MODE = True
+PRINT = False
+
+LOG_ENABLED = False
+LOG_FILE = "../Data_Temp/failed_download_log.txt"
+LOG_LEVEL = 'ERROR'
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html

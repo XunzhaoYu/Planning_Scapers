@@ -47,6 +47,9 @@ def upload_EC2_commands():
     command = (['scp', '-i', key_pairs, local_path + 'EC2_commands.py', EC2_path + 'EC2_commands.py'])
     execute_commands([command])
 
+def upload_main():
+    command = (['scp', '-i', key_pairs, local_path + 'UKPlanning/main.py', EC2_path + 'UKPlanning/main.py'])
+    execute_commands([command])
 
 if command_argv == 'init':
     init()
@@ -60,6 +63,8 @@ elif command_argv == 'scraper':
     upload_scraper()
 elif command_argv == 'EC2_commands':
     upload_EC2_commands()
+elif command_argv == 'main':
+    upload_main()
 else:
     print('')
 

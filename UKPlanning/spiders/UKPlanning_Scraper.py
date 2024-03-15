@@ -119,7 +119,7 @@ class UKPlanning_Scraper(scrapy.Spider):
     # 10[too many requests], 13[too many requests], 14, 17, 19]]
     # Chelmsford
 
-    #""" # for testing some samples from an authority
+    """ # for testing some samples from an authority
     app_dfs = []
     auth_index = 1
     #years = np.linspace(2002, 2021, 20, dtype=int)
@@ -138,7 +138,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             app_dfs.append(app_df)
     app_dfs = pd.concat([pd.DataFrame(app_df).T for app_df in app_dfs], ignore_index=True)
     """
-    auth = auth_names[0]
+    auth = auth_names[1]
     src_path = f"{get_storage_path()}{auth}/"
     src_filenames = os.listdir(src_path)
     src_filenames.sort(key=str.lower)
@@ -1132,6 +1132,10 @@ class UKPlanning_Scraper(scrapy.Spider):
             uid = re.sub('/', '-', uid)
         app_df2.to_csv(f"{self.result_storage_path}{uid}.csv", index=False)
         # self.app_df.T.to_csv(f"{get_temp_storage_path()}{self.auth}.csv")  # , index=False)
+        if CLOUD_MODE and app_df.at['other_fields.n_documents'] == 0:
+            folder_path = f"{get_temp_storage_path()}{uid}"
+            if not os.listdir(folder_path):
+                os.rmdir(folder_path)
 
         time_cost = time.time() - self.start_time
         print("time_cost: {:.0f} mins {:.4f} secs.".format(time_cost // 60, time_cost % 60))
