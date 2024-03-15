@@ -80,6 +80,9 @@ ITEM_PIPELINES = {
 }
 FILES_STORE = "../Data_Temp/"
 
+CLOUD_MODE = False
+PRINT = False
+
 LOG_ENABLED = False
 LOG_FILE = "../Data_Temp/failed_download_log.txt"
 LOG_LEVEL = 'ERROR'

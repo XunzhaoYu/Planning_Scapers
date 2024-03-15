@@ -6,8 +6,8 @@ from scrapy.pipelines.files import FilesPipeline
 from scrapy import Request
 from tools.curl import upload_file
 from tools.utils import get_temp_storage_path
-import os
-import logging
+from settings import CLOUD_MODE
+import os, logging
 """
 import json, time, requests
 from io import BytesIO
@@ -69,16 +69,21 @@ class DownloadFilesPipeline(FilesPipeline):
 # def file_downloaded(self, response, request, info, *, item=None):
 
     def item_completed(self, results, item, info):
-        storage_path = get_temp_storage_path()
-        for success, file_info_or_error in results:
-            if success:  # download succeeded, upload to cloud.
-                file_path = file_info_or_error['path']
-                if upload_file(file_path) == 0:  # upload succeeded, delete local file.
-                    os.remove(storage_path + file_path)
-            else:  # download failed, record logs.
-                logging.error(msg=file_info_or_error)
-        # if all files in this application folder have been uploaded, delete the empty folder.
-        folder_path = storage_path + results[0][1]['path'].split('/')[0]
-        if not os.listdir(folder_path):
-            os.rmdir(folder_path)
+        if CLOUD_MODE:
+            storage_path = get_temp_storage_path()
+            for success, file_info_or_error in results:
+                if success:  # download succeeded, upload to cloud.
+                    file_path = file_info_or_error['path']
+                    if upload_file(file_path) == 0:  # upload succeeded, delete local file.
+                        os.remove(storage_path + file_path)
+                else:  # download failed, record logs.
+                    logging.error(msg=file_info_or_error)
+            # if all files in this application folder have been uploaded, delete the empty folder.
+            folder_path = storage_path + results[0][1]['path'].split('/')[0]
+            if not os.listdir(folder_path):
+                os.rmdir(folder_path)
+        else:
+            for success, file_info_or_error in results:
+                if not success:
+                    logging.error(msg=file_info_or_error)
         return super().item_completed(results, item, info)

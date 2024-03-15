@@ -15,12 +15,11 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select
 from tools.utils import get_project_root, get_storage_path, get_temp_storage_path, get_csv_files, Month_Eng_to_Digit, get_scraper_by_type
 from tools.curl import upload_file, upload_folder
+from settings import PRINT, CLOUD_MODE
 import time, random, timeit, re, os
 import zipfile
 import difflib  # for UPRN
 import warnings
-
-PRINT = False
 
 class UKPlanning_Scraper(scrapy.Spider):
     name = 'UKPlanning_Scraper'
@@ -174,7 +173,7 @@ class UKPlanning_Scraper(scrapy.Spider):
         files = [self.result_storage_path + filename for filename in filenames if not filename.startswith('.')]
         append_df = pd.concat([pd.read_csv(file) for file in files], ignore_index=True)
         append_df.to_csv(get_temp_storage_path() + 'result.csv', index=False)
-        upload_file('result.csv')
+        upload_file('result.csv') if CLOUD_MODE else None
 
         time_cost = time.time() - self.start_time
         print("final time_cost: {:.0f} mins {:.4f} secs.".format(time_cost // 60, time_cost % 60))
@@ -183,7 +182,7 @@ class UKPlanning_Scraper(scrapy.Spider):
         if self.failures > 0:
             failed_df = pd.concat([pd.DataFrame(failed_app_df).T for failed_app_df in self.failed_apps], ignore_index=True)
             failed_df.to_csv(get_temp_storage_path() + 'failed_list.csv', index=False)
-            upload_file('failed_list.csv')
+            upload_file('failed_list.csv') if CLOUD_MODE else None
 
     def start_requests(self):
         """
@@ -350,7 +349,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             print(storage_path)
             if not os.path.exists(storage_path):
                 os.mkdir(storage_path)
-            upload_folder(uid+'/')
+            upload_folder(uid+'/') if CLOUD_MODE else None
 
             if len(categories) > 0:
                 contact_categories = []
@@ -411,8 +410,9 @@ class UKPlanning_Scraper(scrapy.Spider):
                     contact_dict[f'contact{i+1}'] = contacts[i]
                 contact_df = pd.DataFrame(contact_dict)
                 contact_df.to_csv(f"{storage_path}contacts.csv", index=False)
-                if upload_file(uid+'/contacts.csv') == 0:
-                    os.remove(f"{storage_path}contacts.csv")
+                if CLOUD_MODE:
+                    if upload_file(uid+'/contacts.csv') == 0:
+                        os.remove(f"{storage_path}contacts.csv")
             # comment_url # Non_Empty
             # app_df.at['other_fields.comment_url'] = app_df.at['url'].replace('summary', 'makeComment')
             url = app_df.at['url'].replace('summary', 'neighbourComments')
@@ -575,8 +575,9 @@ class UKPlanning_Scraper(scrapy.Spider):
                                            'comment_date': comment_date,
                                            'comment_content': comment_content})
                 comment_df.to_csv(f"{storage_path}comments.csv", index=False)
-            if upload_file(storage_path.split('/')[-2] + '/comments.csv') == 0:
-                os.remove(f"{storage_path}comments.csv")
+            if CLOUD_MODE:
+                if upload_file(storage_path.split('/')[-2] + '/comments.csv') == 0:
+                    os.remove(f"{storage_path}comments.csv")
             # constraint_url  # New
             url = app_df.at['url'].replace('summary', 'constraints')
             app_df['other_fields.constraint_url'] = url
@@ -606,8 +607,9 @@ class UKPlanning_Scraper(scrapy.Spider):
                                        'comment_date': comment_date,
                                        'comment_content': comment_content})
             comment_df.to_csv(f"{storage_path}comments.csv", index=False)
-            if upload_file(storage_path.split('/')[-2] + '/comments.csv') == 0:
-                os.remove(f"{storage_path}comments.csv")
+            if CLOUD_MODE:
+                if upload_file(storage_path.split('/')[-2] + '/comments.csv') == 0:
+                    os.remove(f"{storage_path}comments.csv")
             # constraint_url  # New
             url = app_df.at['url'].replace('summary', 'constraints')
             app_df['other_fields.constraint_url'] = url
@@ -636,8 +638,9 @@ class UKPlanning_Scraper(scrapy.Spider):
                                               'type': constraint_types,
                                               'status': constraint_status})
                 constraint_df.to_csv(f"{storage_path}constraints.csv", index=False)
-                if upload_file(storage_path.split('/')[-2] + '/constraints.csv') == 0:
-                    os.remove(f"{storage_path}constraints.csv")
+                if CLOUD_MODE:
+                    if upload_file(storage_path.split('/')[-2] + '/constraints.csv') == 0:
+                        os.remove(f"{storage_path}constraints.csv")
         except TypeError:
             print(f"\nThis portal does not have 'Constraints' tab.") if PRINT else print(f"This portal does not have 'Constraints' tab.")
             app_df.at['other_fields.n_constraints'] = 0
