@@ -153,7 +153,7 @@ class UKPlanning_Scraper(scrapy.Spider):
 
     # allowed_domains = ['pa.bexley.gov.uk']
     # start_urls = ['https://pa.bexley.gov.uk/online-applications/applicationDetails.do?keyVal=LELZV9BE01D00&activeTab=summary']
-    index = 0
+    index = 964
     failures = 0
     failed_apps = []
 
@@ -174,6 +174,7 @@ class UKPlanning_Scraper(scrapy.Spider):
         append_df = pd.concat([pd.read_csv(file) for file in files], ignore_index=True)
         append_df.to_csv(get_temp_storage_path() + 'result.csv', index=False)
         upload_file('result.csv') if CLOUD_MODE else None
+        #
 
         time_cost = time.time() - self.start_time
         print("final time_cost: {:.0f} mins {:.4f} secs.".format(time_cost // 60, time_cost % 60))
@@ -194,7 +195,7 @@ class UKPlanning_Scraper(scrapy.Spider):
         app_df = self.app_dfs.iloc[self.index, :]
         url = app_df.at['url']
         print(f"{self.index}, start url: {url}")
-        print(app_df)
+        print(app_df) if PRINT else None
         yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df': app_df})
 
 
@@ -230,7 +231,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             tbody = response.xpath('//*[@id="simpleDetailsTable"]/tbody')
             items = tbody.xpath('./tr')  # .getall()
             n_items = len(items)
-            print(f"\nSummary Tab: {n_items}")
+            print(f"\nSummary Tab: {n_items}") if PRINT else print(f"Summary Tab: {n_items}")
             for item in items:
                 item_name = item.xpath('./th/text()').get().strip()
                 data_name = self.summary_dict[item_name]
@@ -575,9 +576,9 @@ class UKPlanning_Scraper(scrapy.Spider):
                                            'comment_date': comment_date,
                                            'comment_content': comment_content})
                 comment_df.to_csv(f"{storage_path}comments.csv", index=False)
-            if CLOUD_MODE:
-                if upload_file(storage_path.split('/')[-2] + '/comments.csv') == 0:
-                    os.remove(f"{storage_path}comments.csv")
+                if CLOUD_MODE:
+                    if upload_file(storage_path.split('/')[-2] + '/comments.csv') == 0:
+                        os.remove(f"{storage_path}comments.csv")
             # constraint_url  # New
             url = app_df.at['url'].replace('summary', 'constraints')
             app_df['other_fields.constraint_url'] = url
@@ -1091,16 +1092,16 @@ class UKPlanning_Scraper(scrapy.Spider):
                     url = None
             if url is not None:
                 url = response.urljoin(url)
-                print("UPRN url:", url)
+                print("UPRN url:", url) if PRINT else None
                 yield SeleniumRequest(url=url, callback=self.parse_uprn_property_item, meta={'app_df': app_df})
             else:
-                print("No UPRN.")
+                print("No UPRN.") if PRINT else None
                 # map_url
                 url = app_df.at['url'].replace('summary', 'map')
                 app_df.at['other_fields.map_url'] = url
                 yield SeleniumRequest(url=url, callback=self.parse_map_item, meta={'app_df': app_df})
         else:  # n_properties == 0
-            print("No UPRN.")
+            print("No UPRN.") if PRINT else None
             # map_url
             url = app_df.at['url'].replace('summary', 'map')
             app_df.at['other_fields.map_url'] = url
@@ -1139,13 +1140,14 @@ class UKPlanning_Scraper(scrapy.Spider):
 
         time_cost = time.time() - self.start_time
         print("time_cost: {:.0f} mins {:.4f} secs.".format(time_cost // 60, time_cost % 60))
+        print(" ")
         #"""
         self.index += 1
         try:
             app_df = self.app_dfs.iloc[self.index, :]
             url = app_df.at['url']
             print(f"{self.index}, start url: {url}")
-            print(app_df)
+            print(app_df) if PRINT else None
             yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df': app_df})
         except:
             print("Scraping compelted.")
