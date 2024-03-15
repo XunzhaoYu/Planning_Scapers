@@ -14,6 +14,7 @@ from scrapy_selenium import SeleniumRequest
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select
 from tools.utils import get_project_root, get_storage_path, get_temp_storage_path, get_csv_files, Month_Eng_to_Digit, get_scraper_by_type
+from tools.curl import upload_file, upload_folder
 import time, random, timeit, re, os
 import zipfile
 import difflib  # for UPRN
@@ -119,11 +120,11 @@ class UKPlanning_Scraper(scrapy.Spider):
     # 10[too many requests], 13[too many requests], 14, 17, 19]]
     # Chelmsford
 
-    """ # for testing some samples from an authority
+    #""" # for testing some samples from an authority
     app_dfs = []
     auth_index = 1
-    years = np.linspace(2002, 2021, 20, dtype=int)
-    # years = np.linspace(2017, 2021, 2, dtype=int)  # 11
+    #years = np.linspace(2002, 2021, 20, dtype=int)
+    years = np.linspace(2017, 2021, 1, dtype=int)  # 11
     # years = np.append(years[:14], years[15:])
     # print(years)
     # 2002 2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018 2019 2020 2021  
@@ -156,6 +157,7 @@ class UKPlanning_Scraper(scrapy.Spider):
     index = 0
     failures = 0
     failed_apps = []
+
     result_storage_path = f"{get_temp_storage_path()}0.results/"
     if not os.path.exists(result_storage_path):
         os.mkdir(result_storage_path)
@@ -172,13 +174,16 @@ class UKPlanning_Scraper(scrapy.Spider):
         files = [self.result_storage_path + filename for filename in filenames if not filename.startswith('.')]
         append_df = pd.concat([pd.read_csv(file) for file in files], ignore_index=True)
         append_df.to_csv(get_temp_storage_path() + 'result.csv', index=False)
+        upload_file('result.csv')
 
         time_cost = time.time() - self.start_time
         print("final time_cost: {:.0f} mins {:.4f} secs.".format(time_cost // 60, time_cost % 60))
 
         print("Download failures {:d}".format(self.failures))
-        failed_df = pd.concat([pd.DataFrame(failed_app_df).T for failed_app_df in self.failed_apps], ignore_index=True)
-        failed_df.to_csv(get_temp_storage_path() + 'failed_list.csv', index=False)
+        if self.failures > 0:
+            failed_df = pd.concat([pd.DataFrame(failed_app_df).T for failed_app_df in self.failed_apps], ignore_index=True)
+            failed_df.to_csv(get_temp_storage_path() + 'failed_list.csv', index=False)
+            upload_file('failed_list.csv')
 
     def start_requests(self):
         """
@@ -345,6 +350,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             print(storage_path)
             if not os.path.exists(storage_path):
                 os.mkdir(storage_path)
+            upload_folder(uid+'/')
 
             if len(categories) > 0:
                 contact_categories = []
@@ -405,7 +411,8 @@ class UKPlanning_Scraper(scrapy.Spider):
                     contact_dict[f'contact{i+1}'] = contacts[i]
                 contact_df = pd.DataFrame(contact_dict)
                 contact_df.to_csv(f"{storage_path}contacts.csv", index=False)
-
+                if upload_file(uid+'/contacts.csv') == 0:
+                    os.remove(f"{storage_path}contacts.csv")
             # comment_url # Non_Empty
             # app_df.at['other_fields.comment_url'] = app_df.at['url'].replace('summary', 'makeComment')
             url = app_df.at['url'].replace('summary', 'neighbourComments')
@@ -476,7 +483,6 @@ class UKPlanning_Scraper(scrapy.Spider):
               f"{app_df.at['other_fields.n_comments_public_objections']}, {app_df.at['other_fields.n_comments_public_supporting']}") if PRINT else \
             print(f"public comments: {public_consulted}, {public_received}, "
               f"{app_df.at['other_fields.n_comments_public_objections']}, {app_df.at['other_fields.n_comments_public_supporting']}")
-
 
         # Scrape comments
         comment_source = []
@@ -569,6 +575,8 @@ class UKPlanning_Scraper(scrapy.Spider):
                                            'comment_date': comment_date,
                                            'comment_content': comment_content})
                 comment_df.to_csv(f"{storage_path}comments.csv", index=False)
+            if upload_file(storage_path.split('/')[-2] + '/comments.csv') == 0:
+                os.remove(f"{storage_path}comments.csv")
             # constraint_url  # New
             url = app_df.at['url'].replace('summary', 'constraints')
             app_df['other_fields.constraint_url'] = url
@@ -598,6 +606,8 @@ class UKPlanning_Scraper(scrapy.Spider):
                                        'comment_date': comment_date,
                                        'comment_content': comment_content})
             comment_df.to_csv(f"{storage_path}comments.csv", index=False)
+            if upload_file(storage_path.split('/')[-2] + '/comments.csv') == 0:
+                os.remove(f"{storage_path}comments.csv")
             # constraint_url  # New
             url = app_df.at['url'].replace('summary', 'constraints')
             app_df['other_fields.constraint_url'] = url
@@ -626,6 +636,8 @@ class UKPlanning_Scraper(scrapy.Spider):
                                               'type': constraint_types,
                                               'status': constraint_status})
                 constraint_df.to_csv(f"{storage_path}constraints.csv", index=False)
+                if upload_file(storage_path.split('/')[-2] + '/constraints.csv') == 0:
+                    os.remove(f"{storage_path}constraints.csv")
         except TypeError:
             print(f"\nThis portal does not have 'Constraints' tab.") if PRINT else print(f"This portal does not have 'Constraints' tab.")
             app_df.at['other_fields.n_constraints'] = 0
@@ -840,6 +852,8 @@ class UKPlanning_Scraper(scrapy.Spider):
             print(document_name) if PRINT else None
             if '/' in document_name:
                 document_name = re.sub('/', '-', document_name)
+            if ' ' in document_name:
+                document_name = re.sub(' ', '_', document_name)
             document_names.append(folder_name + document_name)
             file_urls.append(response.urljoin(file_url))
         return document_names, file_urls

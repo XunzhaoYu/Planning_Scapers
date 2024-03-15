@@ -80,6 +80,10 @@ ITEM_PIPELINES = {
 }
 FILES_STORE = "../Data_Temp/"
 
+LOG_ENABLED = False
+LOG_FILE = "../Data_Temp/failed_download_log.txt"
+LOG_LEVEL = 'ERROR'
+
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html
 #AUTOTHROTTLE_ENABLED = True

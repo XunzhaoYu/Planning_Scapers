@@ -4,6 +4,11 @@
 # See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 from scrapy.pipelines.files import FilesPipeline
 from scrapy import Request
+from tools.curl import upload_file
+from tools.utils import get_temp_storage_path
+import os
+import logging
+"""
 import json, time, requests
 from io import BytesIO
 from scrapy.utils.misc import md5sum
@@ -11,7 +16,7 @@ from contextlib import suppress
 
 # useful for handling different item types with a single interface
 from itemadapter import ItemAdapter
-
+"""
 
 class UkplanningPipeline:
     def process_item(self, item, spider):
@@ -60,3 +65,20 @@ class DownloadFilesPipeline(FilesPipeline):
         #print(info.spider.crawler.stats.get_value('file_count'))
         #print(info.spider.crawler.stats.get_value(f"file_status_count/{200}"))
         return request.meta.get('document_name')
+
+# def file_downloaded(self, response, request, info, *, item=None):
+
+    def item_completed(self, results, item, info):
+        storage_path = get_temp_storage_path()
+        for success, file_info_or_error in results:
+            if success:  # download succeeded, upload to cloud.
+                file_path = file_info_or_error['path']
+                if upload_file(file_path) == 0:  # upload succeeded, delete local file.
+                    os.remove(storage_path + file_path)
+            else:  # download failed, record logs.
+                logging.error(msg=file_info_or_error)
+        # if all files in this application folder have been uploaded, delete the empty folder.
+        folder_path = storage_path + results[0][1]['path'].split('/')[0]
+        if not os.listdir(folder_path):
+            os.rmdir(folder_path)
+        return super().item_completed(results, item, info)
