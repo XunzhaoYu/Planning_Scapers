@@ -1,21 +1,21 @@
 import scrapy
+from scrapy import signals
 #from scrapy import Request
+#from scrapy.spiders import CrawlSpider, Rule
+#from scrapy.linkextractors import LinkExtractor
+from items import DownloadFilesItem
+from settings import PRINT, CLOUD_MODE
 #import requests
+from scrapy_selenium import SeleniumRequest
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import Select
 #import csv
 import pandas as pd
 pd.options.mode.chained_assignment = None
 import numpy as np
-#from scrapy.spiders import CrawlSpider, Rule
-#from scrapy.linkextractors import LinkExtractor
-from items import DownloadFilesItem
-from scrapy import signals
 #from tools.bypass_reCaptcha import bypass_reCaptcha
-from scrapy_selenium import SeleniumRequest
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import Select
 from tools.utils import get_project_root, get_storage_path, get_temp_storage_path, get_csv_files, Month_Eng_to_Digit, get_scraper_by_type
 from tools.curl import upload_file, upload_folder
-from settings import PRINT, CLOUD_MODE
 import time, random, timeit, re, os
 import zipfile
 import difflib  # for UPRN
@@ -156,7 +156,7 @@ class UKPlanning_Scraper(scrapy.Spider):
         print(self.app_dfs)
         self.list_path = f"{get_temp_storage_path()}to_scrape_list.csv"
         if not os.path.isfile(self.list_path):
-            self.init_index = 1187
+            self.init_index = 4425
             self.to_scrape = self.app_dfs.iloc[self.init_index:, 0]
             self.to_scrape.to_csv(self.list_path, index=True)
             print("write", self.to_scrape)
@@ -166,6 +166,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             print("read", self.to_scrape)
         self.app_dfs = self.app_dfs.iloc[self.to_scrape.index,:]
 
+        self.index = -1
         #self.index = self.init_index
         self.failures = 0
         #self.failed_apps = []
@@ -180,8 +181,23 @@ class UKPlanning_Scraper(scrapy.Spider):
     @classmethod
     def from_crawler(cls, crawler, *args, **kwargs):
         spider = super(UKPlanning_Scraper, cls).from_crawler(crawler, *args, **kwargs)
+        crawler.signals.connect(spider.idle_consume, signals.spider_idle)
         crawler.signals.connect(spider.spider_closed, signal=signals.spider_closed)
         return spider
+
+    def idle_consume(self):
+        """
+        Everytime spider is about to close check our urls
+        buffer if we have something left to crawl
+        """
+        reqs = self.start_requests()
+        if not reqs:
+            return
+        for req in reqs:
+            #self.crawler.engine.schedule(req, self)
+            self.crawler.engine.crawl(req)
+        #raise DontCloseSpider
+        # ScrapyDeprecationWarning: ExecutionEngine.schedule is deprecated, please use ExecutionEngine.crawl or ExecutionEngine.download instead self.crawler.engine.schedule(req, self)
 
     def spider_closed(self, spider):
         filenames = os.listdir(self.result_storage_path)
@@ -189,9 +205,13 @@ class UKPlanning_Scraper(scrapy.Spider):
         files = [self.result_storage_path + filename for filename in filenames if not filename.startswith('.')]
         append_df = pd.concat([pd.read_csv(file) for file in files], ignore_index=True)
         current_time = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+        """ # for test new authority
         append_df.to_csv(get_temp_storage_path() + f'result_{current_time}.csv', index=False)
         upload_file(f'result_{current_time}.csv') if CLOUD_MODE else None
-        #
+        """
+        append_df.to_csv(get_temp_storage_path() + f'{self.auth}_result_{current_time}.csv', index=False)
+        upload_file(f'{self.auth}_result_{current_time}.csv') if CLOUD_MODE else None
+        #"""
         self.to_scrape.to_csv(self.list_path, index=True)
 
         time_cost = time.time() - self.start_time
@@ -205,22 +225,23 @@ class UKPlanning_Scraper(scrapy.Spider):
         """
 
     def start_requests(self):
-        #"""
+        """
         #for index, app_df in enumerate(self.app_dfs[self.init_index:]):
-        for index in [0]: # range(self.app_dfs.shape[0]):
+        for index in range(self.app_dfs.shape[0]):
             app_df = self.app_dfs.iloc[index, :]
             url = app_df.at['url']
-            print(f"\n{index}, start url: {url}")
-            print(app_df) #if PRINT else None
+            print(f"\n{app_df.name}, start url: {url}")
+            print(app_df) if PRINT else None
             #yield scrapy.Request(url=url, callback=self.parse_item)
             yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df':app_df})
         """
+        self.index += 1
         app_df = self.app_dfs.iloc[self.index, :]
         url = app_df.at['url']
-        print(f"{self.index}, start url: {url}")
+        print(f"\n{app_df.name}, start url: {url}")
         print(app_df) if PRINT else None
+        # yield scrapy.Request(url=url, callback=self.parse_item)
         yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df': app_df})
-        #"""
 
     def is_empty(self, cell):
         return pd.isnull(cell)
@@ -991,11 +1012,11 @@ class UKPlanning_Scraper(scrapy.Spider):
 
             if documents_str is None:
                 n_documents = 0
-                print(f"<doc mode> n_documents: {n_documents}. (None)")
+                print(f"{app_df.name} <doc mode> n_documents: {n_documents}. (None)")
             else:
                 n_documents = int(re.search(r"\d+", documents_str).group())
                 #print(f"<doc mode> n_documents: {n_documents}")
-                print(f"<doc mode> n_documents: {n_documents}, storage_path: {storage_path}")
+                print(f"{app_df.name} <doc mode> n_documents: {n_documents}, storage_path: {storage_path}")
             # other_fields.n_documents
             app_df.at['other_fields.n_documents'] = n_documents
             if n_documents > 0:
@@ -1134,7 +1155,7 @@ class UKPlanning_Scraper(scrapy.Spider):
                 os.rmdir(folder_path)
 
         time_cost = time.time() - self.start_time
-        print("time_cost: {:.0f} mins {:.4f} secs.".format(time_cost // 60, time_cost % 60))
+        print("{:d} time_cost: {:.0f} mins {:.4f} secs.".format(app_df.name, time_cost // 60, time_cost % 60))
         self.to_scrape.drop(app_df.name, inplace=True)
 
             # Unknown: 8

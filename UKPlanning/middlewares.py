@@ -294,7 +294,7 @@ class SeleniumMiddleware_Linux(SeleniumMiddleware):
 
             # self.driver.get('https://github.com/')
             # print(self.driver.title)
-            self.driver.get('https://www.google.com/')
-            print(self.driver.title)
+            #self.driver.get('https://www.google.com/')
+            #print(self.driver.title)
             # self.driver.get('https://publicaccess.aberdeencity.gov.uk/online-applications/applicationDetails.do?keyVal=ZZZYA4BZSK176&activeTab=summary/')
             # print(self.driver.title)
