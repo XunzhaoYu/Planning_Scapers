@@ -187,10 +187,6 @@ class UKPlanning_Scraper(scrapy.Spider):
         return spider
 
     def idle_consume(self):
-        """
-        Everytime spider is about to close check our urls
-        buffer if we have something left to crawl
-        """
         reqs = self.start_requests()
         if not reqs:
             return
@@ -219,6 +215,7 @@ class UKPlanning_Scraper(scrapy.Spider):
         print("final time_cost: {:.0f} mins {:.4f} secs.".format(time_cost // 60, time_cost % 60))
 
     def start_requests(self):
+        # parallel, discarded.
         """
         #for index, app_df in enumerate(self.app_dfs[self.init_index:]):
         for index in range(self.app_dfs.shape[0]):
@@ -229,6 +226,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             #yield scrapy.Request(url=url, callback=self.parse_item)
             yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df':app_df})
         """
+        # sequential.
         self.index += 1
         app_df = self.app_dfs.iloc[self.index, :]
         url = app_df.at['url']
@@ -253,15 +251,15 @@ class UKPlanning_Scraper(scrapy.Spider):
     def parse_summary_item(self, response):
         #driver = response.request.meta["driver"]
         app_df = response.meta['app_df']
-        tbody = response.xpath('//*[@id="simpleDetailsTable"]/tbody')
-        items = tbody.xpath('./tr')  # .getall()
+        items = response.xpath('//*[@id="simpleDetailsTable"]/tbody/tr')
         n_items = len(items)
         print(f"\nSummary Tab: {n_items}") if PRINT else None #print(f"Summary Tab: {n_items}")
         for item in items:
             item_name = item.xpath('./th/text()').get().strip()
             data_name = self.summary_dict[item_name]
 
-            if data_name in self.app_dfs.columns:
+            #if data_name in self.app_dfs.columns:
+            try:
                 # Empty
                 if self.is_empty(app_df.at[data_name]):
                     # Date
@@ -276,17 +274,16 @@ class UKPlanning_Scraper(scrapy.Spider):
                 else:
                     print(f"<{item_name}> filled.") if PRINT else None
             # New (Non-Date)
-            else:
+            except KeyError:
                 app_df[data_name] = item.xpath('./td/text()').get().strip()
-                print(f"<{item_name}> scraped: {app_df.at[data_name]}") if PRINT else None
+                print(f"<{item_name}> scraped (new): {app_df.at[data_name]}") if PRINT else None
 
         url = app_df.at['url'].replace('summary', 'details')
         yield SeleniumRequest(url=url, callback=self.parse_details_item, meta={'app_df': app_df})
 
     def parse_details_item(self, response):
         app_df = response.meta['app_df']
-        tbody = response.xpath('//*[@id="applicationDetails"]/tbody')
-        items = tbody.xpath('./tr')
+        items = response.xpath('//*[@id="applicationDetails"]/tbody/tr')
         n_items = len(items)
         print(f"\nFurther Information Tab: {n_items}") if PRINT else None # print(f"Further Information Tab: {n_items}")
         for item in items:
@@ -296,7 +293,8 @@ class UKPlanning_Scraper(scrapy.Spider):
                 continue
             data_name = self.details_dict[item_name]
 
-            if data_name in self.app_dfs.columns:
+            # if data_name in self.app_dfs.columns:
+            try:
                 # See source
                 if item_name in ['Agent Name', 'Applicant Name', 'Case Officer']:
                     app_df.at[data_name] = item.xpath('./td/text()').get().strip()
@@ -309,18 +307,17 @@ class UKPlanning_Scraper(scrapy.Spider):
                 else:
                     print(f"<{item_name}> filled.") if PRINT else None
             # New
-            else:
+            except KeyError:
                 # if item_name in ['Actual Decision Level', 'Expected Decision Level', 'Environmental Assessment Requested']:
                 app_df[data_name] = item.xpath('./td/text()').get().strip()
-                print(f"<{item_name}> scraped: {app_df.at[data_name]}") if PRINT else None
+                print(f"<{item_name}> scraped (new): {app_df.at[data_name]}") if PRINT else None
 
         url = app_df.at['url'].replace('summary', 'dates')
         yield SeleniumRequest(url=url, callback=self.parse_dates_item, meta={'app_df': app_df})
 
     def parse_dates_item(self, response):
         app_df = response.meta['app_df']
-        tbody = response.xpath('//*[@id="simpleDetailsTable"]/tbody')
-        items = tbody.xpath('./tr')
+        items = response.xpath('//*[@id="simpleDetailsTable"]/tbody/tr')
         n_items = len(items)
         print(f"\nImportant Dates Tab: {n_items}") if PRINT else None #print(f"Important Dates Tab: {n_items}")
         for item in items:
@@ -330,7 +327,8 @@ class UKPlanning_Scraper(scrapy.Spider):
                 continue
             data_name = self.dates_dict[item_name]
 
-            if data_name in self.app_dfs.columns:
+            # if data_name in self.app_dfs.columns:
+            try:
                 # Empty
                 if self.is_empty(app_df.at[data_name]):
                     date_string = item.xpath('./td/text()').get().strip()
@@ -340,20 +338,19 @@ class UKPlanning_Scraper(scrapy.Spider):
                 else:
                     print(f"<{item_name}> filled.") if PRINT else None
             # New
-            else:
+            except KeyError:
                 # if item_name in ['Agreed Expiry Date', 'Environmental Impact Assessment Received', 'Determination Deadline', 'Temporary Permission Expiry Date']:
                 date_string = item.xpath('./td/text()').get().strip()
                 app_df[data_name] = self.convert_date(date_string)
-                print(f"<{item_name}> scraped: {app_df.at[data_name]}") if PRINT else None
+                print(f"<{item_name}> scraped (new): {app_df.at[data_name]}") if PRINT else None
 
         url = app_df.at['url'].replace('summary', 'contacts')
         yield SeleniumRequest(url=url, callback=self.parse_contacts_item, meta={'app_df': app_df})
 
     def parse_contacts_item(self, response):
         app_df = response.meta['app_df']
-        # tabcontainer = response.xpath('//*[@id="pa"]/div[3]/div[3]/div[3]')
-        tabcontainer = response.css('div.tabcontainer')
-        categories = tabcontainer.xpath('./div')
+        # categories = response.xpath('//*[@id="pa"]/div[3]/div[3]/div[3]/div')
+        categories = response.css('div.tabcontainer').xpath('./div')
 
         # setup the storage path.
         uid = str(app_df.at['name'])
@@ -656,6 +653,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             """
             trs = response.xpath('//*[@id="caseConstraints"]/tbody/tr')[1:]
             n_constraints = int(len(trs))
+            app_df.at['other_fields.n_constraints'] = n_constraints
             print(f"\nn_constraints: {n_constraints}") if PRINT else None
             if n_constraints > 0:
                 constraint_names = []
