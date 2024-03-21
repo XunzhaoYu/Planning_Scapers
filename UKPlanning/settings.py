@@ -80,12 +80,13 @@ ITEM_PIPELINES = {
 }
 FILES_STORE = "../Data_Temp/"
 
-CLOUD_MODE = False
-PRINT = False
+CLOUD_MODE = False  # upload results to Cloud Storage?
+DEVELOPMENT_MODE = True  # developing scrapers on new authorities?
+PRINT = True  # print logs for debugging?
 
-LOG_ENABLED = False
-LOG_FILE = "../Data_Temp/failed_download_log.txt"
-LOG_LEVEL = 'ERROR'
+#LOG_ENABLED = False
+#LOG_FILE = "../Data_Temp/failed_download_log.txt"
+#LOG_LEVEL = 'ERROR'
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html

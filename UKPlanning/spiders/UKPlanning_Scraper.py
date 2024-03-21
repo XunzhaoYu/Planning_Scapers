@@ -4,7 +4,7 @@ from scrapy import signals
 #from scrapy.spiders import CrawlSpider, Rule
 #from scrapy.linkextractors import LinkExtractor
 from items import DownloadFilesItem
-from settings import PRINT, CLOUD_MODE
+from settings import PRINT, CLOUD_MODE, DEVELOPMENT_MODE
 #import requests
 from scrapy_selenium import SeleniumRequest
 from selenium.webdriver.common.by import By
@@ -25,7 +25,7 @@ from datetime import datetime
 class UKPlanning_Scraper(scrapy.Spider):
     name = 'UKPlanning_Scraper'
 
-    """
+    """ for testing runtime
        for i in range(10):
            t1 = timeit.timeit(setup='import pandas as pd; '
                                'from tools.utils import get_storage_path; '
@@ -118,54 +118,55 @@ class UKPlanning_Scraper(scrapy.Spider):
         auth_names.sort(key=str.lower)
         # print(auth_names)
 
-        # auth_names = auth_names[[0, 1, 2, 3[ExternalDoc], 4, 6, 7, 8[2003-2022], 9[no 2016], 11, 12
-        # 10[too many requests], 13[too many requests], 14, 17, 19]]
-        # Chelmsford
-
-        """ # for testing some samples from an authority
-        app_dfs = []
-        auth_index = 1
-        #years = np.linspace(2002, 2021, 20, dtype=int)
-        years = np.linspace(2017, 2021, 2, dtype=int)  # 11
-        # years = np.append(years[:14], years[15:])
-        # print(years)
-        # 2002 2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018 2019 2020 2021  
-        sample_index = 5
-        for auth in auth_names[auth_index:auth_index + 1]:  # 5, 15, 16, 18
-            for year in years:
-                file_path = f"{get_storage_path()}{auth}/{auth}{year}.csv"
-                df = pd.read_csv(file_path)  # , index_col=0)  # <class 'pandas.core.frame.DataFrame'>
-                # app_df = df.iloc[[sample_index], :]
-                app_df = df.iloc[sample_index, :]
-                # print(pd.DataFrame(app_df).T)
-                app_dfs.append(app_df)
-        self.app_dfs = pd.concat([pd.DataFrame(app_df).T for app_df in app_dfs], ignore_index=True)
-        """
-        self.auth = auth_names[1]
-        src_path = f"{get_storage_path()}{self.auth}/"
-        src_filenames = os.listdir(src_path)
-        src_filenames.sort(key=str.lower)
-
-        src_files = []
-        for filename in src_filenames:
-            if not filename.startswith('.'):
-                src_files.append(src_path+filename)
-        #src_files = [src_path+filename for filename in src_filenames if not filename.startswith('.')]
-        self.app_dfs = pd.concat([pd.read_csv(file) for file in src_files], ignore_index=True)
-        #"""
-        print(self.app_dfs)
-        self.list_path = f"{get_temp_storage_path()}to_scrape_list.csv"
-        if not os.path.isfile(self.list_path):
-            self.init_index = 4425
-            self.to_scrape = self.app_dfs.iloc[self.init_index:, 0]
-            self.to_scrape.to_csv(self.list_path, index=True)
-            print("write", self.to_scrape)
+        #""" # for testing some samples from an authority
+        if DEVELOPMENT_MODE:
+            # auth_names = auth_names[[0, 1, 2, 3[ExternalDoc], 4, 6, 7, 8[2003-2022], 9[no 2016], 11, 12
+            # 10[too many requests], 13[too many requests], 14, 17, 19]]
+            # Chelmsford
+            app_dfs = []
+            auth_index = 8
+            #years = np.linspace(2002, 2021, 20, dtype=int)
+            years = np.linspace(2003, 2022, 20, dtype=int)  # 11
+            # years = np.append(years[:14], years[15:])
+            # 2002 2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018 2019 2020 2021
+            sample_index = 5
+            for auth in auth_names[auth_index:auth_index + 1]:  # 5, 15, 16, 18
+                for year in years:
+                    file_path = f"{get_storage_path()}{auth}/{auth}{year}.csv"
+                    df = pd.read_csv(file_path)  # , index_col=0)  # <class 'pandas.core.frame.DataFrame'>
+                    # app_df = df.iloc[[sample_index], :]
+                    app_df = df.iloc[sample_index, :]
+                    # print(pd.DataFrame(app_df).T)
+                    app_dfs.append(app_df)
+            self.app_dfs = pd.concat([pd.DataFrame(app_df).T for app_df in app_dfs], ignore_index=True)
         else:
-            self.to_scrape = pd.read_csv(self.list_path, index_col=0)
-            #
-            print("read", self.to_scrape)
-        self.app_dfs = self.app_dfs.iloc[self.to_scrape.index,:]
+            self.auth = auth_names[1]
+            src_path = f"{get_storage_path()}{self.auth}/"
+            src_filenames = os.listdir(src_path)
+            src_filenames.sort(key=str.lower)
 
+            src_files = []
+            for filename in src_filenames:
+                if not filename.startswith('.'):
+                    src_files.append(src_path+filename)
+            #src_files = [src_path+filename for filename in src_filenames if not filename.startswith('.')]
+            self.app_dfs = pd.concat([pd.read_csv(file) for file in src_files], ignore_index=True)
+
+            # read the list of scraping.
+            self.list_path = f"{get_temp_storage_path()}to_scrape_list.csv"
+            if not os.path.isfile(self.list_path):
+                self.init_index = 4425
+                self.to_scrape = self.app_dfs.iloc[self.init_index:, 0]
+                self.to_scrape.to_csv(self.list_path, index=True)
+                print("write", self.to_scrape)
+            else:
+                self.to_scrape = pd.read_csv(self.list_path, index_col=0)
+                #
+                print("read", self.to_scrape)
+            self.app_dfs = self.app_dfs.iloc[self.to_scrape.index,:]
+        print(self.app_dfs)
+
+        # settings.
         self.index = -1
         #self.index = self.init_index
         self.failures = 0
@@ -205,24 +206,17 @@ class UKPlanning_Scraper(scrapy.Spider):
         files = [self.result_storage_path + filename for filename in filenames if not filename.startswith('.')]
         append_df = pd.concat([pd.read_csv(file) for file in files], ignore_index=True)
         current_time = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-        """ # for test new authority
-        append_df.to_csv(get_temp_storage_path() + f'result_{current_time}.csv', index=False)
-        upload_file(f'result_{current_time}.csv') if CLOUD_MODE else None
-        """
-        append_df.to_csv(get_temp_storage_path() + f'{self.auth}_result_{current_time}.csv', index=False)
-        upload_file(f'{self.auth}_result_{current_time}.csv') if CLOUD_MODE else None
-        #"""
-        self.to_scrape.to_csv(self.list_path, index=True)
+        if DEVELOPMENT_MODE:
+        # developing scrapers for new authorities
+            append_df.to_csv(get_temp_storage_path() + f'result_{current_time}.csv', index=False)
+            #upload_file(f'result_{current_time}.csv') if CLOUD_MODE else None
+        else:
+            append_df.to_csv(get_temp_storage_path() + f'{self.auth}_result_{current_time}.csv', index=False)
+            upload_file(f'{self.auth}_result_{current_time}.csv') if CLOUD_MODE else None
+            self.to_scrape.to_csv(self.list_path, index=True)
 
         time_cost = time.time() - self.start_time
         print("final time_cost: {:.0f} mins {:.4f} secs.".format(time_cost // 60, time_cost % 60))
-        """
-        print("Download failures {:d}".format(self.failures))
-        if self.failures > 0:
-            failed_df = pd.concat([pd.DataFrame(failed_app_df).T for failed_app_df in self.failed_apps], ignore_index=True)
-            failed_df.to_csv(get_temp_storage_path() + 'failed_list.csv', index=False)
-            upload_file('failed_list.csv') if CLOUD_MODE else None
-        """
 
     def start_requests(self):
         """
@@ -376,22 +370,22 @@ class UKPlanning_Scraper(scrapy.Spider):
             contact_names = []
             n_names = 0
             """
-        contact_addresses = []
-        contact_emails = []
-        for category in categories:  # '//*[@id="pa"]/div[3]/div[3]/div[3]/div/'
-        category_name = category.xpath('./h3/text()').get()
-        names = category.xpath('./p')
-        #print(f"names: {len(names)}")
-        for i in range(len(names)):
-        contact_categories.append(category_name)
-        contact_names.append(category.xpath(f'./p[{i+1}]/text()').get())
-        contact_addresses.append(category.xpath(f'./table[{i+1}]/tbody/tr[1]/td/text()').get())
-        contact_emails.append(category.xpath(f'./table[{i+1}]/tbody/tr[2]/td/text()').get())
-        contact_df = pd.DataFrame({'category': contact_categories,
-        'name': contact_names,
-        'address': contact_addresses,
-        'email': contact_emails})
-        """
+            contact_addresses = []
+            contact_emails = []
+            for category in categories:  # '//*[@id="pa"]/div[3]/div[3]/div[3]/div/'
+            category_name = category.xpath('./h3/text()').get()
+            names = category.xpath('./p')
+            #print(f"names: {len(names)}")
+            for i in range(len(names)):
+            contact_categories.append(category_name)
+            contact_names.append(category.xpath(f'./p[{i+1}]/text()').get())
+            contact_addresses.append(category.xpath(f'./table[{i+1}]/tbody/tr[1]/td/text()').get())
+            contact_emails.append(category.xpath(f'./table[{i+1}]/tbody/tr[2]/td/text()').get())
+            contact_df = pd.DataFrame({'category': contact_categories,
+            'name': contact_names,
+            'address': contact_addresses,
+            'email': contact_emails})
+            """
             contacts = [[]]
             max_contacts = 1
             for category in categories:  # '//*[@id="pa"]/div[3]/div[3]/div[3]/div/'
@@ -638,6 +632,7 @@ class UKPlanning_Scraper(scrapy.Spider):
         storage_path = response.meta['storage_path']
         # other_fields.n_constraints
         try:
+            """
             constraints_str = response.xpath('//*[@id="tab_constraints"]/span/text()').get()
             n_constraints = int(re.search(r"\d+", constraints_str).group())
             app_df.at['other_fields.n_constraints'] = n_constraints
@@ -658,6 +653,26 @@ class UKPlanning_Scraper(scrapy.Spider):
                 if CLOUD_MODE:
                     if upload_file(storage_path.split('/')[-2] + '/constraints.csv') == 0:
                         os.remove(f"{storage_path}constraints.csv")
+            """
+            trs = response.xpath('//*[@id="caseConstraints"]/tbody/tr')[1:]
+            n_constraints = int(len(trs))
+            print(f"\nn_constraints: {n_constraints}") if PRINT else None
+            if n_constraints > 0:
+                constraint_names = []
+                constraint_types = []
+                constraint_status = []
+                for tr in trs:
+                    constraint_names.append(tr.xpath(f'./td[1]/text()').get())
+                    constraint_types.append(tr.xpath(f'./td[2]/text()').get())
+                    constraint_status.append(tr.xpath(f'./td[3]/text()').get())
+                constraint_df = pd.DataFrame({'name': constraint_names,
+                                              'type': constraint_types,
+                                              'status': constraint_status})
+                constraint_df.to_csv(f"{storage_path}constraints.csv", index=False)
+                if CLOUD_MODE:
+                    if upload_file(storage_path.split('/')[-2] + '/constraints.csv') == 0:
+                        os.remove(f"{storage_path}constraints.csv")
+
         except TypeError:
             print(f"\nThis portal does not have 'Constraints' tab.") if PRINT else None #print(f"This portal does not have 'Constraints' tab.")
             app_df.at['other_fields.n_constraints'] = 0
@@ -1156,22 +1171,23 @@ class UKPlanning_Scraper(scrapy.Spider):
 
         time_cost = time.time() - self.start_time
         print("{:d} time_cost: {:.0f} mins {:.4f} secs.".format(app_df.name, time_cost // 60, time_cost % 60))
-        self.to_scrape.drop(app_df.name, inplace=True)
+        if not DEVELOPMENT_MODE:
+            self.to_scrape.drop(app_df.name, inplace=True)
 
-            # Unknown: 8
-            # other_fields.appeal_date:
-            # other_fields.appeal_decision_date:
-            # other_fields.appeal_reference
-            # other_fields.appeal_type
-            # other_fields.applicant_company
-            # other_fields.development_type
-            # other_fields.first_advertised_date
-            # other_fields.id_type
+        # Unknown: 8
+        # other_fields.appeal_date:
+        # other_fields.appeal_decision_date:
+        # other_fields.appeal_reference
+        # other_fields.appeal_type
+        # other_fields.applicant_company
+        # other_fields.development_type
+        # other_fields.first_advertised_date
+        # other_fields.id_type
 
 
-            # other_fields.comment_date
-            # other_fields.decided_by: "Further Information, Actual Decision Level or Further Information, Expected Decision Level"
-            # other_fields.planning_portal_id
+        # other_fields.comment_date
+        # other_fields.decided_by: "Further Information, Actual Decision Level or Further Information, Expected Decision Level"
+        # other_fields.planning_portal_id
 
     def parse_item_reCaptcha(self, response):
         # bypass reCaptcha
