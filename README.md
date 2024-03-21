@@ -18,15 +18,21 @@ EC2_commands: EC2 shell script for configuring EC2 instances.
 1. Put the source csv files in 'Data' folder.
 
 2. Set the local authority to be scraped: (UKPlanning/spiders/UKPlanning_Scraper.py, __init__())
+```
 	self.auth = auth_names[{the authority index}]  # auth_names include all authorities loaded from 'Data' folder, change {the authority index} to set self.auth as the authority to scrape.
+```
 
-3. Set settings:
+3. Set settings.py:
+```
 	CLOUD_MODE: if you need upload the scraped data to Cloud storage, set it to 'True'.
 	DEVELOPMENT_MODE: if you are developing scraper for new authority portals, set it to 'True' and the scraper will scrape a small set of sampled applications. Otherwise, the scraper will scrape all applications.
 	PRINT: if you need to debug, set it to 'True'.
+```
 
-4. If it is the first time to run the scraper, set the init index:  (UKPlanning/spiders/UKPlanning_Scraper.py, __init__()) 
+4. If it is the first time to run the scraper, set the init index:  (UKPlanning/spiders/UKPlanning_Scraper.py, __init__())
+```
 	self.init_index = {the index you want to start}  # if you want to start from the 100th application of a given authority portal, set {the index you want to start} to 99.
+```
 
 5. Run main.py to execute scraper. Data will be collected and stored in 'Data_Temp' folder.
  
@@ -35,38 +41,46 @@ EC2_commands: EC2 shell script for configuring EC2 instances.
 1. Follow the instructions to start a new EC2 instance: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EC2_GetStarted.html
 
 2. Get your EC2 instance's public IPv4 DNS, i.e: ec2-18-130-206-213
+   <img src="https://github.com/XunzhaoYu/Planning_Scapers/blob/main/img/connection-prereqs-console2.png" width="75%">
 
-3. Execute shell command from your local machine: 
+4. Execute shell command from your local machine:
+```
 	python {your local command path}/local_commands.py {your EC2 instance's IPv4 DNS} init
+```
 
-4. Execute shell commands from your EC2 instance:
+5. Execute shell commands from your EC2 instance:
+```
 	python3 EC2_commands.py init
 	source scraper_env/bin/activate
+```
 
-5. Execute shell command from your local machine: 
+6. Execute shell command from your local machine:
+```
 	python {your local command path}/local_commands.py {your EC2 instance's IPv4 DNS} Data
+```
 
-6. Execute shell commands from your EC2 instance:
+7. Execute shell commands from your EC2 instance:
+```
 	python EC2_commands.py install_chromedriver
 	python EC2_commands.py install_chrome
 	python EC2_commands.py configure_env
 	cd UKPlanning
 	python main.py
+```
 
+----- ----- ----- Develop new scraper ----- ----- -----      
+Currently, the scraper (UKPlanning_Scraper) is able to scrape most information items from Idox portals.         
+To develop new scrapers by adapting the existing scraper, you can create a new scraper class as a subclass of UKPlanning_Scraper and overwrite its parse methods.     
+           
+           
+--- --- END of UKPlanning_Scraper Guidance --- ---
 
-
-
-
-
-
-
-
-
-
-
-
-Below is the guidance for UKPlanIt_API.py, not for local authorities.
-
+           
+```
+###########        
+Below is the guidance for UKPlanIt_API.py, not for local authorities.      Please ignore them.      
+###########
+```   
 ----- ----- ----- UKPlanIt APIs ----- ----- ----- 
 
 File 'main.py' contains all APIs related to the scraper. Most APIs contain two parameters which are used to clarify the range of authorities to scrape or process. There are 424 authorities.
