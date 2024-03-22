@@ -155,7 +155,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             # read the list of scraping.
             self.list_path = f"{get_temp_storage_path()}to_scrape_list.csv"
             if not os.path.isfile(self.list_path):
-                self.init_index = 4425
+                self.init_index = 5327
                 self.to_scrape = self.app_dfs.iloc[self.init_index:, 0]
                 self.to_scrape.to_csv(self.list_path, index=True)
                 print("write", self.to_scrape)
@@ -209,7 +209,7 @@ class UKPlanning_Scraper(scrapy.Spider):
         else:
             append_df.to_csv(get_temp_storage_path() + f'{self.auth}_result_{current_time}.csv', index=False)
             upload_file(f'{self.auth}_result_{current_time}.csv') if CLOUD_MODE else None
-            self.to_scrape.to_csv(self.list_path, index=True)
+            #self.to_scrape.to_csv(self.list_path, index=True)
 
         time_cost = time.time() - self.start_time
         print("final time_cost: {:.0f} mins {:.4f} secs.".format(time_cost // 60, time_cost % 60))
@@ -469,6 +469,8 @@ class UKPlanning_Scraper(scrapy.Spider):
                 # comment_content.append('')
 
     def parse_public_comments_item(self, response):
+        time_cost = time.time() - self.start_time
+        print("start scraping comments. So far time_cost: {:.0f} mins {:.4f} secs.".format(time_cost // 60, time_cost % 60))
         app_df = response.meta['app_df']
         storage_path = response.meta['storage_path']
         # Scrape the summary of public comments
@@ -1028,8 +1030,10 @@ class UKPlanning_Scraper(scrapy.Spider):
                 print(f"{app_df.name} <doc mode> n_documents: {n_documents}. (None)")
             else:
                 n_documents = int(re.search(r"\d+", documents_str).group())
+                time_cost = time.time() - self.start_time
                 #print(f"<doc mode> n_documents: {n_documents}")
-                print(f"{app_df.name} <doc mode> n_documents: {n_documents}, storage_path: {storage_path}")
+                print(f"{app_df.name} <doc mode> n_documents: {n_documents}, storage_path: {storage_path}",
+                      " time_cost: {:.0f} mins {:.4f} secs.".format(time_cost // 60, time_cost % 60))
             # other_fields.n_documents
             app_df.at['other_fields.n_documents'] = n_documents
             if n_documents > 0:
@@ -1171,6 +1175,7 @@ class UKPlanning_Scraper(scrapy.Spider):
         print("{:d} time_cost: {:.0f} mins {:.4f} secs.".format(app_df.name, time_cost // 60, time_cost % 60))
         if not DEVELOPMENT_MODE:
             self.to_scrape.drop(app_df.name, inplace=True)
+            self.to_scrape.to_csv(self.list_path, index=True)
 
         # Unknown: 8
         # other_fields.appeal_date:
