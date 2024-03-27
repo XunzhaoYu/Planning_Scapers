@@ -5,7 +5,7 @@
 from scrapy.pipelines.files import FilesPipeline
 from scrapy import Request
 from tools.curl import upload_file
-from tools.utils import get_temp_storage_path
+from tools.utils import get_data_storage_path
 from settings import CLOUD_MODE
 import os, logging
 """
@@ -68,22 +68,51 @@ class DownloadFilesPipeline(FilesPipeline):
 
 # def file_downloaded(self, response, request, info, *, item=None):
 
+
     def item_completed(self, results, item, info):
-        if CLOUD_MODE:
-            storage_path = get_temp_storage_path()
+        DOWNLOAD_COMPLETED = True
+        storage_path = get_data_storage_path()
+        if CLOUD_MODE:  # For AWS EC2 instances.
             for success, file_info_or_error in results:
                 if success:  # download succeeded, upload to cloud.
                     file_path = file_info_or_error['path']
-                    if upload_file(file_path) == 0:  # upload succeeded, delete local file.
+
+                    auth = file_path.split('-')[0]
+                    if upload_file(auth + '/' + file_path) == 0:  # upload succeeded, delete local file.
+                    #if upload_file(file_path) == 0:  # upload succeeded, delete local file.
                         os.remove(storage_path + file_path)
                 else:  # download failed, record logs.
+                    DOWNLOAD_COMPLETED = False
                     logging.error(msg=file_info_or_error)
-            # if all files in this application folder have been uploaded, delete the empty folder.
-            folder_path = storage_path + results[0][1]['path'].split('/')[0]
-            if not os.listdir(folder_path):
-                os.rmdir(folder_path)
-        else:
+        else:  # For local machines.
             for success, file_info_or_error in results:
                 if not success:
+                    DOWNLOAD_COMPLETED = False
                     logging.error(msg=file_info_or_error)
+
+        # if all documents have been downloaded.
+        if DOWNLOAD_COMPLETED:
+            folder_name = results[0][1]['path'].split('/')[0]
+            failed_downloads_path = f"{storage_path}failed_downloads/{folder_name}"
+            os.rmdir(failed_downloads_path)
+
+        if CLOUD_MODE:
+            n_documents = len(results)
+            for i in range(n_documents):
+                try:  # scanning downloaded documents to get authority name and folder name.
+                    folder_name = results[i][1]['path'].split('/')[0]
+                    folder_path = storage_path + folder_name
+                    if not os.listdir(folder_path):  # if all files in this application folder have been uploaded, delete the empty folder.
+                        os.rmdir(folder_path)
+                    else:  # if not empty, move the folder to failed_upload_path.
+                        failed_upload_path = f"{storage_path}failed_uploads/{folder_name}"
+                        os.mkdir(failed_upload_path)
+                        for filename in os.listdir(folder_path):
+                            os.rename(f"{folder_path}/{filename}", f"{failed_upload_path}/{filename}")
+                        assert not os.listdir(folder_path)
+                        os.rmdir(folder_path)
+                    break
+                except TypeError:
+                    pass
         return super().item_completed(results, item, info)
+

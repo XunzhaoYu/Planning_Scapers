@@ -1,5 +1,5 @@
 import pandas as pd
-from tools.utils import get_storage_path, get_csv_files
+from tools.utils import get_list_storage_path, get_csv_files
 
 
 def validate_amount(start_dir=1, end_dir=424):
@@ -9,7 +9,7 @@ def validate_amount(start_dir=1, end_dir=424):
 
     suspects = []
     for dir in range(start_dir-1, end_dir):
-        csv_files = get_csv_files(get_storage_path(), start_dir=dir, end_dir=dir+1)
+        csv_files = get_csv_files(get_list_storage_path(), start_dir=dir, end_dir=dir+1)
         auth_df = pd.concat([pd.read_csv(file) for file in csv_files], ignore_index=True)
         n_apps_in_auth = auth_df.shape[0]
         percent = n_apps_in_auth * 100.0 / n_apps[dir]
@@ -26,7 +26,7 @@ def validate_authority(start_dir=1, end_dir=424):
     scrapers = scrapers[:-1]
 
     for dir in range(start_dir-1, end_dir):
-        csv_files = get_csv_files(get_storage_path(), start_dir=dir, end_dir=dir+1)
+        csv_files = get_csv_files(get_list_storage_path(), start_dir=dir, end_dir=dir+1)
         auth_df = pd.concat([pd.read_csv(file) for file in csv_files], ignore_index=True)
         scrapers_in_auth = auth_df.iloc[:, 0]
 

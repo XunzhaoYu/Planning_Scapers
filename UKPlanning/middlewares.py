@@ -4,6 +4,8 @@
 # https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
 from scrapy import signals
+from tools.utils import get_project_root
+from pathlib import Path
 
 # useful for handling different item types with a single interface
 from itemadapter import is_item, ItemAdapter
@@ -169,10 +171,26 @@ class SeleniumMiddleware:
         for argument in driver_arguments:
             driver_options.add_argument(argument)
 
-        driver_options.add_argument("start-maximized")  # for reCAPTCHA
-        driver_options.add_experimental_option("excludeSwitches", ["enable-automation"])  # for reCAPTCHA
-        driver_options.add_experimental_option('useAutomationExtension', False)  # for reCAPTCHA
-        driver_options.add_argument('--disable-blink-features=AutomationControlled')  # for reCAPTCHA
+        #driver_options.add_argument("start-maximized")  # for reCAPTCHA
+        #driver_options.add_experimental_option("excludeSwitches", ["enable-automation"])  # for reCAPTCHA
+        #driver_options.add_experimental_option('useAutomationExtension', False)  # for reCAPTCHA
+        #driver_options.add_argument('--disable-blink-features=AutomationControlled')  # for reCAPTCHA
+
+        # for Chrome proxy without authorization
+        """
+        proxy_host = 'brd.superproxy.io'
+        proxy_port = 22225
+        proxy_username = 'brd-customer-hl_99055641-zone-datacenter_proxy1'
+        proxy_password = '0z20j2ols2j5'
+        PROXY = f'http://{proxy_username}:{proxy_password}@{proxy_host}:{proxy_port}'
+        driver_options.add_argument(f"--proxy-server={PROXY}")
+        #"""
+        # for Chrome proxy with authorization: set proxy.zip
+        """
+        proxy_path = f"{Path(get_project_root()).parent}/proxy.zip"
+        print(proxy_path)
+        driver_options.add_extension(proxy_path)
+        #"""
 
         # set webdriver, compatible with diverse Selenium versions.
         """ 

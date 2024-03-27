@@ -9,7 +9,7 @@
 from shutil import which
 SELENIUM_DRIVER_NAME = 'chrome'
 SELENIUM_DRIVER_EXECUTABLE_PATH = which('chromedriver')
-SELENIUM_DRIVER_ARGUMENTS = ['--headless'] #'--disable-blink-features=AutomationControlled']
+SELENIUM_DRIVER_ARGUMENTS = ['--headless=new'] #'--disable-blink-features=AutomationControlled']
 #SELENIUM_DRIVER_ARGUMENTS = [] #'--disable-blink-features=AutomationControlled']
 
 BOT_NAME = "UKPlanning"
@@ -78,14 +78,15 @@ ITEM_PIPELINES = {
 #    "scrapy.pipelines.files.FilesPipeline": 1, # Note that the default pipeline uses the prefix 'scrapy'
      "UKPlanning.pipelines.DownloadFilesPipeline": 1,  # Note that the prefix is your projection name
 }
-FILES_STORE = "../Data_Temp/"
+FILES_STORE = "../Scraped_Data/"
+ROTATING_PROXY_LIST_PATH = "../ips-datacenter_proxy1.txt"
 
 CLOUD_MODE = False  # upload results to Cloud Storage?
-DEVELOPMENT_MODE = True  # developing scrapers on new authorities?
+DEVELOPMENT_MODE = False  # developing scrapers on new authorities?
 PRINT = True  # print logs for debugging?
 
 #LOG_ENABLED = False
-#LOG_FILE = "../Data_Temp/failed_download_log.txt"
+#LOG_FILE = "../Scraped_Data/error_log.txt"
 #LOG_LEVEL = 'ERROR'
 
 # Enable and configure the AutoThrottle extension (disabled by default)

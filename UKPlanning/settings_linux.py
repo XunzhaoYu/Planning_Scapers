@@ -89,14 +89,14 @@ ITEM_PIPELINES = {
 #    "scrapy.pipelines.files.FilesPipeline": 1, # Note that the default pipeline uses the prefix 'scrapy'
      "UKPlanning.pipelines.DownloadFilesPipeline": 1,  # Note that the prefix is your projection name
 }
-FILES_STORE = "../Data_Temp/"
-#FILES_STORE = "Data_Temp/"
+FILES_STORE = "../Scraped_Data/"
 
-CLOUD_MODE = True
-PRINT = False
+CLOUD_MODE = True  # upload results to Cloud Storage?
+DEVELOPMENT_MODE = False  # developing scrapers on new authorities?
+PRINT = False  # print logs for debugging?
 
 LOG_ENABLED = False
-LOG_FILE = "../Data_Temp/failed_download_log.txt"
+LOG_FILE = "../Scraped_Data/error_log.txt"
 LOG_LEVEL = 'ERROR'
 
 # Enable and configure the AutoThrottle extension (disabled by default)

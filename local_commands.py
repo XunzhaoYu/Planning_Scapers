@@ -27,7 +27,7 @@ def upload_data(auths=['Aberdeen', 'Bassetlaw']):
     # need mkdir Data on EC2 instances
     commands = []
     for auth in auths:
-        commands.append(['scp', '-i', key_pairs, '-r', local_path+f'Data/{auth}', EC2_path+f'Data/{auth}'])
+        commands.append(['scp', '-i', key_pairs, '-r', local_path+f'Lists/{auth}', EC2_path+f'Lists/{auth}'])
     execute_commands(commands)
 
 def upload_settings():

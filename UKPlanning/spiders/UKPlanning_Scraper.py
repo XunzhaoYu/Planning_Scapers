@@ -1,6 +1,6 @@
 import scrapy
 from scrapy import signals
-#from scrapy import Request
+from scrapy import Request
 #from scrapy.spiders import CrawlSpider, Rule
 #from scrapy.linkextractors import LinkExtractor
 from items import DownloadFilesItem
@@ -14,13 +14,14 @@ import pandas as pd
 pd.options.mode.chained_assignment = None
 import numpy as np
 #from tools.bypass_reCaptcha import bypass_reCaptcha
-from tools.utils import get_project_root, get_storage_path, get_temp_storage_path, get_csv_files, Month_Eng_to_Digit, get_scraper_by_type
+from tools.utils import get_project_root, get_list_storage_path, get_data_storage_path, get_csv_files, Month_Eng_to_Digit, get_scraper_by_type
 from tools.curl import upload_file, upload_folder
 import time, random, timeit, re, os
 import zipfile
 import difflib  # for UPRN
 import warnings
 from datetime import datetime
+import pprint
 
 class UKPlanning_Scraper(scrapy.Spider):
     name = 'UKPlanning_Scraper'
@@ -28,17 +29,17 @@ class UKPlanning_Scraper(scrapy.Spider):
     """ for testing runtime
        for i in range(10):
            t1 = timeit.timeit(setup='import pandas as pd; '
-                               'from tools.utils import get_storage_path; '
+                               'from tools.utils import get_list_storage_path; '
                                'auth = "Bexley";'
-                               'file_path = f"{get_storage_path()}{auth}/{auth}2011.csv"; '
+                               'file_path = f"{get_list_storage_path()}{auth}/{auth}2011.csv"; '
                                'df = pd.read_csv(file_path, index_col=0); '
                                'app_df = df.iloc[5]',
                          stmt='app_df["description"]="dec"', number=10000)
 
            t2 = timeit.timeit(setup='import pandas as pd; '
-                               'from tools.utils import get_storage_path; '
+                               'from tools.utils import get_list_storage_path; '
                                'auth = "Bexley";'
-                               'file_path = f"{get_storage_path()}{auth}/{auth}2011.csv"; '
+                               'file_path = f"{get_list_storage_path()}{auth}/{auth}2011.csv"; '
                                'df = pd.read_csv(file_path, index_col=0); '
                                'app_df = df.iloc[5]',
                          stmt='app_df.at["description"]="dec"', number=10000)
@@ -109,11 +110,29 @@ class UKPlanning_Scraper(scrapy.Spider):
                   'Local Review Body Decision Date': 'other_fields.local_review_body_decision_date'  # New*
                   }
 
+    # FOR_IP_TEST_ONLY
+    """
+    proxy_host = 'brd.superproxy.io'
+    proxy_port = 22225
+    proxy_username = 'brd-customer-hl_99055641-zone-datacenter_proxy1'
+    proxy_password = '0z20j2ols2j5'
+    #"""
+
+    def handle_error_log(self):
+        if os.path.exists(f"{get_data_storage_path()}error_log.txt"):
+            if os.path.exists(f"{get_data_storage_path()}error_log_summary.txt"):
+                error_log_summary = open(f"{get_data_storage_path()}error_log_summary.txt", "a")
+                error_log = open(f"{get_data_storage_path()}error_log.txt", "r").read()
+                error_log_summary.write(error_log)
+                error_log_summary.close()
+            else:
+                os.rename(f"{get_data_storage_path()}error_log.txt", f"{get_data_storage_path()}error_log_summary.txt")
+
     def __init__(self):
         super().__init__()
         self.start_time = time.time()
         # auth_names = get_scraper_by_type()
-        auth_names = os.listdir(get_storage_path())
+        auth_names = os.listdir(get_list_storage_path())
         auth_names = [auth_name for auth_name in auth_names if not auth_name.startswith('.')]
         auth_names.sort(key=str.lower)
         # print(auth_names)
@@ -132,7 +151,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             sample_index = 5
             for auth in auth_names[auth_index:auth_index + 1]:  # 5, 15, 16, 18
                 for year in years:
-                    file_path = f"{get_storage_path()}{auth}/{auth}{year}.csv"
+                    file_path = f"{get_list_storage_path()}{auth}/{auth}{year}.csv"
                     df = pd.read_csv(file_path)  # , index_col=0)  # <class 'pandas.core.frame.DataFrame'>
                     # app_df = df.iloc[[sample_index], :]
                     app_df = df.iloc[sample_index, :]
@@ -141,7 +160,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             self.app_dfs = pd.concat([pd.DataFrame(app_df).T for app_df in app_dfs], ignore_index=True)
         else:
             self.auth = auth_names[1]
-            src_path = f"{get_storage_path()}{self.auth}/"
+            src_path = f"{get_list_storage_path()}{self.auth}/"
             src_filenames = os.listdir(src_path)
             src_filenames.sort(key=str.lower)
 
@@ -153,9 +172,9 @@ class UKPlanning_Scraper(scrapy.Spider):
             self.app_dfs = pd.concat([pd.read_csv(file) for file in src_files], ignore_index=True)
 
             # read the list of scraping.
-            self.list_path = f"{get_temp_storage_path()}to_scrape_list.csv"
+            self.list_path = f"{get_data_storage_path()}to_scrape_list.csv"
             if not os.path.isfile(self.list_path):
-                self.init_index = 5327
+                self.init_index = 6896
                 self.to_scrape = self.app_dfs.iloc[self.init_index:, 0]
                 self.to_scrape.to_csv(self.list_path, index=True)
                 print("write", self.to_scrape)
@@ -172,9 +191,19 @@ class UKPlanning_Scraper(scrapy.Spider):
         self.failures = 0
         #self.failed_apps = []
 
-        self.result_storage_path = f"{get_temp_storage_path()}0.results/"
+        # record data
+        self.result_storage_path = f"{get_data_storage_path()}0.results/"
         if not os.path.exists(self.result_storage_path):
             os.mkdir(self.result_storage_path)
+        # record failures and errors.
+        self.failed_downloads_path = f"{get_data_storage_path()}failed_downloads/"
+        if not os.path.exists(self.failed_downloads_path):
+            os.mkdir(self.failed_downloads_path)
+        if CLOUD_MODE:
+            self.failed_uploads_path = f"{get_data_storage_path()}failed_uploads/"
+            if not os.path.exists(self.failed_uploads_path):
+                os.mkdir(self.failed_uploads_path)
+        #self.handle_error_log()
 
         # allowed_domains = ['pa.bexley.gov.uk']
         # start_urls = ['https://pa.bexley.gov.uk/online-applications/applicationDetails.do?keyVal=LELZV9BE01D00&activeTab=summary']
@@ -197,6 +226,7 @@ class UKPlanning_Scraper(scrapy.Spider):
         # ScrapyDeprecationWarning: ExecutionEngine.schedule is deprecated, please use ExecutionEngine.crawl or ExecutionEngine.download instead self.crawler.engine.schedule(req, self)
 
     def spider_closed(self, spider):
+        # summarize scraped data:
         filenames = os.listdir(self.result_storage_path)
         filenames.sort(key=str.lower)
         files = [self.result_storage_path + filename for filename in filenames if not filename.startswith('.')]
@@ -204,13 +234,19 @@ class UKPlanning_Scraper(scrapy.Spider):
         current_time = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
         if DEVELOPMENT_MODE:
         # developing scrapers for new authorities
-            append_df.to_csv(get_temp_storage_path() + f'result_{current_time}.csv', index=False)
+            append_df.to_csv(get_data_storage_path() + f'result_{current_time}.csv', index=False)
             #upload_file(f'result_{current_time}.csv') if CLOUD_MODE else None
         else:
-            append_df.to_csv(get_temp_storage_path() + f'{self.auth}_result_{current_time}.csv', index=False)
-            upload_file(f'{self.auth}_result_{current_time}.csv') if CLOUD_MODE else None
-            #self.to_scrape.to_csv(self.list_path, index=True)
+            append_df.to_csv(get_data_storage_path() + f'{self.auth}_result_{current_time}.csv', index=False)
+            #upload_file(f'{self.auth}_result_{current_time}.csv') if CLOUD_MODE else None
 
+        """
+        # summarize error logs:
+        try:
+            self.handle_error_log()
+        except FileNotFoundError:
+            print('Cannot find error log.')
+        """
         time_cost = time.time() - self.start_time
         print("final time_cost: {:.0f} mins {:.4f} secs.".format(time_cost // 60, time_cost % 60))
 
@@ -228,12 +264,42 @@ class UKPlanning_Scraper(scrapy.Spider):
         """
         # sequential.
         self.index += 1
+        """
+        app_df = self.app_dfs.iloc[self.index, :]
+        url = "https://www.whatismyip.com/"
+        print("url:", url)
+        yield SeleniumRequest(url=url, callback=self.parse_IP, meta={'app_df': app_df})
+        #"""
         app_df = self.app_dfs.iloc[self.index, :]
         url = app_df.at['url']
         print(f"\n{app_df.name}, start url: {url}")
         print(app_df) if PRINT else None
         # yield scrapy.Request(url=url, callback=self.parse_item)
         yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df': app_df})
+        #"""
+
+    # FOR_IP_TEST_ONLY
+    def start_requests_FOR_IP_TEST_ONLY(self):
+        #url = "https://www.whatismyip.com/"
+        url = "http://lumtest.com/myip.json"
+        IP_proxy = f'http://{self.proxy_username}:{self.proxy_password}@{self.proxy_host}:{self.proxy_port}'
+        print("1", IP_proxy)
+        # {brd.superproxy.io:22225}:{brd-customer-hl_99055641-zone-datacenter_proxy1}-ip-188.190.122.220:{0z20j2ols2j5}
+        #yield SeleniumRequest(url=url, callback=self.parse_IP)
+        yield Request(url="http://lumtest.com/myip.json", callback=self.parse_IP, meta={'proxy': IP_proxy})
+
+    # FOR_IP_TEST_ONLY
+    def parse_IP(self, response):
+        #pprint.pprint(response.json())
+        print('----- ----- -----')
+        print(response.body)
+        """
+        app_df = self.app_dfs.iloc[self.index, :]
+        url = app_df.at['url']
+        print(f"\n{app_df.name}, start url: {url}")
+        print(app_df) if PRINT else None
+        yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df': app_df})
+        """
 
     def is_empty(self, cell):
         return pd.isnull(cell)
@@ -356,7 +422,7 @@ class UKPlanning_Scraper(scrapy.Spider):
         uid = str(app_df.at['name'])
         if '/' in uid:
             uid = re.sub('/', '-', uid)
-        storage_path = f"{get_temp_storage_path()}{uid}/"
+        storage_path = f"{get_data_storage_path()}{uid}/"
         print(storage_path) if PRINT else None
         if not os.path.exists(storage_path):
             os.mkdir(storage_path)
@@ -1044,6 +1110,8 @@ class UKPlanning_Scraper(scrapy.Spider):
                 else:  # No checkboxs and the download button.
                     folder_name = storage_path.split('/')[-2] + '/'
                     document_names, file_urls = self.rename_documents_and_get_file_urls(response, folder_name)
+                    os.mkdir(self.failed_downloads_path + folder_name)
+
                     item = DownloadFilesItem()
                     item['file_urls'] = file_urls
                     item['document_names'] = document_names
@@ -1165,9 +1233,9 @@ class UKPlanning_Scraper(scrapy.Spider):
         if '/' in uid:
             uid = re.sub('/', '-', uid)
         app_df2.to_csv(f"{self.result_storage_path}{app_df.name}-{uid}.csv", index=False)
-        # self.app_df.T.to_csv(f"{get_temp_storage_path()}{self.auth}.csv")  # , index=False)
+        # self.app_df.T.to_csv(f"{get_data_storage_path()}{self.auth}.csv")  # , index=False)
         if CLOUD_MODE and app_df.at['other_fields.n_documents'] == 0:
-            folder_path = f"{get_temp_storage_path()}{uid}"
+            folder_path = f"{get_data_storage_path()}{uid}"
             if not os.listdir(folder_path):
                 os.rmdir(folder_path)
 

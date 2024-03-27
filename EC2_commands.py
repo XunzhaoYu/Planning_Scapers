@@ -13,8 +13,8 @@ def execute_commands(commands, print_bool=True):
 def init():
     commands = []
     commands.append(['sudo', 'yum', 'update'])
-    commands.append(['mkdir', 'Data'])
-    commands.append(['mkdir', 'Data_Temp'])
+    commands.append(['mkdir', 'Lists'])
+    commands.append(['mkdir', 'Scraped_Data'])
 
     commands.append(['rm', 'UKPlanning/settings_linux.py'])
     commands.append(['rm', 'UKPlanning/main_yu.py'])
