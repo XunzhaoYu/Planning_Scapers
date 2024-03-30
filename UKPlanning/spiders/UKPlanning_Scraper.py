@@ -119,18 +119,20 @@ class UKPlanning_Scraper(scrapy.Spider):
     #"""
 
     def handle_error_log(self):
-        if os.path.exists(f"{get_data_storage_path()}error_log.txt"):
-            if os.path.exists(f"{get_data_storage_path()}error_log_summary.txt"):
-                error_log_summary = open(f"{get_data_storage_path()}error_log_summary.txt", "a")
-                error_log = open(f"{get_data_storage_path()}error_log.txt", "r").read()
-                error_log_summary.write(error_log)
-                error_log_summary.close()
+        if os.path.exists(f"{get_data_storage_path()}error_log_temp.txt"):
+            if os.path.exists(f"{get_data_storage_path()}error_log.txt"):
+                error_log = open(f"{get_data_storage_path()}error_log.txt", "a")
+                error_log_temp = open(f"{get_data_storage_path()}error_log_temp.txt", "r").read()
+                error_log.write('\n \n \n \n \n' + error_log_temp)
+                error_log.close()
             else:
-                os.rename(f"{get_data_storage_path()}error_log.txt", f"{get_data_storage_path()}error_log_summary.txt")
+                os.rename(f"{get_data_storage_path()}error_log_temp.txt", f"{get_data_storage_path()}error_log.txt")
 
-    def __init__(self):
+    def __init__(self, auth_index, year):
         super().__init__()
         self.start_time = time.time()
+        self.data_storage_path = get_data_storage_path()
+        self.year = year
         # auth_names = get_scraper_by_type()
         auth_names = os.listdir(get_list_storage_path())
         auth_names = [auth_name for auth_name in auth_names if not auth_name.startswith('.')]
@@ -159,22 +161,34 @@ class UKPlanning_Scraper(scrapy.Spider):
                     app_dfs.append(app_df)
             self.app_dfs = pd.concat([pd.DataFrame(app_df).T for app_df in app_dfs], ignore_index=True)
         else:
+            """ option: scrape all years
             self.auth = auth_names[1]
             src_path = f"{get_list_storage_path()}{self.auth}/"
             src_filenames = os.listdir(src_path)
             src_filenames.sort(key=str.lower)
-
-            src_files = []
-            for filename in src_filenames:
-                if not filename.startswith('.'):
-                    src_files.append(src_path+filename)
-            #src_files = [src_path+filename for filename in src_filenames if not filename.startswith('.')]
+            #src_files = []
+            #for filename in src_filenames:
+            #    if not filename.startswith('.'):
+            #        src_files.append(src_path+filename)
+            src_files = [src_path+filename for filename in src_filenames if not filename.startswith('.')]
             self.app_dfs = pd.concat([pd.read_csv(file) for file in src_files], ignore_index=True)
+            """
+            # scrape a given year
+            self.auth = auth_names[int(auth_index)]
+            src_path = f"{get_list_storage_path()}{self.auth}/{self.auth}{int(self.year)}.csv"
+            self.app_dfs = pd.read_csv(src_path)
+
+            self.data_storage_path = f"{self.data_storage_path}{self.auth}/{self.year}/"
+            if not os.path.exists(f"{get_data_storage_path()}{self.auth}"):
+                os.mkdir(f"{get_data_storage_path()}{self.auth}")
+            if not os.path.exists(self.data_storage_path):
+                os.mkdir(self.data_storage_path)
+            #"""
 
             # read the list of scraping.
-            self.list_path = f"{get_data_storage_path()}to_scrape_list.csv"
+            self.list_path = f"{self.data_storage_path}to_scrape_list.csv"
             if not os.path.isfile(self.list_path):
-                self.init_index = 6896
+                self.init_index = 1004 #6896
                 self.to_scrape = self.app_dfs.iloc[self.init_index:, 0]
                 self.to_scrape.to_csv(self.list_path, index=True)
                 print("write", self.to_scrape)
@@ -192,15 +206,15 @@ class UKPlanning_Scraper(scrapy.Spider):
         #self.failed_apps = []
 
         # record data
-        self.result_storage_path = f"{get_data_storage_path()}0.results/"
+        self.result_storage_path = f"{self.data_storage_path}0.results/"
         if not os.path.exists(self.result_storage_path):
             os.mkdir(self.result_storage_path)
         # record failures and errors.
-        self.failed_downloads_path = f"{get_data_storage_path()}failed_downloads/"
+        self.failed_downloads_path = f"{self.data_storage_path}failed_downloads/"
         if not os.path.exists(self.failed_downloads_path):
             os.mkdir(self.failed_downloads_path)
         if CLOUD_MODE:
-            self.failed_uploads_path = f"{get_data_storage_path()}failed_uploads/"
+            self.failed_uploads_path = f"{self.data_storage_path}failed_uploads/"
             if not os.path.exists(self.failed_uploads_path):
                 os.mkdir(self.failed_uploads_path)
         #self.handle_error_log()
@@ -234,10 +248,10 @@ class UKPlanning_Scraper(scrapy.Spider):
         current_time = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
         if DEVELOPMENT_MODE:
         # developing scrapers for new authorities
-            append_df.to_csv(get_data_storage_path() + f'result_{current_time}.csv', index=False)
+            append_df.to_csv(self.data_storage_path + f'result_{current_time}.csv', index=False)
             #upload_file(f'result_{current_time}.csv') if CLOUD_MODE else None
         else:
-            append_df.to_csv(get_data_storage_path() + f'{self.auth}_result_{current_time}.csv', index=False)
+            append_df.to_csv(self.data_storage_path + f'{self.auth}_result_{current_time}.csv', index=False)
             #upload_file(f'{self.auth}_result_{current_time}.csv') if CLOUD_MODE else None
 
         """
@@ -246,7 +260,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             self.handle_error_log()
         except FileNotFoundError:
             print('Cannot find error log.')
-        """
+        #"""
         time_cost = time.time() - self.start_time
         print("final time_cost: {:.0f} mins {:.4f} secs.".format(time_cost // 60, time_cost % 60))
 
@@ -266,10 +280,10 @@ class UKPlanning_Scraper(scrapy.Spider):
         self.index += 1
         """
         app_df = self.app_dfs.iloc[self.index, :]
-        url = "https://www.whatismyip.com/"
+        url = "http://lumtest.com/myip.json"
         print("url:", url)
         yield SeleniumRequest(url=url, callback=self.parse_IP, meta={'app_df': app_df})
-        #"""
+        """
         app_df = self.app_dfs.iloc[self.index, :]
         url = app_df.at['url']
         print(f"\n{app_df.name}, start url: {url}")
@@ -282,24 +296,29 @@ class UKPlanning_Scraper(scrapy.Spider):
     def start_requests_FOR_IP_TEST_ONLY(self):
         #url = "https://www.whatismyip.com/"
         url = "http://lumtest.com/myip.json"
-        IP_proxy = f'http://{self.proxy_username}:{self.proxy_password}@{self.proxy_host}:{self.proxy_port}'
-        print("1", IP_proxy)
+        #IP_proxy = f'http://{self.proxy_username}:{self.proxy_password}@{self.proxy_host}:{self.proxy_port}'
+        #print("1", IP_proxy)
         # {brd.superproxy.io:22225}:{brd-customer-hl_99055641-zone-datacenter_proxy1}-ip-188.190.122.220:{0z20j2ols2j5}
-        #yield SeleniumRequest(url=url, callback=self.parse_IP)
-        yield Request(url="http://lumtest.com/myip.json", callback=self.parse_IP, meta={'proxy': IP_proxy})
+        yield SeleniumRequest(url=url, callback=self.parse_IP)
+        #yield Request(url="http://lumtest.com/myip.json", callback=self.parse_IP, meta={'proxy': IP_proxy})
 
     # FOR_IP_TEST_ONLY
     def parse_IP(self, response):
-        #pprint.pprint(response.json())
+        #pprint.pprint(response.json())  # for Request
+        print(response.xpath('/html/body/pre/text()').get()[1:24].split(',')[0])  # for SeleniumRequest
         print('----- ----- -----')
-        print(response.body)
+        yield SeleniumRequest(url="https://www.google.com/", callback=self.parse_IP2)
         """
         app_df = self.app_dfs.iloc[self.index, :]
         url = app_df.at['url']
         print(f"\n{app_df.name}, start url: {url}")
         print(app_df) if PRINT else None
         yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df': app_df})
-        """
+        #"""
+
+    def parse_IP2(self, response):
+        #print(response.body)
+        pass
 
     def is_empty(self, cell):
         return pd.isnull(cell)
@@ -422,7 +441,7 @@ class UKPlanning_Scraper(scrapy.Spider):
         uid = str(app_df.at['name'])
         if '/' in uid:
             uid = re.sub('/', '-', uid)
-        storage_path = f"{get_data_storage_path()}{uid}/"
+        storage_path = f"{self.data_storage_path}{uid}/"
         print(storage_path) if PRINT else None
         if not os.path.exists(storage_path):
             os.mkdir(storage_path)
@@ -955,7 +974,7 @@ class UKPlanning_Scraper(scrapy.Spider):
                 document_name = re.sub('/', '-', document_name)
             if ' ' in document_name:
                 document_name = re.sub(' ', '_', document_name)
-            document_names.append(folder_name + document_name)
+            document_names.append(f"{self.auth}/{self.year}/{folder_name}{document_name}")
             file_urls.append(response.urljoin(file_url))
         return document_names, file_urls
 
@@ -1233,9 +1252,9 @@ class UKPlanning_Scraper(scrapy.Spider):
         if '/' in uid:
             uid = re.sub('/', '-', uid)
         app_df2.to_csv(f"{self.result_storage_path}{app_df.name}-{uid}.csv", index=False)
-        # self.app_df.T.to_csv(f"{get_data_storage_path()}{self.auth}.csv")  # , index=False)
+        # self.app_df.T.to_csv(f"{self.data_storage_path}{self.auth}.csv")  # , index=False)
         if CLOUD_MODE and app_df.at['other_fields.n_documents'] == 0:
-            folder_path = f"{get_data_storage_path()}{uid}"
+            folder_path = f"{self.data_storage_path}{uid}"
             if not os.listdir(folder_path):
                 os.rmdir(folder_path)
 

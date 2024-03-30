@@ -75,11 +75,11 @@ class DownloadFilesPipeline(FilesPipeline):
         if CLOUD_MODE:  # For AWS EC2 instances.
             for success, file_info_or_error in results:
                 if success:  # download succeeded, upload to cloud.
-                    file_path = file_info_or_error['path']
+                    file_path = file_info_or_error['path']  # i.e. 'Fenland/2008/Fenland-F-YR04-0008-LB/date=25_Mar_2004&type=Decision_Notice&desc=Decision_Notice&31493.pdf'
 
-                    auth = file_path.split('-')[0]
-                    if upload_file(auth + '/' + file_path) == 0:  # upload succeeded, delete local file.
-                    #if upload_file(file_path) == 0:  # upload succeeded, delete local file.
+                    #auth = file_path.split('-')[0]
+                    #if upload_file(auth + '/' + file_path) == 0:  # upload succeeded, delete local file.
+                    if upload_file(file_path) == 0:  # upload succeeded, delete local file.
                         os.remove(storage_path + file_path)
                 else:  # download failed, record logs.
                     DOWNLOAD_COMPLETED = False
@@ -92,8 +92,8 @@ class DownloadFilesPipeline(FilesPipeline):
 
         # if all documents have been downloaded.
         if DOWNLOAD_COMPLETED:
-            folder_name = results[0][1]['path'].split('/')[0]
-            failed_downloads_path = f"{storage_path}failed_downloads/{folder_name}"
+            folder_names = results[0][1]['path'].split('/')
+            failed_downloads_path = f"{storage_path}{folder_names[0]}/{folder_names[1]}/failed_downloads/{folder_names[-2]}"
             os.rmdir(failed_downloads_path)
 
         if CLOUD_MODE:
