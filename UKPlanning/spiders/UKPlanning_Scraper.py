@@ -191,7 +191,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             # read the list of scraping.
             self.list_path = f"{self.data_storage_path}to_scrape_list.csv"
             if not os.path.isfile(self.list_path):
-                self.init_index = 13081 #1004
+                self.init_index = 0 #1004
                 self.to_scrape = self.app_dfs.iloc[self.init_index:, 0]
                 self.to_scrape.to_csv(self.list_path, index=True)
                 print("write", self.to_scrape)
@@ -256,6 +256,13 @@ class UKPlanning_Scraper(scrapy.Spider):
             append_df.to_csv(self.data_storage_path + f'result_{current_time}.csv', index=False)
             #upload_file(f'result_{current_time}.csv') if CLOUD_MODE else None
         else:
+            filenames = os.listdir(self.data_storage_path)
+            pattern = r'\w*_result_\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}.csv'
+            for filename in filenames:
+                match = re.search(pattern, filename, re.I)
+                if match:
+                    previous_result_path = f"{self.data_storage_path}{match.group()}"
+                    os.remove(previous_result_path)
             append_df.to_csv(self.data_storage_path + f'{self.auth}_result_{current_time}.csv', index=False)
             #upload_file(f'{self.auth}_result_{current_time}.csv') if CLOUD_MODE else None
 
