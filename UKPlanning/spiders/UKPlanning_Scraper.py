@@ -139,7 +139,7 @@ class UKPlanning_Scraper(scrapy.Spider):
         auth_names.sort(key=str.lower)
         # print(auth_names)
 
-        #""" # for testing some samples from an authority
+        # for testing some samples from an authority
         if DEVELOPMENT_MODE:
             # auth_names = auth_names[[0, 1, 2, 3[ExternalDoc], 4, 6, 7, 8[2003-2022], 9[no 2016], 11, 12
             # 10[too many requests], 13[too many requests], 14, 17, 19]]
@@ -161,30 +161,32 @@ class UKPlanning_Scraper(scrapy.Spider):
                     app_dfs.append(app_df)
             self.app_dfs = pd.concat([pd.DataFrame(app_df).T for app_df in app_dfs], ignore_index=True)
         else:
-            """ option: scrape all years
-            self.auth = auth_names[1]
-            src_path = f"{get_list_storage_path()}{self.auth}/"
-            src_filenames = os.listdir(src_path)
-            src_filenames.sort(key=str.lower)
-            #src_files = []
-            #for filename in src_filenames:
-            #    if not filename.startswith('.'):
-            #        src_files.append(src_path+filename)
-            src_files = [src_path+filename for filename in src_filenames if not filename.startswith('.')]
-            self.app_dfs = pd.concat([pd.read_csv(file) for file in src_files], ignore_index=True)
-            """
-            # scrape a given year
             self.auth = auth_names[int(auth_index)]
-            src_path = f"{get_list_storage_path()}{self.auth}/{self.auth}{int(self.year)}.csv"
-            self.app_dfs = pd.read_csv(src_path)
+            # option1: scrape all years
+            year = int(self.year)
+            if year < 0:
+               src_path = f"{get_list_storage_path()}{self.auth}/"
+               src_filenames = os.listdir(src_path)
+               src_filenames.sort(key=str.lower)
+               #src_files = []
+               #for filename in src_filenames:
+               #    if not filename.startswith('.'):
+               #        src_files.append(src_path+filename)
+               src_files = [src_path+filename for filename in src_filenames if not filename.startswith('.')]
+               self.app_dfs = pd.concat([pd.read_csv(file) for file in src_files], ignore_index=True)
+            # option2: scrape a given year
+            else:
+                src_path = f"{get_list_storage_path()}{self.auth}/{self.auth}{self.year}.csv"
+                self.app_dfs = pd.read_csv(src_path)
 
             self.data_storage_path = f"{self.data_storage_path}{self.auth}/{self.year}/"
             self.data_upload_path = f"{self.auth}/{self.year}/"
             if not os.path.exists(f"{get_data_storage_path()}{self.auth}"):
                 os.mkdir(f"{get_data_storage_path()}{self.auth}")
+                upload_folder(f"{self.auth}") if CLOUD_MODE else None
             if not os.path.exists(self.data_storage_path):
                 os.mkdir(self.data_storage_path)
-            #"""
+                upload_folder(self.data_upload_path) if CLOUD_MODE else None
 
             # read the list of scraping.
             self.list_path = f"{self.data_storage_path}to_scrape_list.csv"
@@ -458,7 +460,7 @@ class UKPlanning_Scraper(scrapy.Spider):
         print(folder_path) if PRINT else None
         if not os.path.exists(folder_path):
             os.mkdir(folder_path)
-        upload_folder(f"{self.data_upload_path}{folder_name}/") if CLOUD_MODE else None  #!!! should check auth folder and year folder.
+        upload_folder(f"{self.data_upload_path}{folder_name}/") if CLOUD_MODE else None
 
         if len(categories) > 0:
             contact_categories = []
