@@ -14,7 +14,7 @@ def init():
     commands = []
     commands.append(['sudo', 'yum', 'update'])
     commands.append(['mkdir', 'Lists'])
-    commands.append(['mkdir', 'Scraped_Data'])
+    commands.append(['mkdir', 'ScrapedApplications'])
 
     commands.append(['rm', 'UKPlanning/settings_linux.py'])
     commands.append(['rm', 'UKPlanning/main_yu.py'])

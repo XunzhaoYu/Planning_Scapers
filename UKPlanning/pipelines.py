@@ -76,9 +76,6 @@ class DownloadFilesPipeline(FilesPipeline):
             for success, file_info_or_error in results:
                 if success:  # download succeeded, upload to cloud.
                     file_path = file_info_or_error['path']  # i.e. 'Fenland/2008/Fenland-F-YR04-0008-LB/date=25_Mar_2004&type=Decision_Notice&desc=Decision_Notice&31493.pdf'
-
-                    #auth = file_path.split('-')[0]
-                    #if upload_file(auth + '/' + file_path) == 0:  # upload succeeded, delete local file.
                     if upload_file(file_path) == 0:  # upload succeeded, delete local file.
                         os.remove(storage_path + file_path)
                 else:  # download failed, record logs.
@@ -90,25 +87,27 @@ class DownloadFilesPipeline(FilesPipeline):
                     DOWNLOAD_COMPLETED = False
                     logging.error(msg=file_info_or_error)
 
-        # if all documents have been downloaded.
+        # if all documents have been downloaded, delete the empty 'failed_downloads/application folder'.
         if DOWNLOAD_COMPLETED:
-            folder_names = results[0][1]['path'].split('/')
-            failed_downloads_path = f"{storage_path}{folder_names[0]}/{folder_names[1]}/failed_downloads/{folder_names[-2]}"
+            file_path_strs = results[0][1]['path'].split('/')
+            failed_downloads_path = f"{storage_path}{file_path_strs[0]}/{file_path_strs[1]}/failed_downloads/{file_path_strs[-2]}"
             os.rmdir(failed_downloads_path)
 
+        # if all documents have been uploaded to cloud storage, delete the empty 'application folder',
+        # otherwise, move the non-empty 'application folder' to 'failed_uploads/application folder'.
         if CLOUD_MODE:
             n_documents = len(results)
             for i in range(n_documents):
                 try:  # scanning downloaded documents to get authority name and folder name.
-                    folder_name = results[i][1]['path'].split('/')[0]
-                    folder_path = storage_path + folder_name
+                    file_path_strs = results[i][1]['path'].split('/')
+                    folder_path = f"{storage_path}{file_path_strs[0]}/{file_path_strs[1]}/{file_path_strs[-2]}"
                     if not os.listdir(folder_path):  # if all files in this application folder have been uploaded, delete the empty folder.
                         os.rmdir(folder_path)
                     else:  # if not empty, move the folder to failed_upload_path.
-                        failed_upload_path = f"{storage_path}failed_uploads/{folder_name}"
-                        os.mkdir(failed_upload_path)
+                        failed_uploads_path = f"{storage_path}{file_path_strs[0]}/{file_path_strs[1]}/failed_uploads/{file_path_strs[-2]}"
+                        os.mkdir(failed_uploads_path)
                         for filename in os.listdir(folder_path):
-                            os.rename(f"{folder_path}/{filename}", f"{failed_upload_path}/{filename}")
+                            os.rename(f"{folder_path}/{filename}", f"{failed_uploads_path}/{filename}")
                         assert not os.listdir(folder_path)
                         os.rmdir(folder_path)
                     break

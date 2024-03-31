@@ -11,8 +11,10 @@ def get_list_storage_path():
     return f"{Path(get_project_root()).parent}/Lists/"
 
 def get_data_storage_path():
-    return f"{Path(get_project_root()).parent}/Scraped_Data/"
-    #return f"{Path(get_project_root()).parent}/Scraper_Status/"
+    return f"{Path(get_project_root()).parent}/ScrapedApplications/"
+
+#def get_status_storage_path():
+#    return f"{Path(get_project_root()).parent}/Scraper_Status/"
 
 def get_pages(authority):
     """

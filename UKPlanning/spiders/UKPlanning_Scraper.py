@@ -179,6 +179,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             self.app_dfs = pd.read_csv(src_path)
 
             self.data_storage_path = f"{self.data_storage_path}{self.auth}/{self.year}/"
+            self.data_upload_path = f"{self.auth}/{self.year}/"
             if not os.path.exists(f"{get_data_storage_path()}{self.auth}"):
                 os.mkdir(f"{get_data_storage_path()}{self.auth}")
             if not os.path.exists(self.data_storage_path):
@@ -188,7 +189,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             # read the list of scraping.
             self.list_path = f"{self.data_storage_path}to_scrape_list.csv"
             if not os.path.isfile(self.list_path):
-                self.init_index = 1004 #6896
+                self.init_index = 0 #1004
                 self.to_scrape = self.app_dfs.iloc[self.init_index:, 0]
                 self.to_scrape.to_csv(self.list_path, index=True)
                 print("write", self.to_scrape)
@@ -292,6 +293,9 @@ class UKPlanning_Scraper(scrapy.Spider):
         yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df': app_df})
         #"""
 
+    """
+    Testing Functions
+    """
     # FOR_IP_TEST_ONLY
     def start_requests_FOR_IP_TEST_ONLY(self):
         #url = "https://www.whatismyip.com/"
@@ -320,6 +324,9 @@ class UKPlanning_Scraper(scrapy.Spider):
         #print(response.body)
         pass
 
+    """
+    Auxiliary Functions
+    """
     def is_empty(self, cell):
         return pd.isnull(cell)
 
@@ -333,6 +340,12 @@ class UKPlanning_Scraper(scrapy.Spider):
         else:
             return date_string
 
+    def upload_and_delete(self, folder_name, file_name):
+        if upload_file(f"{self.data_upload_path}{folder_name}/{file_name}") == 0:
+            os.remove(f"{self.data_storage_path}{folder_name}/{file_name}")
+    """
+    Parse Functions
+    """
     def parse_summary_item(self, response):
         #driver = response.request.meta["driver"]
         app_df = response.meta['app_df']
@@ -437,15 +450,15 @@ class UKPlanning_Scraper(scrapy.Spider):
         # categories = response.xpath('//*[@id="pa"]/div[3]/div[3]/div[3]/div')
         categories = response.css('div.tabcontainer').xpath('./div')
 
-        # setup the storage path.
-        uid = str(app_df.at['name'])
-        if '/' in uid:
-            uid = re.sub('/', '-', uid)
-        storage_path = f"{self.data_storage_path}{uid}/"
-        print(storage_path) if PRINT else None
-        if not os.path.exists(storage_path):
-            os.mkdir(storage_path)
-        upload_folder(uid+'/') if CLOUD_MODE else None
+        # setup the app storage path.
+        folder_name = str(app_df.at['name'])
+        if '/' in folder_name:
+            folder_name = re.sub('/', '-', folder_name)
+        folder_path = f"{self.data_storage_path}{folder_name}/"
+        print(folder_path) if PRINT else None
+        if not os.path.exists(folder_path):
+            os.mkdir(folder_path)
+        upload_folder(f"{self.data_upload_path}{folder_name}/") if CLOUD_MODE else None  #!!! should check auth folder and year folder.
 
         if len(categories) > 0:
             contact_categories = []
@@ -505,27 +518,15 @@ class UKPlanning_Scraper(scrapy.Spider):
             for i in range(max_contacts):
                 contact_dict[f'contact{i+1}'] = contacts[i]
             contact_df = pd.DataFrame(contact_dict)
-            contact_df.to_csv(f"{storage_path}contacts.csv", index=False)
-            if CLOUD_MODE:
-                if upload_file(uid+'/contacts.csv') == 0:
-                    os.remove(f"{storage_path}contacts.csv")
+            contact_df.to_csv(f"{folder_path}contacts.csv", index=False)
+            self.upload_and_delete(folder_name=folder_name, file_name='contacts.csv') if CLOUD_MODE else None
+
         # comment_url # Non_Empty
         # app_df.at['other_fields.comment_url'] = app_df.at['url'].replace('summary', 'makeComment')
         url = app_df.at['url'].replace('summary', 'neighbourComments')
-        yield SeleniumRequest(url=url, callback=self.parse_public_comments_item, meta={'app_df': app_df, 'storage_path': storage_path})
+        yield SeleniumRequest(url=url, callback=self.parse_public_comments_item, meta={'app_df': app_df, 'folder_name': folder_name})
 
     # Other Tabs: 6 + 1 {n_comments, n_constraints, n_documents, *constraint_url, docs_url, map_url, UPRN}
-    def parse_comments_item_USELESS(self, response):
-        app_df = response.meta['app_df']
-        # other_fields.n_comments
-        comments_str = response.xpath('//*[@id="tab_makeComment"]/span/text()').get()  # .strip()
-        n_comments = int(re.search(r"\d", comments_str).group())
-        app_df.at['other_fields.n_comments'] = n_comments
-        print(f"n_comments: {n_comments}")
-
-        url = app_df.at['url'].replace('summary', 'neighbourComments')
-        yield SeleniumRequest(url=url, callback=self.parse_public_comments_item, meta={'app_df': app_df})
-
     def scrape_comments(self, response, comment_source, comment_date, comment_content):
         comments = response.xpath('//*[@id="comments"]').xpath('./div')
         for comment in comments:
@@ -557,7 +558,7 @@ class UKPlanning_Scraper(scrapy.Spider):
         time_cost = time.time() - self.start_time
         print("start scraping comments. So far time_cost: {:.0f} mins {:.4f} secs.".format(time_cost // 60, time_cost % 60))
         app_df = response.meta['app_df']
-        storage_path = response.meta['storage_path']
+        folder_name = response.meta['folder_name']
         # Scrape the summary of public comments
         strs = response.xpath('//*[@id="commentsContainer"]/ul/li[1]').get()
         public_consulted = int(re.search(r"\d+", strs).group())
@@ -597,23 +598,23 @@ class UKPlanning_Scraper(scrapy.Spider):
                 next_page_url = response.xpath('//*[@id="commentsListContainer"]/p[2]/a[2]/@href').get()[0]
                 next_page_url = response.urljoin(next_page_url)
                 yield SeleniumRequest(url=next_page_url, callback=self.parse_public_comments2_item,
-                                      meta={'app_df': app_df, 'storage_path': storage_path, 'comment_source': comment_source,
+                                      meta={'app_df': app_df, 'folder_name': folder_name, 'comment_source': comment_source,
                                             'comment_date': comment_date, 'comment_content': comment_content, 'remaining_consultee': remaining_consultee})
             else:  # Move to consultee pages
                 url = app_df.at['url'].replace('summary', 'consulteeComments')
                 yield SeleniumRequest(url=url, callback=self.parse_consultee_comments_item,
-                                      meta={'app_df': app_df, 'storage_path': storage_path, 'comment_source': comment_source,
+                                      meta={'app_df': app_df, 'folder_name': folder_name, 'comment_source': comment_source,
                                             'comment_date': comment_date, 'comment_content': comment_content})
         except TypeError:  # Public comment details can not display.
             # Move to consultee pages
             url = app_df.at['url'].replace('summary', 'consulteeComments')
             yield SeleniumRequest(url=url, callback=self.parse_consultee_comments_item,
-                                  meta={'app_df': app_df, 'storage_path': storage_path, 'comment_source': comment_source,
+                                  meta={'app_df': app_df, 'folder_name': folder_name, 'comment_source': comment_source,
                                         'comment_date': comment_date, 'comment_content': comment_content})
 
     def parse_public_comments2_item(self, response):
         app_df = response.meta['app_df']
-        storage_path = response.meta['storage_path']
+        folder_name = response.meta['folder_name']
         comment_source = response.meta['comment_source']
         comment_date = response.meta['comment_date']
         comment_content = response.meta['comment_content']
@@ -625,17 +626,17 @@ class UKPlanning_Scraper(scrapy.Spider):
             next_page_url = response.xpath('//*[@id="commentsListContainer"]/p[2]/a[2]/@href').get()[0]
             next_page_url = response.urljoin(next_page_url)
             yield SeleniumRequest(url=next_page_url, callback=self.parse_public_comments2_item,
-                                  meta={'app_df': app_df, 'storage_path': storage_path, 'comment_source': comment_source,
+                                  meta={'app_df': app_df, 'folder_name': folder_name, 'comment_source': comment_source,
                                         'comment_date': comment_date, 'comment_content': comment_content, 'remaining_consultee': remaining_consultee})
         else:  # Move to consultee pages
             url = app_df.at['url'].replace('summary', 'consulteeComments')
             yield SeleniumRequest(url=url, callback=self.parse_consultee_comments_item,
-                                  meta={'app_df': app_df, 'storage_path': storage_path, 'comment_source': comment_source,
+                                  meta={'app_df': app_df, 'folder_name': folder_name, 'comment_source': comment_source,
                                         'comment_date': comment_date, 'comment_content': comment_content})
 
     def parse_consultee_comments_item(self, response):
         app_df = response.meta['app_df']
-        storage_path = response.meta['storage_path']
+        folder_name = response.meta['folder_name']
         comment_source = response.meta['comment_source']
         comment_date = response.meta['comment_date']
         comment_content = response.meta['comment_content']
@@ -662,25 +663,23 @@ class UKPlanning_Scraper(scrapy.Spider):
             next_page_url = response.xpath('//*[@id="commentsListContainer"]/p[2]/a[2]/@href').extract()[0]
             next_page_url = response.urljoin(next_page_url)
             yield SeleniumRequest(url=next_page_url, callback=self.parse_consultee_comments2_item,
-                                  meta={'app_df': app_df, 'storage_path': storage_path, 'comment_source': comment_source,
+                                  meta={'app_df': app_df, 'folder_name': folder_name, 'comment_source': comment_source,
                                         'comment_date': comment_date, 'comment_content': comment_content, 'remaining_consultee': remaining_consultee})
         else:  # Store comments and move to constraint page
             if n_consulted_comments > 0:
                 comment_df = pd.DataFrame({'comment_source': comment_source,
                                            'comment_date': comment_date,
                                            'comment_content': comment_content})
-                comment_df.to_csv(f"{storage_path}comments.csv", index=False)
-                if CLOUD_MODE:
-                    if upload_file(storage_path.split('/')[-2] + '/comments.csv') == 0:
-                        os.remove(f"{storage_path}comments.csv")
+                comment_df.to_csv(f"{self.data_storage_path}{folder_name}/comments.csv", index=False)
+                self.upload_and_delete(folder_name=folder_name, file_name='comments.csv') if CLOUD_MODE else None
             # constraint_url  # New
             url = app_df.at['url'].replace('summary', 'constraints')
             app_df['other_fields.constraint_url'] = url
-            yield SeleniumRequest(url=url, callback=self.parse_constraints_item, meta={'app_df': app_df, 'storage_path': storage_path})
+            yield SeleniumRequest(url=url, callback=self.parse_constraints_item, meta={'app_df': app_df, 'folder_name': folder_name})
 
     def parse_consultee_comments2_item(self, response):
         app_df = response.meta['app_df']
-        storage_path = response.meta['storage_path']
+        folder_name = response.meta['folder_name']
         comment_source = response.meta['comment_source']
         comment_date = response.meta['comment_date']
         comment_content = response.meta['comment_content']
@@ -695,25 +694,23 @@ class UKPlanning_Scraper(scrapy.Spider):
             next_page_url = response.xpath('//*[@id="commentsListContainer"]/p[2]/a[2]/@href').get()[0]
             next_page_url = response.urljoin(next_page_url)
             yield SeleniumRequest(url=next_page_url, callback=self.parse_consultee_comments2_item,
-                                  meta={'app_df': app_df, 'storage_path': storage_path, 'comment_source': comment_source,
+                                  meta={'app_df': app_df, 'folder_name': folder_name, 'comment_source': comment_source,
                                         'comment_date': comment_date, 'comment_content': comment_content, 'remaining_consultee': remaining_consultee})
         else:  # Store comments and move to constraint page
             comment_df = pd.DataFrame({'comment_source': comment_source,
                                        'comment_date': comment_date,
                                        'comment_content': comment_content})
-            comment_df.to_csv(f"{storage_path}comments.csv", index=False)
-            if CLOUD_MODE:
-                if upload_file(storage_path.split('/')[-2] + '/comments.csv') == 0:
-                    os.remove(f"{storage_path}comments.csv")
+            comment_df.to_csv(f"{self.data_storage_path}{folder_name}/comments.csv", index=False)
+            self.upload_and_delete(folder_name=folder_name, file_name='comments.csv') if CLOUD_MODE else None
             # constraint_url  # New
             url = app_df.at['url'].replace('summary', 'constraints')
             app_df['other_fields.constraint_url'] = url
-            yield SeleniumRequest(url=url, callback=self.parse_constraints_item, meta={'app_df': app_df, 'storage_path': storage_path})
+            yield SeleniumRequest(url=url, callback=self.parse_constraints_item, meta={'app_df': app_df, 'folder_name': folder_name})
 
     # optional: some Idox portals do not have this tab.
     def parse_constraints_item(self, response):
         app_df = response.meta['app_df']
-        storage_path = response.meta['storage_path']
+        folder_name = response.meta['folder_name']
         # other_fields.n_constraints
         try:
             """
@@ -733,10 +730,8 @@ class UKPlanning_Scraper(scrapy.Spider):
                 constraint_df = pd.DataFrame({'name': constraint_names,
                                               'type': constraint_types,
                                               'status': constraint_status})
-                constraint_df.to_csv(f"{storage_path}constraints.csv", index=False)
-                if CLOUD_MODE:
-                    if upload_file(storage_path.split('/')[-2] + '/constraints.csv') == 0:
-                        os.remove(f"{storage_path}constraints.csv")
+                constraint_df.to_csv(f"{self.data_storage_path}{folder_name}/constraints.csv", index=False)
+                self.upload_and_delete(folder_name=folder_name, file_name='constraints.csv') if CLOUD_MODE else None 
             """
             trs = response.xpath('//*[@id="caseConstraints"]/tbody/tr')[1:]
             n_constraints = int(len(trs))
@@ -753,10 +748,8 @@ class UKPlanning_Scraper(scrapy.Spider):
                 constraint_df = pd.DataFrame({'name': constraint_names,
                                               'type': constraint_types,
                                               'status': constraint_status})
-                constraint_df.to_csv(f"{storage_path}constraints.csv", index=False)
-                if CLOUD_MODE:
-                    if upload_file(storage_path.split('/')[-2] + '/constraints.csv') == 0:
-                        os.remove(f"{storage_path}constraints.csv")
+                constraint_df.to_csv(f"{self.data_storage_path}{folder_name}/constraints.csv", index=False)
+                self.upload_and_delete(folder_name=folder_name, file_name='constraints.csv') if CLOUD_MODE else None
 
         except TypeError:
             print(f"\nThis portal does not have 'Constraints' tab.") if PRINT else None #print(f"This portal does not have 'Constraints' tab.")
@@ -784,10 +777,10 @@ class UKPlanning_Scraper(scrapy.Spider):
             if url == '':
                 url = app_df.at['url'].replace('summary', 'documents')
             app_df.at['other_fields.docs_url'] = url
-            yield SeleniumRequest(url=url, callback=self.parse_documents_item, meta={'app_df': app_df, 'storage_path': storage_path})
+            yield SeleniumRequest(url=url, callback=self.parse_documents_item, meta={'app_df': app_df, 'folder_name': folder_name})
         else:
             yield SeleniumRequest(url=app_df.at['other_fields.docs_url'], callback=self.parse_documents_item,
-                                  meta={'app_df': app_df, 'storage_path': storage_path})
+                                  meta={'app_df': app_df, 'folder_name': folder_name})
 
 
     def unzip_documents(self, storage_path, wait_unit=1.0, wait_total=100):
@@ -974,7 +967,7 @@ class UKPlanning_Scraper(scrapy.Spider):
                 document_name = re.sub('/', '-', document_name)
             if ' ' in document_name:
                 document_name = re.sub(' ', '_', document_name)
-            document_names.append(f"{self.auth}/{self.year}/{folder_name}{document_name}")
+            document_names.append(f"{self.data_upload_path}{folder_name}/{document_name}")
             file_urls.append(response.urljoin(file_url))
         return document_names, file_urls
 
@@ -1098,7 +1091,7 @@ class UKPlanning_Scraper(scrapy.Spider):
 
     def parse_documents_item(self, response):
         app_df = response.meta['app_df']
-        storage_path = response.meta['storage_path']
+        folder_name = response.meta['folder_name']
         try:
             mode_str = response.request.url.split('activeTab=')[1]
             mode = mode_str.split('&')[0]
@@ -1117,7 +1110,7 @@ class UKPlanning_Scraper(scrapy.Spider):
                 n_documents = int(re.search(r"\d+", documents_str).group())
                 time_cost = time.time() - self.start_time
                 #print(f"<doc mode> n_documents: {n_documents}")
-                print(f"{app_df.name} <doc mode> n_documents: {n_documents}, storage_path: {storage_path}",
+                print(f"{app_df.name} <doc mode> n_documents: {n_documents}, folder_name: {folder_name}",
                       " time_cost: {:.0f} mins {:.4f} secs.".format(time_cost // 60, time_cost % 60))
             # other_fields.n_documents
             app_df.at['other_fields.n_documents'] = n_documents
@@ -1127,7 +1120,6 @@ class UKPlanning_Scraper(scrapy.Spider):
                 if len(checkboxs) < 0:  # Download through checkboxs 24-02-17, ***Discarded. To use this approach, set 'len(checkboxs) > 0'.
                     self.scrape_documents_by_checkbox(response, driver, checkboxs, n_documents, storage_path)
                 else:  # No checkboxs and the download button.
-                    folder_name = storage_path.split('/')[-2] + '/'
                     document_names, file_urls = self.rename_documents_and_get_file_urls(response, folder_name)
                     os.mkdir(self.failed_downloads_path + folder_name)
 
@@ -1148,7 +1140,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             docs_url = response.xpath('//*[@id="pa"]/div[3]/div[3]/div[3]/p/a/@href').get()
             app_df.at['other_fields.docs_url'] = docs_url
             print(f'<{mode}> external document link:', docs_url)
-            yield SeleniumRequest(url=docs_url, callback=self.parse_documents_item, meta={'app_df': app_df, 'storage_path': storage_path})
+            yield SeleniumRequest(url=docs_url, callback=self.parse_documents_item, meta={'app_df': app_df, 'folder_name': folder_name})
             return
         elif mode == 'associatedDocuments':
             mode_str = response.request.url.split('?')[1]
@@ -1248,13 +1240,12 @@ class UKPlanning_Scraper(scrapy.Spider):
         app_df = response.meta['app_df']
         app_df2 = pd.DataFrame(app_df).T
 
-        uid = str(app_df.at['name'])
-        if '/' in uid:
-            uid = re.sub('/', '-', uid)
-        app_df2.to_csv(f"{self.result_storage_path}{app_df.name}-{uid}.csv", index=False)
-        # self.app_df.T.to_csv(f"{self.data_storage_path}{self.auth}.csv")  # , index=False)
+        folder_name = str(app_df.at['name'])
+        if '/' in folder_name:
+            folder_name = re.sub('/', '-', folder_name)
+        app_df2.to_csv(f"{self.result_storage_path}{app_df.name}-{folder_name}.csv", index=False)
         if CLOUD_MODE and app_df.at['other_fields.n_documents'] == 0:
-            folder_path = f"{self.data_storage_path}{uid}"
+            folder_path = f"{self.data_storage_path}{folder_name}"
             if not os.listdir(folder_path):
                 os.rmdir(folder_path)
 

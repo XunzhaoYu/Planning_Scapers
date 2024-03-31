@@ -39,6 +39,14 @@ def upload_middlewares():
     command = ['scp', '-i', key_pairs, local_path + 'UKPlanning/middlewares.py', EC2_path + 'UKPlanning/middlewares.py']
     execute_commands([command])
 
+def upload_pipelines():
+    command = ['scp', '-i', key_pairs, local_path + 'UKPlanning/pipelines.py', EC2_path + 'UKPlanning/pipelines.py']
+    execute_commands([command])
+
+def upload_curl():
+    command = ['scp', '-i', key_pairs, local_path + 'UKPlanning/tools/curl.py', EC2_path + 'UKPlanning/tools/curl.py']
+    execute_commands([command])
+
 def upload_scraper():
     command = ['scp', '-i', key_pairs, local_path + 'UKPlanning/spiders/UKPlanning_Scraper.py', EC2_path + 'UKPlanning/spiders/UKPlanning_Scraper.py']
     execute_commands([command])
@@ -59,6 +67,10 @@ elif command_argv == 'settings':
     upload_settings()
 elif command_argv == 'middlewares':
     upload_middlewares()
+elif command_argv == 'pipelines':
+    upload_pipelines()
+elif command_argv == 'curl':
+    upload_curl()
 elif command_argv == 'scraper':
     upload_scraper()
 elif command_argv == 'EC2_commands':
