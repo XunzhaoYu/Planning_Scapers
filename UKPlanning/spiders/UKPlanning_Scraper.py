@@ -16,7 +16,7 @@ import numpy as np
 #from tools.bypass_reCaptcha import bypass_reCaptcha
 from tools.utils import get_project_root, get_list_storage_path, get_data_storage_path, get_csv_files, Month_Eng_to_Digit, get_scraper_by_type
 from tools.curl import upload_file, upload_folder
-import time, random, timeit, re, os
+import time, random, timeit, re, os, sys
 import zipfile
 import difflib  # for UPRN
 import warnings
@@ -197,8 +197,10 @@ class UKPlanning_Scraper(scrapy.Spider):
                 print("write", self.to_scrape)
             else:
                 self.to_scrape = pd.read_csv(self.list_path, index_col=0)
-                #
-                print("read", self.to_scrape)
+                if self.to_scrape.empty:
+                    sys.exit("To_scrape_list is empty.")
+                else:
+                    print("read", self.to_scrape)
             self.app_dfs = self.app_dfs.iloc[self.to_scrape.index,:]
         print(self.app_dfs)
 
@@ -466,23 +468,6 @@ class UKPlanning_Scraper(scrapy.Spider):
             contact_categories = []
             contact_names = []
             n_names = 0
-            """
-            contact_addresses = []
-            contact_emails = []
-            for category in categories:  # '//*[@id="pa"]/div[3]/div[3]/div[3]/div/'
-            category_name = category.xpath('./h3/text()').get()
-            names = category.xpath('./p')
-            #print(f"names: {len(names)}")
-            for i in range(len(names)):
-            contact_categories.append(category_name)
-            contact_names.append(category.xpath(f'./p[{i+1}]/text()').get())
-            contact_addresses.append(category.xpath(f'./table[{i+1}]/tbody/tr[1]/td/text()').get())
-            contact_emails.append(category.xpath(f'./table[{i+1}]/tbody/tr[2]/td/text()').get())
-            contact_df = pd.DataFrame({'category': contact_categories,
-            'name': contact_names,
-            'address': contact_addresses,
-            'email': contact_emails})
-            """
             contacts = [[]]
             max_contacts = 1
             for category in categories:  # '//*[@id="pa"]/div[3]/div[3]/div[3]/div/'
@@ -592,7 +577,7 @@ class UKPlanning_Scraper(scrapy.Spider):
         try:
             #next_page_url = response.xpath('//*[@id="commentsListContainer"]/p[2]/a[2]/@href').get()[0]
             next_page_url = response.xpath('//*[@id="commentsListContainer"]').css('a.next::attr(href)').get()
-            print('public:', next_page_url)
+            #print('public:', next_page_url)
             if next_page_url:  # Next public comment page
                 next_page_url = response.urljoin(next_page_url)
                 yield SeleniumRequest(url=next_page_url, callback=self.parse_public_comments2_item,
@@ -620,7 +605,7 @@ class UKPlanning_Scraper(scrapy.Spider):
 
         # next_page_url = response.xpath('//*[@id="commentsListContainer"]/p[2]/a[2]/@href').get()[0]
         next_page_url = response.xpath('//*[@id="commentsListContainer"]').css('a.next::attr(href)').get()
-        print('public2:', next_page_url)
+        #print('public2:', next_page_url)
         if next_page_url:  # Next public comment page
             next_page_url = response.urljoin(next_page_url)
             yield SeleniumRequest(url=next_page_url, callback=self.parse_public_comments2_item,
@@ -657,7 +642,7 @@ class UKPlanning_Scraper(scrapy.Spider):
 
         # next_page_url = response.xpath('//*[@id="commentsListContainer"]/p[2]/a[2]/@href').extract()[0]
         next_page_url = response.xpath('//*[@id="commentsListContainer"]').css('a.next::attr(href)').get()
-        print('consultee:', next_page_url)
+        #print('consultee:', next_page_url)
         if next_page_url:  # Next consultee comment page
             next_page_url = response.urljoin(next_page_url)
             yield SeleniumRequest(url=next_page_url, callback=self.parse_consultee_comments2_item,
@@ -687,7 +672,7 @@ class UKPlanning_Scraper(scrapy.Spider):
 
         # next_page_url = response.xpath('//*[@id="commentsListContainer"]/p[2]/a[2]/@href').get()[0]
         next_page_url = response.xpath('//*[@id="commentsListContainer"]').css('a.next::attr(href)').get()
-        print('consultee2:', next_page_url)
+        #print('consultee2:', next_page_url)
         if next_page_url:  # Next consultee comment page
             next_page_url = response.urljoin(next_page_url)
             yield SeleniumRequest(url=next_page_url, callback=self.parse_consultee_comments2_item,
