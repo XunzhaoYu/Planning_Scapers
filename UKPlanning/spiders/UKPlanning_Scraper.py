@@ -27,24 +27,24 @@ class UKPlanning_Scraper(scrapy.Spider):
     name = 'UKPlanning_Scraper'
 
     """ for testing runtime
-       for i in range(10):
-           t1 = timeit.timeit(setup='import pandas as pd; '
-                               'from tools.utils import get_list_storage_path; '
-                               'auth = "Bexley";'
-                               'file_path = f"{get_list_storage_path()}{auth}/{auth}2011.csv"; '
-                               'df = pd.read_csv(file_path, index_col=0); '
-                               'app_df = df.iloc[5]',
-                         stmt='app_df["description"]="dec"', number=10000)
+    for i in range(10):
+        t1 = timeit.timeit(setup='import pandas as pd; '
+                           'from tools.utils import get_list_storage_path; '
+                           'auth = "Bexley";'
+                           'file_path = f"{get_list_storage_path()}{auth}/{auth}2011.csv"; '
+                           'df = pd.read_csv(file_path, index_col=0); '
+                           'app_df = df.iloc[5]',
+                     stmt='app_df["description"]="dec"', number=10000)
 
-           t2 = timeit.timeit(setup='import pandas as pd; '
-                               'from tools.utils import get_list_storage_path; '
-                               'auth = "Bexley";'
-                               'file_path = f"{get_list_storage_path()}{auth}/{auth}2011.csv"; '
-                               'df = pd.read_csv(file_path, index_col=0); '
-                               'app_df = df.iloc[5]',
-                         stmt='app_df.at["description"]="dec"', number=10000)
-           print(t1, t2, "{:.2f}%".format(t2*100.0/t1))
-       #"""
+        t2 = timeit.timeit(setup='import pandas as pd; '
+                           'from tools.utils import get_list_storage_path; '
+                           'auth = "Bexley";'
+                           'file_path = f"{get_list_storage_path()}{auth}/{auth}2011.csv"; '
+                           'df = pd.read_csv(file_path, index_col=0); '
+                           'app_df = df.iloc[5]',
+                     stmt='app_df.at["description"]="dec"', number=10000)
+        print(t1, t2, "{:.2f}%".format(t2*100.0/t1))
+    #"""
 
     Non_empty = ['uid', 'scraper_name', 'url', 'link', 'area_id', 'area_name'] + \
                 ['last_scraped', 'last_different', 'last_changed', 'other_fields.comment_url']  # 10 = 6 + 4
@@ -191,7 +191,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             # read the list of scraping.
             self.list_path = f"{self.data_storage_path}to_scrape_list.csv"
             if not os.path.isfile(self.list_path):
-                self.init_index = 0 #1004
+                self.init_index = 13081 #1004
                 self.to_scrape = self.app_dfs.iloc[self.init_index:, 0]
                 self.to_scrape.to_csv(self.list_path, index=True)
                 print("write", self.to_scrape)
@@ -586,22 +586,18 @@ class UKPlanning_Scraper(scrapy.Spider):
         comment_source = []
         comment_date = []
         comment_content = []
-        remaining_consultee = public_consulted
-        if remaining_consultee > 0:
-            # try:
+        if public_consulted > 0:
             self.scrape_comments(response, comment_source, comment_date, comment_content)
-            remaining_consultee -= 10
-            # except AttributeError:
-            #    print("No comment details provided.")
-            #    remaining_consultee = 0
 
         try:
-            if remaining_consultee > 0:  # Next public comment page
-                next_page_url = response.xpath('//*[@id="commentsListContainer"]/p[2]/a[2]/@href').get()[0]
+            #next_page_url = response.xpath('//*[@id="commentsListContainer"]/p[2]/a[2]/@href').get()[0]
+            next_page_url = response.xpath('//*[@id="commentsListContainer"]').css('a.next::attr(href)').get()
+            print('public:', next_page_url)
+            if next_page_url:  # Next public comment page
                 next_page_url = response.urljoin(next_page_url)
                 yield SeleniumRequest(url=next_page_url, callback=self.parse_public_comments2_item,
                                       meta={'app_df': app_df, 'folder_name': folder_name, 'comment_source': comment_source,
-                                            'comment_date': comment_date, 'comment_content': comment_content, 'remaining_consultee': remaining_consultee})
+                                            'comment_date': comment_date, 'comment_content': comment_content})
             else:  # Move to consultee pages
                 url = app_df.at['url'].replace('summary', 'consulteeComments')
                 yield SeleniumRequest(url=url, callback=self.parse_consultee_comments_item,
@@ -620,16 +616,16 @@ class UKPlanning_Scraper(scrapy.Spider):
         comment_source = response.meta['comment_source']
         comment_date = response.meta['comment_date']
         comment_content = response.meta['comment_content']
-        remaining_consultee = response.meta['remaining_consultee']
         self.scrape_comments(response, comment_source, comment_date, comment_content)
-        remaining_consultee -= 10
 
-        if remaining_consultee > 0:  # Next public comment page
-            next_page_url = response.xpath('//*[@id="commentsListContainer"]/p[2]/a[2]/@href').get()[0]
+        # next_page_url = response.xpath('//*[@id="commentsListContainer"]/p[2]/a[2]/@href').get()[0]
+        next_page_url = response.xpath('//*[@id="commentsListContainer"]').css('a.next::attr(href)').get()
+        print('public2:', next_page_url)
+        if next_page_url:  # Next public comment page
             next_page_url = response.urljoin(next_page_url)
             yield SeleniumRequest(url=next_page_url, callback=self.parse_public_comments2_item,
                                   meta={'app_df': app_df, 'folder_name': folder_name, 'comment_source': comment_source,
-                                        'comment_date': comment_date, 'comment_content': comment_content, 'remaining_consultee': remaining_consultee})
+                                        'comment_date': comment_date, 'comment_content': comment_content})
         else:  # Move to consultee pages
             url = app_df.at['url'].replace('summary', 'consulteeComments')
             yield SeleniumRequest(url=url, callback=self.parse_consultee_comments_item,
@@ -651,22 +647,22 @@ class UKPlanning_Scraper(scrapy.Spider):
         except TypeError:  # Consultee page cannot display.
             app_df['other_fields.n_comments_consultee_total_consulted'] = 0
             app_df['other_fields.n_comments_consultee_responded'] = 0
-        print(f"consultee comments: {app_df['other_fields.n_comments_consultee_total_consulted']}, {app_df['other_fields.n_comments_consultee_responded']}") if PRINT else None
-        n_consulted_comments = app_df['other_fields.n_comments_consultee_total_consulted'] + app_df.at['other_fields.n_comments_public_total_consulted']
-        app_df.at['other_fields.n_comments'] = app_df['other_fields.n_comments_consultee_responded'] + app_df.at['other_fields.n_comments_public_received']
+        print(f"consultee comments: {app_df.at['other_fields.n_comments_consultee_total_consulted']}, {app_df.at['other_fields.n_comments_consultee_responded']}") if PRINT else None
+        n_consulted_comments = app_df.at['other_fields.n_comments_consultee_total_consulted'] + app_df.at['other_fields.n_comments_public_total_consulted']
+        app_df.at['other_fields.n_comments'] = app_df.at['other_fields.n_comments_consultee_responded'] + app_df.at['other_fields.n_comments_public_received']
 
         # Scrape comments
-        remaining_consultee = app_df['other_fields.n_comments_consultee_total_consulted']
-        if remaining_consultee > 0:
+        if app_df.at['other_fields.n_comments_consultee_total_consulted'] > 0:
             self.scrape_comments(response, comment_source, comment_date, comment_content)
-            remaining_consultee -= 10
 
-        if remaining_consultee > 0:  # Next consultee comment page
-            next_page_url = response.xpath('//*[@id="commentsListContainer"]/p[2]/a[2]/@href').extract()[0]
+        # next_page_url = response.xpath('//*[@id="commentsListContainer"]/p[2]/a[2]/@href').extract()[0]
+        next_page_url = response.xpath('//*[@id="commentsListContainer"]').css('a.next::attr(href)').get()
+        print('consultee:', next_page_url)
+        if next_page_url:  # Next consultee comment page
             next_page_url = response.urljoin(next_page_url)
             yield SeleniumRequest(url=next_page_url, callback=self.parse_consultee_comments2_item,
                                   meta={'app_df': app_df, 'folder_name': folder_name, 'comment_source': comment_source,
-                                        'comment_date': comment_date, 'comment_content': comment_content, 'remaining_consultee': remaining_consultee})
+                                        'comment_date': comment_date, 'comment_content': comment_content})
         else:  # Store comments and move to constraint page
             if n_consulted_comments > 0:
                 comment_df = pd.DataFrame({'comment_source': comment_source,
@@ -685,19 +681,18 @@ class UKPlanning_Scraper(scrapy.Spider):
         comment_source = response.meta['comment_source']
         comment_date = response.meta['comment_date']
         comment_content = response.meta['comment_content']
-        remaining_consultee = response.meta['remaining_consultee']
         self.scrape_comments(response, comment_source, comment_date, comment_content)
-        remaining_consultee -= 10
-
         # for i in range(len(self.comment_source)):
         #    print(f"Comment{i+1}, source:{self.comment_source[i]},  date:{self.comment_date[i]},    content:{self.comment_content[i]}")
 
-        if remaining_consultee > 0:  # Next consultee comment page
-            next_page_url = response.xpath('//*[@id="commentsListContainer"]/p[2]/a[2]/@href').get()[0]
+        # next_page_url = response.xpath('//*[@id="commentsListContainer"]/p[2]/a[2]/@href').get()[0]
+        next_page_url = response.xpath('//*[@id="commentsListContainer"]').css('a.next::attr(href)').get()
+        print('consultee2:', next_page_url)
+        if next_page_url:  # Next consultee comment page
             next_page_url = response.urljoin(next_page_url)
             yield SeleniumRequest(url=next_page_url, callback=self.parse_consultee_comments2_item,
                                   meta={'app_df': app_df, 'folder_name': folder_name, 'comment_source': comment_source,
-                                        'comment_date': comment_date, 'comment_content': comment_content, 'remaining_consultee': remaining_consultee})
+                                        'comment_date': comment_date, 'comment_content': comment_content})
         else:  # Store comments and move to constraint page
             comment_df = pd.DataFrame({'comment_source': comment_source,
                                        'comment_date': comment_date,
