@@ -934,7 +934,7 @@ class UKPlanning_Scraper(scrapy.Spider):
     def rename_documents_and_get_file_urls(self, response, folder_name):
         date_column, type_column, description_column = self.get_document_info_columns(response)
         document_items = response.xpath('//*[@id="Documents"]/tbody/tr')[1:]
-        document_names = []
+        document_paths = []
         file_urls = []
         for i, document_item in enumerate(document_items):
             document_date = document_item.xpath(f'./td[{date_column}]/text()').get().strip()
@@ -956,9 +956,9 @@ class UKPlanning_Scraper(scrapy.Spider):
                 document_name = re.sub('/', '-', document_name)
             if ' ' in document_name:
                 document_name = re.sub(' ', '_', document_name)
-            document_names.append(f"{self.data_upload_path}{folder_name}/{document_name}")
+            document_paths.append(f"{self.data_upload_path}{folder_name}/{document_name}")
             file_urls.append(response.urljoin(file_url))
-        return document_names, file_urls
+        return document_paths, file_urls
 
     def scrape_documents_by_NEC(self, response, n_documents, storage_path):
         driver = response.request.meta["driver"]
@@ -1091,7 +1091,6 @@ class UKPlanning_Scraper(scrapy.Spider):
             documents_str = response.xpath('//*[@id="tab_documents"]/span/text()').get()
             if documents_str is None:
                 documents_str = response.xpath('//*[@id="pa"]/div[3]/div[3]/ul/li[3]/span/text()').get()
-
             if documents_str is None:
                 n_documents = 0
                 print(f"{app_df.name} <doc mode> n_documents: {n_documents}. (None)")
@@ -1110,7 +1109,8 @@ class UKPlanning_Scraper(scrapy.Spider):
                     self.scrape_documents_by_checkbox(response, driver, checkboxs, n_documents, storage_path)
                 else:  # No checkboxs and the download button.
                     document_names, file_urls = self.rename_documents_and_get_file_urls(response, folder_name)
-                    os.mkdir(self.failed_downloads_path + folder_name)
+                    if not os.path.exists(self.failed_downloads_path + folder_name):
+                        os.mkdir(self.failed_downloads_path + folder_name)
 
                     item = DownloadFilesItem()
                     item['file_urls'] = file_urls
