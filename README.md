@@ -16,7 +16,8 @@ local_commands: Local shell script for configuring EC2 instances.
 EC2_commands: EC2 shell script for configuring EC2 instances. 
 
 
------ ----- ----- Run scraper on local machine ----- ----- -----
+----- ----- ----- Run scraper on local machines ----- ----- -----
+
 See scraper_document.pdf for details.
  
 
