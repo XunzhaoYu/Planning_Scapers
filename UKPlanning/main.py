@@ -2,8 +2,52 @@ from scrapy import cmdline
 import re, sys
 
 #cmdline.execute("scrapy crawl {:s} -L WARNING".format('UKPlanning_Scraper').split())
-cmdline.execute(f"scrapy crawl UKPlanning_Scraper -L WARNING -a auth_index=1 -a year=-1".split())
+#cmdline.execute(f"scrapy crawl UKPlanning_Scraper -L WARNING -a auth_index=1 -a year=-1".split())
 #cmdline.execute("scrapy crawl {:s} -L WARNING".format('UKPlanning_Redownload').split())
+#cmdline.execute("scrapy crawl UKPlanning_Redownload -L WARNING -a auth=Bassetlaw -a year=2008".split())
+
+import os
+import pandas as pd
+pd.options.mode.chained_assignment = None
+from tools.utils import get_list_storage_path, get_data_storage_path
+"""
+path = f"{get_data_storage_path()}Bassetlaw_results.csv"
+path1 = f"{get_data_storage_path()}13081-Bassetlaw-30-11-00005.csv"
+path2 = f"{get_data_storage_path()}13084-Bassetlaw-46-11-00035.csv"
+paths = [path, path1, path2]
+df = pd.concat([pd.read_csv(file) for file in paths], ignore_index=True)
+df.to_csv(f"{get_data_storage_path()}Bassetlaw_results2.csv", index=False)
+"""
+#"""
+path = f"{get_data_storage_path()}Bassetlaw_results2.csv"
+for year in range(2011, 2012):
+    path2 = f"{get_list_storage_path()}/Bassetlaw/Bassetlaw{year}.csv"
+    scraped_dfs = pd.read_csv(path)
+    #print(scraped_dfs)
+    target_dfs = pd.read_csv(path2)
+    #print(target_dfs)
+
+    completed_df = pd.concat([scraped_dfs[scraped_dfs['name'] == target_dfs.iloc[index].at['name']] for index in range(len(target_dfs))], ignore_index=True)
+    print(year, completed_df.shape[0], target_dfs.shape[0])
+    if completed_df.shape[0] == target_dfs.shape[0]:
+        completed_df.to_csv(f"{get_data_storage_path()}Bassetlaw{year}results.csv", index=False)
+#"""
+
+"""
+for index in range(1, len(target_dfs)):
+    app = target_dfs.iloc[index]
+    #print(app.at['name'])
+    scraped_app = scraped_dfs[scraped_dfs['name'] == app.at['name']]
+    print(scraped_app.name)
+    #try:
+    #    scraped_app = scraped_dfs[scraped_dfs['name'] == app.at['name']]
+    #except KeyError:
+    #    print(index, app)
+#"""
+
+
+
+
 
 """  # test if IP service is working correctly.
 import pprint

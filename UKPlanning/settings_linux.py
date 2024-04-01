@@ -96,9 +96,9 @@ CLOUD_MODE = True  # upload results to Cloud Storage?
 DEVELOPMENT_MODE = False  # developing scrapers on new authorities?
 PRINT = False  # print logs for debugging?
 
-LOG_ENABLED = False
-LOG_FILE = "../ScrapedApplications/error_log.txt"
-LOG_LEVEL = 'ERROR'
+#LOG_ENABLED = False
+#LOG_FILE = "../ScrapedApplications/error_log.txt"
+#LOG_LEVEL = 'ERROR'
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html

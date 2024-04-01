@@ -172,7 +172,7 @@ class UKPlanning_Redownload(UKPlanning_Scraper):
         if self.index < self.total:
             app_df = self.app_dfs[self.index]
             url = app_df.at['other_fields.docs_url']
-            print(url)
+            print("\n", url)
             yield SeleniumRequest(url=url, callback=self.parse_documents_item, meta={'app_df': app_df, 'folder_name': self.redownload_folders[self.index]})
 
     def parse_uprn_item(self, response):

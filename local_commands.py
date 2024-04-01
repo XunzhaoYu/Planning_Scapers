@@ -48,16 +48,21 @@ def upload_curl():
     execute_commands([command])
 
 def upload_scraper():
-    command = ['scp', '-i', key_pairs, local_path + 'UKPlanning/spiders/UKPlanning_Scraper.py', EC2_path + 'UKPlanning/spiders/UKPlanning_Scraper.py']
-    execute_commands([command])
+    commands = []
+    commands.append(['scp', '-i', key_pairs, local_path + 'UKPlanning/spiders/UKPlanning_Scraper.py', EC2_path + 'UKPlanning/spiders/UKPlanning_Scraper.py'])
+    commands.append(['scp', '-i', key_pairs, local_path + 'UKPlanning/spiders/UKPlanning_Redownload.py', EC2_path + 'UKPlanning/spiders/UKPlanning_Redownload.py'])
+    execute_commands(commands)
 
 def upload_EC2_commands():
-    command = (['scp', '-i', key_pairs, local_path + 'EC2_commands.py', EC2_path + 'EC2_commands.py'])
+    command = ['scp', '-i', key_pairs, local_path + 'EC2_commands.py', EC2_path + 'EC2_commands.py']
     execute_commands([command])
 
 def upload_main():
-    command = (['scp', '-i', key_pairs, local_path + 'UKPlanning/main.py', EC2_path + 'UKPlanning/main.py'])
-    execute_commands([command])
+    commands = []
+    commands.append(['scp', '-i', key_pairs, local_path + 'UKPlanning/main.py', EC2_path + 'UKPlanning/main.py'])
+    commands.append(['scp', '-i', key_pairs, local_path + 'UKPlanning/main_scraper.py', EC2_path + 'UKPlanning/main_scraper.py'])
+    commands.append(['scp', '-i', key_pairs, local_path + 'UKPlanning/main_redownload.py', EC2_path + 'UKPlanning/main_redownload.py'])
+    execute_commands(commands)
 
 if command_argv == 'init':
     init()
