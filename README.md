@@ -3,38 +3,21 @@ Planning_Scapers
 
 ----- ----- ----- Project structure ----- ----- ----- 
 
-Folder 'Data': The processed data.
+Folder 'List': The list of all applications from Local Authorities.
 
-Folder 'Data_Temp': The raw data scraped from the Local Authorities/PlanIt API.
+Folder 'ScrapedApplications': The data and documents scraped from the Local Authorities/PlanIt API.
 
-Folder 'UKPlanning': All scripts.
+Folder 'UKPlanning': All scripts/scrapers.
 
-local_commands: local shell script for configuring EC2 instances.
+scraper_document.pdf: User guidance for using scrapers on local machines (Scrapers).
+
+local_commands: Local shell script for configuring EC2 instances.
 
 EC2_commands: EC2 shell script for configuring EC2 instances. 
 
 
 ----- ----- ----- Run scraper on local machine ----- ----- ----- 
-1. Put the source csv files in 'Data' folder.
-
-2. Set the local authority to be scraped: (UKPlanning/spiders/UKPlanning_Scraper.py, __init__())
-```
-	self.auth = auth_names[{the authority index}]  # auth_names include all authorities loaded from 'Data' folder, change {the authority index} to set self.auth as the authority to scrape.
-```
-
-3. Set settings.py:
-```
-	CLOUD_MODE: if you need upload the scraped data to Cloud storage, set it to 'True'.
-	DEVELOPMENT_MODE: if you are developing scraper for new authority portals, set it to 'True' and the scraper will scrape a small set of sampled applications. Otherwise, the scraper will scrape all applications.
-	PRINT: if you need to debug, set it to 'True'.
-```
-
-4. If it is the first time to run the scraper, set the init index:  (UKPlanning/spiders/UKPlanning_Scraper.py, __init__())
-```
-	self.init_index = {the index you want to start}  # if you want to start from the 100th application of a given authority portal, set {the index you want to start} to 99.
-```
-
-5. Run main.py to execute scraper. Data will be collected and stored in 'Data_Temp' folder.
+See scraper_document.pdf for details.
  
 
 ----- ----- ----- Configure EC2 instances ----- ----- ----- 
@@ -74,6 +57,14 @@ To develop new scrapers by adapting the existing scraper, you can create a new s
            
            
 --- --- END of UKPlanning_Scraper Guidance --- ---
+
+
+
+
+
+
+
+
 
            
 ```
