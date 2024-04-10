@@ -14,7 +14,7 @@ import pandas as pd
 pd.options.mode.chained_assignment = None
 import numpy as np
 #from tools.bypass_reCaptcha import bypass_reCaptcha
-from tools.utils import get_project_root, get_list_storage_path, get_data_storage_path, get_csv_files, Month_Eng_to_Digit, get_scraper_by_type
+from tools.utils import get_project_root, get_list_storage_path, get_data_storage_path, get_filenames, Month_Eng_to_Digit, get_scraper_by_type
 from tools.curl import upload_file, upload_folder
 import time, random, timeit, re, os, sys
 import zipfile
@@ -54,10 +54,17 @@ class UKPlanning_Scraper(scrapy.Spider):
     # self.app_df 81 - 19 + 8 = 70
     # Summary: 10 + 2*
     summary_dict = {'Reference': 'uid',  # Non-Empty
+                    'Application Reference': 'uid',  # New Duplicate [Derby]
+                    'Planning Portal Reference': 'other_fields.planning_portal_id',  # New [Derby]
                     'Alternative Reference': 'altid',
+                    #
                     'Application Received': 'other_fields.date_received',
+                    'Application Received Date': 'other_fields.date_received',  # New Duplicate [Chelmsford]
+                    'Application Registered': 'other_fields.date_received',  # New Duplicate [Rhondda]
                     'Application Validated': 'other_fields.date_validated',
+                    #
                     'Address': 'address',
+                    'Location': 'address',  # Duplicate [Derby]
                     'Proposal': 'description',
                     'Status': 'other_fields.status',
                     'Decision': 'other_fields.decision',
@@ -72,8 +79,11 @@ class UKPlanning_Scraper(scrapy.Spider):
                     'Decision': 'other_fields.decision',  # Duplicated in summary
                     'Actual Decision Level': 'other_fields.actual_decision_level',  # New
                     'Expected Decision Level': 'other_fields.expected_decision_level',  # New
+                    'Decision Level': 'other_fields.expected_decision_level',  # New Duplicate [Moray]
+                    #
                     'Case Officer': 'other_fields.case_officer',
                     'Parish': 'other_fields.parish',
+                    'Amenity Society': 'other_fields.amenity_society', # New [Westminster]
                     'Ward': 'other_fields.ward_name',
                     'District Reference': 'other_fields.district',
                     'Applicant Name': 'other_fields.applicant_name',
@@ -83,29 +93,68 @@ class UKPlanning_Scraper(scrapy.Spider):
                     'Agent Phone Number': 'other_fields.agent_phone',  # New*
                     'Agent Address': 'other_fields.agent_address',
                     'Environmental Assessment Requested': 'other_fields.environmental_assessment',  # New
-                    'Community Council': 'other_fields.community_council'  # New*
+                    'Environmental Assessment Required': 'other_fields.environmental_assessment',  # New Duplicate [Perth]
+                    'Community Council': 'other_fields.community_council',  # New*
+                    'Community': 'other_fields.community_council',  # New* Duplicate [BreconBeacons]
+                    'Community/Town Council': 'other_fields.community_council',  # New* Duplicate [Caerphilly]
                     }
     # Important Datas: 14 + 4 + 1*
     dates_dict = {'Application Received Date': 'other_fields.date_received',  # Duplicated in summary
                   'Application Validated Date': 'other_fields.date_validated',  # Duplicated in summary
+                  'Date Application Valid': 'other_fields.date_validated',  # Duplicated in summary [NewcastleUnderLyme]
+                  'Application Valid Date': 'other_fields.date_validated',  # Duplicated in summary [Oadby]
+                  'Valid Date': 'other_fields.date_validated',  # New Duplicated in summary [EastHampshire]
+
                   'Expiry Date': 'other_fields.application_expires_date',
+                  'Application Expiry Date': 'other_fields.application_expires_date',  # New Duplicate [MiltonKeynes]
+                  'Application Expiry Deadline' :  'other_fields.application_expires_date',  # New Duplicate [Sefton]
+                  'Statutory Expiry Date': 'other_fields.statutory_expires_date',  # New []
+                  #
+                  'Expiry Date for Comment': 'other_fields.comment_expires_date',  # New
+                  'Expiry Date for Comments': 'other_fields.comment_expires_date',  # New Duplicate [Moray]
+                  'Last Date For Comments': 'other_fields.comment_expires_date',  # New Duplicate [Edinburgh]
+                  'Last Date for Comments': 'other_fields.comment_expires_date',  # New Duplicate [Glasgow]
+                  'Last date for public comments': 'other_fields.comment_expires_date',  # New Duplicate [Perth]
+                  'Comments To Be Submitted By': 'other_fields.comment_expires_date',  # New Duplicate [Leeds]
+                  #
                   'Actual Committee Date': 'other_fields.meeting_date',
+                  'Committee Date': 'other_fields.meeting_date',  # New Duplicate [Chelmsford]
+                  'Actual Committee or Panel Date': 'other_fields.meeting_date',  # New Duplicate [Gedling]
+                  #
                   'Latest Neighbour Consultation Date': 'other_fields.neighbour_consultation_start_date',
                   'Neighbour Consultation Expiry Date': 'other_fields.neighbour_consultation_end_date',
+                  'Neighbour Notification Expiry Date': 'other_fields.neighbour_consultation_end_date',  # New Duplicate [Sefton]
                   'Standard Consultation Date': 'other_fields.consultation_start_date',
                   'Standard Consultation Expiry Date': 'other_fields.consultation_end_date',
+                  'Consultation Expiry Date': 'other_fields.consultation_end_date',  # New Duplicate [Chelmsford]
+                  'Consultation Deadline': 'other_fields.consultation_end_date',  # New Duplicate [NorthSomerest]
+                  'Public Consultation Expiry Date':  'other_fields.consultation_end_date',  # New Duplicate [Oadby]
+                  'Consultation Period To End On': 'other_fields.consultation_end_date',  # New Duplicate [Torbay]
+
+                  'Overall Consultation Expiry Date': 'other_fields.overall_consultation_expires_date',  # New []
+                  'Overall Date of Consultation Expiry': 'other_fields.overall_consultation_expires_date',  # New Duplicate []
+                  #
                   'Last Advertised In Press Date': 'other_fields.last_advertised_date',
+                  'Advertised in Press Date': 'other_fields.last_advertised_date', # New Duplicate [Glasgow]
                   'Latest Advertisement Expiry Date': 'other_fields.latest_advertisement_expiry_date',
+                  'Advertisement Expiry Date': 'other_fields.latest_advertisement_expiry_date',  # New Duplicate [NorthHertfordshire]
+                  #
                   'Last Site Notice Posted Date': 'other_fields.site_notice_start_date',
                   'Latest Site Notice Expiry Date': 'other_fields.site_notice_end_date',
+                  'Site Notice Expiry Date': 'other_fields.site_notice_end_date', # New Duplicate [NorthHertfordshire]
+                  #
                   'Internal Target Date': 'other_fields.target_decision_date',
                   'Agreed Expiry Date': 'other_fields.agreed_expires_date',  # New
                   'Decision Made Date': 'other_fields.decision_date',
                   'Decision Issued Date': 'other_fields.decision_issued_date',  # Duplicated in summary
                   'Permission Expiry Date': 'other_fields.permission_expires_date',
                   'Decision Printed Date': 'other_fields.decision_published_date',
+                  'Decision Due Date': 'other_fields.decision_due_date',  # New [Chelmsford]
                   'Environmental Impact Assessment Received': 'other_fields.environmental_assessment_date',  # New
                   'Determination Deadline': 'other_fields.determination_date',  # New
+                  'Statutory Determination Deadline': 'other_fields.statutory_determination_deadline',  # New []
+                  'Statutory Determination Date': 'other_fields.statutory_determination_deadline',  # New Duplicate [Oadby]
+                  'Extended Determination Deadline': 'other_fields.extended_determination_deadline',  # New [NorthSomerest]
                   'Temporary Permission Expiry Date': 'other_fields.temporary_permission_expires_date',  # New
                   'Local Review Body Decision Date': 'other_fields.local_review_body_decision_date'  # New*
                   }
@@ -133,34 +182,51 @@ class UKPlanning_Scraper(scrapy.Spider):
         self.start_time = time.time()
         self.data_storage_path = get_data_storage_path()
         self.year = year
-        # auth_names = get_scraper_by_type()
-        auth_names = os.listdir(get_list_storage_path())
-        auth_names = [auth_name for auth_name in auth_names if not auth_name.startswith('.')]
-        auth_names.sort(key=str.lower)
-        # print(auth_names)
 
         # for testing some samples from an authority
         if DEVELOPMENT_MODE:
+            auth_names = get_scraper_by_type()
+            auth_names = [auth_name for auth_name in auth_names if not auth_name.startswith('.')]
+            auth_names.sort(key=str.lower)
+            print(auth_names)
             # auth_names = auth_names[[0, 1, 2, 3[ExternalDoc], 4, 6, 7, 8[2003-2022], 9[no 2016], 11, 12
             # 10[too many requests], 13[too many requests], 14, 17, 19]]
-            # Chelmsford
             app_dfs = []
-            auth_index = 8
+            self.auth_index = 250
+            self.year = -1
+            self.auth = auth_names[int(self.auth_index)]
+            self.data_storage_path = f"{self.data_storage_path}{self.auth}/{self.year}/"
+            self.data_upload_path = f"{self.auth}/{self.year}/"
+            if not os.path.exists(f"{get_data_storage_path()}{self.auth}"):
+                os.mkdir(f"{get_data_storage_path()}{self.auth}")
+                upload_folder(f"{self.auth}") if CLOUD_MODE else None
+            if not os.path.exists(self.data_storage_path):
+                os.mkdir(self.data_storage_path)
+                upload_folder(self.data_upload_path) if CLOUD_MODE else None
+
             #years = np.linspace(2002, 2021, 20, dtype=int)
-            years = np.linspace(2003, 2022, 20, dtype=int)  # 11
+            #years = np.linspace(2003, 2022, 20, dtype=int)  # 11
             # years = np.append(years[:14], years[15:])
             # 2002 2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018 2019 2020 2021
             sample_index = 5
-            for auth in auth_names[auth_index:auth_index + 1]:  # 5, 15, 16, 18
-                for year in years:
-                    file_path = f"{get_list_storage_path()}{auth}/{auth}{year}.csv"
+            for auth in auth_names[self.auth_index:self.auth_index + 1]:  # 5, 15, 16, 18
+                #for year in years:
+                #    file_path = f"{get_list_storage_path()}{auth}/{auth}{year}.csv"
+                filenames = get_filenames(f"{get_list_storage_path()}{auth}/")
+                print(f"{auth}. number of files: {len(filenames)}")
+                for filename in filenames[2:]:
+                    file_path = f"{get_list_storage_path()}{auth}/{filename}"
                     df = pd.read_csv(file_path)  # , index_col=0)  # <class 'pandas.core.frame.DataFrame'>
+                    print(filename, df.shape[0])
                     # app_df = df.iloc[[sample_index], :]
                     app_df = df.iloc[sample_index, :]
                     # print(pd.DataFrame(app_df).T)
                     app_dfs.append(app_df)
             self.app_dfs = pd.concat([pd.DataFrame(app_df).T for app_df in app_dfs], ignore_index=True)
         else:
+            auth_names = os.listdir(get_list_storage_path())
+            auth_names = [auth_name for auth_name in auth_names if not auth_name.startswith('.')]
+            auth_names.sort(key=str.lower)
             self.auth = auth_names[int(auth_index)]
             # option1: scrape all years
             year = int(self.year)
@@ -296,12 +362,21 @@ class UKPlanning_Scraper(scrapy.Spider):
         print("url:", url)
         yield SeleniumRequest(url=url, callback=self.parse_IP, meta={'app_df': app_df})
         """
-        app_df = self.app_dfs.iloc[self.index, :]
-        url = app_df.at['url']
-        print(f"\n{app_df.name}, start url: {url}")
-        print(app_df) if PRINT else None
-        # yield scrapy.Request(url=url, callback=self.parse_item)
-        yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df': app_df})
+        try:
+            app_df = self.app_dfs.iloc[self.index, :]
+            url = app_df.at['url']
+            print(f"\n{app_df.name}, start url: {url}")
+            while type(url) != str:
+                self.index += 1
+                app_df = self.app_dfs.iloc[self.index, :]
+                url = app_df.at['url']
+                print(f"\n{app_df.name}, start url: {url}")
+            print(app_df) if PRINT else None
+            # yield scrapy.Request(url=url, callback=self.parse_item)
+            yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df': app_df})
+        except IndexError:
+            print("list is empty.")
+            return
         #"""
 
     """
@@ -354,12 +429,32 @@ class UKPlanning_Scraper(scrapy.Spider):
     def upload_and_delete(self, folder_name, file_name):
         if upload_file(f"{self.data_upload_path}{folder_name}/{file_name}") == 0:
             os.remove(f"{self.data_storage_path}{folder_name}/{file_name}")
+
+    def get_doc_url(self, response, app_df):
+        tab_lis = response.xpath('//*[@id="pa"]/div[3]/div[3]/ul').xpath('./li')
+        url = ''
+        for li in tab_lis:
+            try:  # tab has a link.
+                tab_name = li.xpath('./a/span/text()').get()
+                if tab_name and 'document' in str.lower(tab_name):
+                    url = li.xpath('./a/@href').get()
+                    url = response.urljoin(url)
+                    break
+            except TypeError:  # tab has no link.
+                tab_name = li.xpath('./span/text()').get()
+                if tab_name and 'document' in str.lower(tab_name):
+                    url = app_df.at['url'].replace('summary', 'documents')
+                    break
+        if url == '':
+            url = app_df.at['url'].replace('summary', 'documents')
+        app_df.at['other_fields.docs_url'] = url
     """
     Parse Functions
     """
     def parse_summary_item(self, response):
         #driver = response.request.meta["driver"]
         app_df = response.meta['app_df']
+        self.get_doc_url(response, app_df)
         items = response.xpath('//*[@id="simpleDetailsTable"]/tbody/tr')
         n_items = len(items)
         print(f"\nSummary Tab: {n_items}") if PRINT else None #print(f"Summary Tab: {n_items}")
@@ -372,7 +467,8 @@ class UKPlanning_Scraper(scrapy.Spider):
                 # Empty
                 if self.is_empty(app_df.at[data_name]):
                     # Date
-                    if item_name in ['Application Received', 'Application Validated', 'Decision Issued Date']:
+                    if item_name in ['Application Received', 'Application Received Date', 'Application Registered',
+                                     'Application Validated', 'Decision Issued Date']:
                         date_string = item.xpath('./td/text()').get().strip()
                         app_df.at[data_name] = self.convert_date(date_string)
                     # Non-Date
@@ -432,7 +528,8 @@ class UKPlanning_Scraper(scrapy.Spider):
         for item in items:
             item_name = item.xpath('./th/text()').get().strip()
             # Duplicate
-            if item_name in ['Application Received Date', 'Application Validated Date', 'Decision Issued Date']:
+            if item_name in ['Application Received Date', 'Application Validated Date', 'Date Application Valid', 'Application Valid Date', 'Valid Date',
+                             'Decision Issued Date']:
                 continue
             data_name = self.dates_dict[item_name]
 
@@ -523,30 +620,60 @@ class UKPlanning_Scraper(scrapy.Spider):
     # Other Tabs: 6 + 1 {n_comments, n_constraints, n_documents, *constraint_url, docs_url, map_url, UPRN}
     def scrape_comments(self, response, comment_source, comment_date, comment_content):
         comments = response.xpath('//*[@id="comments"]').xpath('./div')
+        def scrape_comment_source(label_name):  # scrape all texts in tag and its sub-tags.
+            temp_source = comment.xpath(f'./{label_name}/text()').get().strip()
+            for subtag in comment.xpath(f'./{label_name}/*'):
+                temp_source += subtag.xpath('./text()').get().strip()
+            return temp_source
+
         for comment in comments:
-            try:  # scrape all texts in tag h2 and its sub-tags.
-                temp_source = comment.xpath('./h2/text()').get().strip()
-                for subtag in comment.xpath('./h2/*'):
-                    temp_source += subtag.xpath('./text()').get().strip()
-                    # print(subtag.xpath('./text()').get().strip())
+            try:  # h2 or h3
+                if comment.xpath('./h2').get():
+                    temp_source = scrape_comment_source('h2')
+                elif comment.xpath('./h3').get():  # https://eplanning.northlanarkshire.gov.uk/online-applications/applicationDetails.do?activeTab=neighbourComments&keyVal=0200095FUL&neighbourCommentsPager.page=1
+                    temp_source = scrape_comment_source('h3')
+                else:
+                    temp_source = ''
+            except AttributeError:
+                temp_source = ''
+
+            comment_wraps = comment.xpath('./div')
+            if len(comment_wraps) == 0:  # https://boppa.poole.gov.uk/online-applications/applicationDetails.do?keyVal=_POOLE_DCAPR_248994&activeTab=summary
                 comment_source.append(temp_source)
-            except AttributeError:
-                comment_source.append('')
-
-            try:  # div/h3
-                temp_date = comment.xpath('./div/h3/text()').get().strip()
-                comment_date.append(re.sub("\s+", ' ', temp_date))
-            except AttributeError:
                 comment_date.append('')
+                comment_content.append('')
+            else:
+                for comment_wrap in comment_wraps: # https://planning.n-somerset.gov.uk/online-applications/applicationDetails.do?activeTab=neighbourComments&keyVal=QMES8DLPFI100
+                    comment_source.append(temp_source)
+                    try:  # div/h3 or div/h4
+                        temp_date = ''
+                        if comment_wrap.xpath('./h3').get():
+                            temp_date = comment_wrap.xpath('./h3/text()').get().strip()
+                        elif comment_wrap.xpath('./h4').get():  # https://eplanning.northlanarkshire.gov.uk/online-applications/applicationDetails.do?activeTab=neighbourComments&keyVal=0200095FUL&neighbourCommentsPager.page=1
+                            temp_date = comment_wrap.xpath('./h4/text()').get().strip()
+                        comment_date.append(re.sub("\s+", ' ', temp_date))
+                    except AttributeError:
+                        temp_date = ''
+                        comment_date.append('')
 
-            try:  # div
-                temp_content = comment.xpath('./div/text()').getall()
-                comment_content.append(re.sub("\s+", ' ', ' '.join(temp_content)).strip())
-            except AttributeError:  # div/p
-                temp_content = comment.xpath('./div/p/text()').get()
-                print(temp_content, len(temp_content))
-                comment_content.append(temp_content)
-                # comment_content.append('')
+                    try: # div/text or div/p/text or div/div/p
+                        need_date_check = True  # https://planningandwarrant.orkney.gov.uk/online-applications/applicationDetails.do?activeTab=consulteeComments&keyVal=KVXQ2HMD01600
+                        temp_content = comment_wrap.xpath('./text()').getall()
+                        temp_content = re.sub("\s+", ' ', ' '.join(temp_content)).strip()
+                        for subtag in comment_wrap.xpath('./*'):
+                            if subtag.xpath('./*/text()').get():
+                                temp = subtag.xpath('./*/text()').getall()
+                                temp_content += re.sub("\s+", ' ', ' '.join(temp)).strip()
+                            if subtag.xpath('./text()').get():
+                                if need_date_check and subtag.xpath('./text()').get().strip() == temp_date:
+                                    need_date_check = False
+                                    continue
+                                else:
+                                    temp = subtag.xpath('./text()').getall()
+                                    temp_content += re.sub("\s+", ' ', ' '.join(temp)).strip()
+                        comment_content.append(temp_content)
+                    except AttributeError:
+                        comment_content.append('')
 
     def parse_public_comments_item(self, response):
         time_cost = time.time() - self.start_time
@@ -556,11 +683,13 @@ class UKPlanning_Scraper(scrapy.Spider):
         # Scrape the summary of public comments
         strs = response.xpath('//*[@id="commentsContainer"]/ul/li[1]').get()
         public_consulted = int(re.search(r"\d+", strs).group())
-        app_df['other_fields.n_comments_public_total_consulted'] = public_consulted
-
         strs = response.xpath('//*[@id="commentsContainer"]/ul/li[2]').get()
         public_received = int(re.search(r"\d+", strs).group())
+
+        public_consulted = max(public_consulted, public_received)
+        app_df['other_fields.n_comments_public_total_consulted'] = public_consulted
         app_df['other_fields.n_comments_public_received'] = public_received
+
         if public_received == 0:
             app_df['other_fields.n_comments_public_objections'] = 0
             app_df['other_fields.n_comments_public_supporting'] = 0
@@ -748,29 +877,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             app_df.at['other_fields.n_constraints'] = 0
 
         # document_url
-        if self.is_empty(app_df.at['other_fields.docs_url']):
-            tab_lis = response.xpath('//*[@id="pa"]/div[3]/div[3]/ul').xpath('./li')
-            url = ''
-            for li in tab_lis:
-                try:  # tab has a link.
-                    tab_name = li.xpath('./a/span/text()').get()
-                    if 'document' in str.lower(tab_name):
-                        url = li.xpath('./a/@href').get()
-                        url = response.urljoin(url)
-                        break
-                except TypeError:  # tab has no link.
-                    tab_name = li.xpath('./span/text()').get()
-                    if 'document' in str.lower(tab_name):
-                        url = app_df.at['url'].replace('summary', 'documents')
-                        break
-            if url == '':
-                url = app_df.at['url'].replace('summary', 'documents')
-            app_df.at['other_fields.docs_url'] = url
-            yield SeleniumRequest(url=url, callback=self.parse_documents_item, meta={'app_df': app_df, 'folder_name': folder_name})
-        else:
-            yield SeleniumRequest(url=app_df.at['other_fields.docs_url'], callback=self.parse_documents_item,
-                                  meta={'app_df': app_df, 'folder_name': folder_name})
-
+        yield SeleniumRequest(url=app_df.at['other_fields.docs_url'], callback=self.parse_documents_item, meta={'app_df': app_df, 'folder_name': folder_name})
 
     def unzip_documents(self, storage_path, wait_unit=1.0, wait_total=100):
         zipname = ''
@@ -939,7 +1046,10 @@ class UKPlanning_Scraper(scrapy.Spider):
         for i, document_item in enumerate(document_items):
             document_date = document_item.xpath(f'./td[{date_column}]/text()').get().strip()
             document_type = document_item.xpath(f'./td[{type_column}]/text()').get().strip()
-            document_description = document_item.xpath(f'./td[{description_column}]/text()').get().strip()
+            try:
+                document_description = document_item.xpath(f'./td[{description_column}]/text()').get().strip()
+            except AttributeError:
+                document_description = ''
             file_url = document_item.xpath('./td/a')[-1].xpath('./@href').get()
             # file_url = document_item.css('a::attr(href)').get()
             """ # the docs downloaded by file links are different from the docs downloaded from download button (.zip). Set extensions could results in crashed docs.
@@ -952,10 +1062,10 @@ class UKPlanning_Scraper(scrapy.Spider):
             item_identity = file_url.split('-')[-1]
             document_name = f"date={document_date}&type={document_type}&desc={document_description}&{item_identity}"
             print(document_name) if PRINT else None
-            if '/' in document_name:
-                document_name = re.sub('/', '-', document_name)
-            if ' ' in document_name:
-                document_name = re.sub(' ', '_', document_name)
+            invalid_chars = ['/', ' ', ':']
+            for invalid_char in invalid_chars:
+                if invalid_char in document_name:
+                    document_name = re.sub(invalid_char, '_', document_name)
             document_paths.append(f"{self.data_upload_path}{folder_name}/{document_name}")
             file_urls.append(response.urljoin(file_url))
         return document_paths, file_urls
@@ -1095,7 +1205,10 @@ class UKPlanning_Scraper(scrapy.Spider):
                 n_documents = 0
                 print(f"{app_df.name} <doc mode> n_documents: {n_documents}. (None)")
             else:
-                n_documents = int(re.search(r"\d+", documents_str).group())
+                try:
+                    n_documents = int(re.search(r"\d+", documents_str).group())
+                except AttributeError:
+                    n_documents = len(response.xpath('//*[@id="Documents"]/tbody/tr')[1:])
                 time_cost = time.time() - self.start_time
                 #print(f"<doc mode> n_documents: {n_documents}")
                 print(f"{app_df.name} <doc mode> n_documents: {n_documents}, folder_name: {folder_name}",
@@ -1161,9 +1274,12 @@ class UKPlanning_Scraper(scrapy.Spider):
             yield SeleniumRequest(url=url, callback=self.parse_uprn_item, meta={'app_df': app_df})
         else:
             # map_url
+            self.ending(app_df)
+            """
             url = app_df.at['url'].replace('summary', 'map')
             app_df.at['other_fields.map_url'] = url
             yield SeleniumRequest(url=url, callback=self.parse_map_item, meta={'app_df': app_df})
+            """
 
     def parse_uprn_item(self, response):
         app_df = response.meta['app_df']
@@ -1199,34 +1315,44 @@ class UKPlanning_Scraper(scrapy.Spider):
             else:
                 print("No UPRN.") if PRINT else None
                 # map_url
+                self.ending(app_df)
+                """
                 url = app_df.at['url'].replace('summary', 'map')
                 app_df.at['other_fields.map_url'] = url
                 yield SeleniumRequest(url=url, callback=self.parse_map_item, meta={'app_df': app_df})
+                """
         else:  # n_properties == 0
             print("No UPRN.") if PRINT else None
             # map_url
+            self.ending(app_df)
+            """
             url = app_df.at['url'].replace('summary', 'map')
             app_df.at['other_fields.map_url'] = url
             yield SeleniumRequest(url=url, callback=self.parse_map_item, meta={'app_df': app_df})
+            """
 
     def parse_uprn_property_item(self, response):
         app_df = response.meta['app_df']
         app_df.at['other_fields.uprn'] = response.xpath('//*[@id="propertyAddress"]/tbody/tr[1]/td/text()').get()
         print(f"<UPRN> scraped: {app_df.at['other_fields.uprn']}") if PRINT else None
         # map_url
+        self.ending(app_df)
+        """
         url = app_df.at['url'].replace('summary', 'map')
         app_df.at['other_fields.map_url'] = url
         yield SeleniumRequest(url=url, callback=self.parse_map_item, meta={'app_df': app_df})
+        """
 
-    def parse_map_item(self, response):
+    #def parse_map_item(self, response):
         #print("it is parse_map_item")
 
+    def ending(self, app_df):
         # Derivative data: 11
         # postcode (from address), associated_id
         # app_size, app_state, app_type, start_date, decided_date, consulted_date, reference
         # other_fields.n_dwellings, other_fields.n_statutory_days
         print("ending of an application ...") if PRINT else None
-        app_df = response.meta['app_df']
+        #app_df = response.meta['app_df']
         app_df2 = pd.DataFrame(app_df).T
 
         folder_name = str(app_df.at['name'])
@@ -1257,7 +1383,6 @@ class UKPlanning_Scraper(scrapy.Spider):
 
         # other_fields.comment_date
         # other_fields.decided_by: "Further Information, Actual Decision Level or Further Information, Expected Decision Level"
-        # other_fields.planning_portal_id
 
     def parse_item_reCaptcha(self, response):
         # bypass reCaptcha
