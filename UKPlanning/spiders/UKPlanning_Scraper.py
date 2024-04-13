@@ -182,6 +182,7 @@ class UKPlanning_Scraper(scrapy.Spider):
         self.start_time = time.time()
         self.data_storage_path = get_data_storage_path()
         self.year = year
+        print(self.year)
 
         # for testing some samples from an authority
         if DEVELOPMENT_MODE:
@@ -257,7 +258,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             # read the list of scraping.
             self.list_path = f"{self.data_storage_path}to_scrape_list.csv"
             if not os.path.isfile(self.list_path):
-                self.init_index = 0 #1004
+                self.init_index = 0  #2173 if int(self.year)==2003 else 2132 #1004
                 self.to_scrape = self.app_dfs.iloc[self.init_index:, 0]
                 self.to_scrape.to_csv(self.list_path, index=True)
                 print("write", self.to_scrape)
@@ -562,6 +563,8 @@ class UKPlanning_Scraper(scrapy.Spider):
         folder_name = str(app_df.at['name'])
         if '/' in folder_name:
             folder_name = re.sub('/', '-', folder_name)
+        if '*' in folder_name:
+            folder_name = re.sub(r'\*', '-', folder_name)
         folder_path = f"{self.data_storage_path}{folder_name}/"
         print(folder_path) if PRINT else None
         if not os.path.exists(folder_path):
@@ -1358,6 +1361,8 @@ class UKPlanning_Scraper(scrapy.Spider):
         folder_name = str(app_df.at['name'])
         if '/' in folder_name:
             folder_name = re.sub('/', '-', folder_name)
+        if '*' in folder_name:
+            folder_name = re.sub(r'\*', '-', folder_name)
         app_df2.to_csv(f"{self.result_storage_path}{app_df.name}-{folder_name}.csv", index=False)
         if CLOUD_MODE and app_df.at['other_fields.n_documents'] == 0:
             folder_path = f"{self.data_storage_path}{folder_name}"
