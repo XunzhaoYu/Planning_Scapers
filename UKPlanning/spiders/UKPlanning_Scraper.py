@@ -16,6 +16,7 @@ import numpy as np
 #from tools.bypass_reCaptcha import bypass_reCaptcha
 from tools.utils import get_project_root, get_list_storage_path, get_data_storage_path, get_filenames, Month_Eng_to_Digit, get_scraper_by_type
 from tools.curl import upload_file, upload_folder
+from tools.email_sender import send_emails
 import time, random, timeit, re, os, sys
 import zipfile
 import difflib  # for UPRN
@@ -332,6 +333,7 @@ class UKPlanning_Scraper(scrapy.Spider):
                     os.remove(previous_result_path)
             append_df.to_csv(self.data_storage_path + f'{self.auth}_result_{current_time}.csv', index=False)
             #upload_file(f'{self.auth}_result_{current_time}.csv') if CLOUD_MODE else None
+            send_emails(self.auth)
 
         """
         # summarize error logs:
