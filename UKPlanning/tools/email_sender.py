@@ -7,7 +7,7 @@ def send_emails(auth_message, recipient_email = ['Xunzhao.Yu@warwick.ac.uk']):
     smtp_server = 'smtp.gmail.com'
     smtp_port = 587  # This might vary based on your email provider
     sender_email = 'yuxunzhao@gmail.com'
-    password = 'cgvgjfqxbmwibvie'
+    password = 'your password'
     #recipient_email = ['Xunzhao.Yu@warwick.ac.uk']  #, 'amrita.kulka@warwick.ac.uk', 'nikhil.datta@warwick.ac.uk']
 
     # Create message
