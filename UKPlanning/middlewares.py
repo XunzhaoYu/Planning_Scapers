@@ -5,6 +5,8 @@
 
 from scrapy import signals
 from tools.utils import get_project_root
+from tools.IP_proxy import update_IP_proxy_zip
+import time
 from pathlib import Path
 
 # useful for handling different item types with a single interface
@@ -110,6 +112,9 @@ from scrapy.exceptions import NotConfigured
 from scrapy.http import HtmlResponse
 from selenium.webdriver.support.ui import WebDriverWait
 from scrapy_selenium.http import SeleniumRequest
+
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
 class SeleniumMiddleware:
     @classmethod
     def from_crawler(cls, crawler):
@@ -175,6 +180,7 @@ class SeleniumMiddleware:
         #driver_options.add_experimental_option("excludeSwitches", ["enable-automation"])  # for reCAPTCHA
         #driver_options.add_experimental_option('useAutomationExtension', False)  # for reCAPTCHA
         #driver_options.add_argument('--disable-blink-features=AutomationControlled')  # for reCAPTCHA
+        #driver_options.add_argument("--ignore-certificate-errors")
 
         # for Chrome proxy without authorization
         """
@@ -186,10 +192,14 @@ class SeleniumMiddleware:
         driver_options.add_argument(f"--proxy-server={PROXY}")
         #"""
         # for Chrome proxy with authorization: set proxy.zip
-        """
-        proxy_path = f"{Path(get_project_root()).parent}/proxy.zip"
-        print(proxy_path)
-        driver_options.add_extension(proxy_path)
+        #"""
+        self.proxy_path = f"{Path(get_project_root()).parent}/proxy.zip"
+        #print(proxy_path)
+        #update_IP_proxy_zip(self.proxy_path, session_id=str(time.time()).split('.')[1])
+        self.IP_index = 0
+        self.IP_address = update_IP_proxy_zip(self.proxy_path, IP_index=self.IP_index)
+        driver_options.add_extension(self.proxy_path)
+        self.request_counter = 0
         #"""
 
         # set webdriver, compatible with diverse Selenium versions.
@@ -216,19 +226,52 @@ class SeleniumMiddleware:
                 self.driver = webdriver.Chrome(service=service, options=driver_options)
         """
         # set webdriver, works with Selenium 4+ and Chrome only
-        from selenium import webdriver
-        from selenium.webdriver.chrome.service import Service
+        #from selenium import webdriver
+        #from selenium.webdriver.chrome.service import Service
         if driver_name and driver_name.lower() == 'chrome':
             service = Service()
-            self.driver = webdriver.Chrome(service=service, options=driver_options)
+            #self.driver = webdriver.Chrome(service=service, options=driver_options)
+            self.driver_options = driver_options
+            self.service = service
+            self.driver = webdriver.Chrome(service=self.service, options=self.driver_options)
 
+    def reset_driver(self, IP_index=0):
+        self.driver.quit()
+        #update_IP_proxy_zip(self.proxy_path, session_id=str(time.time()).split('.')[1])
+        IP_address = update_IP_proxy_zip(self.proxy_path, IP_index=IP_index)
+        self.driver = webdriver.Chrome(service=self.service, options=self.driver_options)
+        return IP_address
 
     def process_request(self, request, spider):
         """Process a request using the selenium driver if applicable"""
         if not isinstance(request, SeleniumRequest):
             return None
 
-        self.driver.get(request.url)
+        IP_FREQUENCY = 10
+        IP_attempts = 0
+        while IP_attempts < 10:
+            if self.request_counter == IP_FREQUENCY:
+                self.IP_index = (self.IP_index + 1)%50
+                self.IP_address = self.reset_driver(self.IP_index)
+                self.request_counter = 1
+            else:
+                self.request_counter += 1
+            """
+                self.driver.get('http://lumtest.com/myip.json')
+                ip_info = self.driver.page_source
+                ip = ip_info.split('"ip":')[1].split(',')[0]
+                country = ip_info.split('"country":')[1].split(',')[0]
+                print(f"ip: {ip}.  country: {country}.  request counter: {self.request_counter}")
+            """
+
+            try:
+                self.driver.get(request.url)
+                print(f"IP_index: {self.IP_index}, IP: {self.IP_address}, request counter: {self.request_counter}")
+                break
+            except:
+                IP_attempts += 1
+                self.request_counter = IP_FREQUENCY
+                print(f"IP_index: {self.IP_index}, IP: {self.IP_address}, request counter: {self.request_counter}, IP connection failed {IP_attempts} times.")
 
         for cookie_name, cookie_value in request.cookies.items():
             self.driver.add_cookie({'name': cookie_name, 'value': cookie_value})

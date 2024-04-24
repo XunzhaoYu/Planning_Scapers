@@ -4,10 +4,12 @@
 # See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 from scrapy.pipelines.files import FilesPipeline
 from scrapy import Request
+import numpy.random as random
 from tools.curl import upload_file
 from tools.utils import get_data_storage_path
+from tools.IP_proxy import get_IP_proxy_session, get_IP_proxy_ip
 from settings import CLOUD_MODE
-import os, logging
+import time, os, logging
 """
 import json, time, requests
 from io import BytesIO
@@ -55,10 +57,19 @@ class DownloadFilesPipeline(FilesPipeline):
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
         }
         #"""
+        ip_index = random.randint(50) + 50
+        print("ip_index in download files: ", ip_index)
         for index in range(len(file_urls)):
+            """
+            if index % 10 == 0:
+                #IP_proxy = get_IP_proxy_session(str(time.time()).split('.')[1])
+            """
+            IP_proxy = get_IP_proxy_ip(ip_index)
+            ip_index = (ip_index + 1)%50 + 50
             # payload = csrf
             # requests.append(Request(file_urls[index], headers=header, method="POST", body=json.dumps(payload)))
-            requests.append(Request(file_urls[index], method="GET", cookies=cookies, meta={'document_name': document_names[index], 'download_timeout': 60}))
+            #requests.append(Request(file_urls[index], method="GET", cookies=cookies, meta={'document_name': document_names[index], 'download_timeout': 60}))
+            requests.append(Request(file_urls[index], method="GET", cookies=cookies, meta={'proxy': IP_proxy, 'document_name': document_names[index], 'download_timeout': 60}))
         return requests
 
     def file_path(self, request, response=None, info=None, *, item=None):

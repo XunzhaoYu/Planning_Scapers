@@ -186,6 +186,8 @@ class UKPlanning_Scraper(scrapy.Spider):
         print(self.year)
 
         # for testing some samples from an authority
+        #if True:
+        #    pass
         if DEVELOPMENT_MODE:
             auth_names = get_scraper_by_type()
             auth_names = [auth_name for auth_name in auth_names if not auth_name.startswith('.')]
@@ -194,7 +196,26 @@ class UKPlanning_Scraper(scrapy.Spider):
             # auth_names = auth_names[[0, 1, 2, 3[ExternalDoc], 4, 6, 7, 8[2003-2022], 9[no 2016], 11, 12
             # 10[too many requests], 13[too many requests], 14, 17, 19]]
             app_dfs = []
-            self.auth_index = 250
+            self.auth_index = 5 # 59, 239
+            # IP rotations: 5, 7, 33, 35, 43;   51, 59*[8 times], 67, 77, 104;   118, 121, 131[no comment], 142, 153;
+            # 161, 178, 183[no comment], 184, 186;   190, 200, 218, 223, 225;   230, 243[no comment],
+            """
+            4, 47, 92, 98 for 5 
+            work: 
+            80.93.198.225, 80.93.199.133, 80.93.199.180, 80.93.199.200, 80.93.201.107, 80.93.202.6, 80.93.203.211, 80.93.204.168, 80.93.204.175, 80.93.205.206, 80.93.206.43, 80.93.206.231
+            89.40.209.6, 89.40.209.69, 89.40.209.73, 89.40.209.129
+            92.255.80.47
+            121.91.87.39
+            195.210.97.159
+            217.9.18.94
+            not:  
+            45.66.179.164
+            92.43.86.48
+            103.109.80.101, 103.109.81.77, 103.109.81.96, 103.109.81.132
+            110.239.209.27, 110.239.214.37
+            188.190.106.151, 188.190.123.124
+            193.42.59.216, 193.56.24.5
+            """
             self.year = -1
             self.auth = auth_names[int(self.auth_index)]
             self.data_storage_path = f"{self.data_storage_path}{self.auth}/{self.year}/"
@@ -333,7 +354,7 @@ class UKPlanning_Scraper(scrapy.Spider):
                     os.remove(previous_result_path)
             append_df.to_csv(self.data_storage_path + f'{self.auth}_result_{current_time}.csv', index=False)
             #upload_file(f'{self.auth}_result_{current_time}.csv') if CLOUD_MODE else None
-            send_emails(self.auth)
+            #send_emails(self.auth)
 
         """
         # summarize error logs:
@@ -359,11 +380,10 @@ class UKPlanning_Scraper(scrapy.Spider):
         """
         # sequential.
         self.index += 1
-        """
-        app_df = self.app_dfs.iloc[self.index, :]
+        """ # FOR_IP_TEST_ONLY
         url = "http://lumtest.com/myip.json"
         print("url:", url)
-        yield SeleniumRequest(url=url, callback=self.parse_IP, meta={'app_df': app_df})
+        yield SeleniumRequest(url=url, callback=self.parse_IP)
         """
         try:
             app_df = self.app_dfs.iloc[self.index, :]
@@ -400,7 +420,9 @@ class UKPlanning_Scraper(scrapy.Spider):
         #pprint.pprint(response.json())  # for Request
         print(response.xpath('/html/body/pre/text()').get()[1:24].split(',')[0])  # for SeleniumRequest
         print('----- ----- -----')
-        yield SeleniumRequest(url="https://www.google.com/", callback=self.parse_IP2)
+        #url = "https://www.github.com/"
+        url = 'https://publicaccess.aylesburyvaledc.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=H6JFZ4CL40000'
+        yield SeleniumRequest(url=url, callback=self.parse_IP2)
         """
         app_df = self.app_dfs.iloc[self.index, :]
         url = app_df.at['url']
@@ -623,8 +645,8 @@ class UKPlanning_Scraper(scrapy.Spider):
         yield SeleniumRequest(url=url, callback=self.parse_public_comments_item, meta={'app_df': app_df, 'folder_name': folder_name})
 
     # Other Tabs: 6 + 1 {n_comments, n_constraints, n_documents, *constraint_url, docs_url, map_url, UPRN}
-    def scrape_comments(self, response, comment_source, comment_date, comment_content):
-        comments = response.xpath('//*[@id="comments"]').xpath('./div')
+    def scrape_comments(self, comments, comment_source, comment_date, comment_content):
+        #comments = response.xpath('//*[@id="comments"]').xpath('./div')
         def scrape_comment_source(label_name):  # scrape all texts in tag and its sub-tags.
             temp_source = comment.xpath(f'./{label_name}/text()').get().strip()
             for subtag in comment.xpath(f'./{label_name}/*'):
@@ -712,8 +734,13 @@ class UKPlanning_Scraper(scrapy.Spider):
         comment_source = []
         comment_date = []
         comment_content = []
-        if public_consulted > 0:
-            self.scrape_comments(response, comment_source, comment_date, comment_content)
+        #if public_consulted > 0:
+        #    self.scrape_comments(response, comment_source, comment_date, comment_content)
+        try:
+            comments = response.xpath('//*[@id="comments"]').xpath('./div')
+            self.scrape_comments(comments, comment_source, comment_date, comment_content)
+        except TypeError:
+            pass
 
         try:
             #next_page_url = response.xpath('//*[@id="commentsListContainer"]/p[2]/a[2]/@href').get()[0]
@@ -742,7 +769,12 @@ class UKPlanning_Scraper(scrapy.Spider):
         comment_source = response.meta['comment_source']
         comment_date = response.meta['comment_date']
         comment_content = response.meta['comment_content']
-        self.scrape_comments(response, comment_source, comment_date, comment_content)
+        #self.scrape_comments(response, comment_source, comment_date, comment_content)
+        try:
+            comments = response.xpath('//*[@id="comments"]').xpath('./div')
+            self.scrape_comments(comments, comment_source, comment_date, comment_content)
+        except TypeError:
+            pass
 
         # next_page_url = response.xpath('//*[@id="commentsListContainer"]/p[2]/a[2]/@href').get()[0]
         next_page_url = response.xpath('//*[@id="commentsListContainer"]').css('a.next::attr(href)').get()
@@ -778,8 +810,13 @@ class UKPlanning_Scraper(scrapy.Spider):
         app_df.at['other_fields.n_comments'] = app_df.at['other_fields.n_comments_consultee_responded'] + app_df.at['other_fields.n_comments_public_received']
 
         # Scrape comments
-        if app_df.at['other_fields.n_comments_consultee_total_consulted'] > 0:
-            self.scrape_comments(response, comment_source, comment_date, comment_content)
+        #if app_df.at['other_fields.n_comments_consultee_total_consulted'] > 0:
+        #    self.scrape_comments(response, comment_source, comment_date, comment_content)
+        try:
+            comments = response.xpath('//*[@id="comments"]').xpath('./div')
+            self.scrape_comments(comments, comment_source, comment_date, comment_content)
+        except TypeError:
+            pass
 
         # next_page_url = response.xpath('//*[@id="commentsListContainer"]/p[2]/a[2]/@href').extract()[0]
         next_page_url = response.xpath('//*[@id="commentsListContainer"]').css('a.next::attr(href)').get()
@@ -807,7 +844,12 @@ class UKPlanning_Scraper(scrapy.Spider):
         comment_source = response.meta['comment_source']
         comment_date = response.meta['comment_date']
         comment_content = response.meta['comment_content']
-        self.scrape_comments(response, comment_source, comment_date, comment_content)
+        #self.scrape_comments(response, comment_source, comment_date, comment_content)
+        try:
+            comments = response.xpath('//*[@id="comments"]').xpath('./div')
+            self.scrape_comments(comments, comment_source, comment_date, comment_content)
+        except TypeError:
+            pass
         # for i in range(len(self.comment_source)):
         #    print(f"Comment{i+1}, source:{self.comment_source[i]},  date:{self.comment_date[i]},    content:{self.comment_content[i]}")
 
