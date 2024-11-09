@@ -1,22 +1,29 @@
 import scrapy
+from scrapy_selenium import SeleniumRequest
 from scrapy import signals
 from scrapy import Request
 #from scrapy.spiders import CrawlSpider, Rule
 #from scrapy.linkextractors import LinkExtractor
-from items import DownloadFilesItem
-from settings import PRINT, CLOUD_MODE, DEVELOPMENT_MODE
-#import requests
-from scrapy_selenium import SeleniumRequest
+
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select
-#import csv
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
+
+from items import DownloadFilesItem
+from settings import PRINT, CLOUD_MODE, DEVELOPMENT_MODE
+from spiders.document_utils import replace_invalid_characters, get_documents, get_Civica_documents, get_NEC_or_Northgate_documents  #, get_Northgate_documents
+from tools.utils import get_project_root, get_list_storage_path, get_data_storage_path, get_filenames, Month_Eng_to_Digit, get_scraper_by_type
+from tools.curl import upload_file, upload_folder
+#from tools.bypass_reCaptcha import bypass_reCaptcha
+#from tools.email_sender import send_emails
+
+#import requests
 import pandas as pd
 pd.options.mode.chained_assignment = None
 import numpy as np
-#from tools.bypass_reCaptcha import bypass_reCaptcha
-from tools.utils import get_project_root, get_list_storage_path, get_data_storage_path, get_filenames, Month_Eng_to_Digit, get_scraper_by_type
-from tools.curl import upload_file, upload_folder
-from tools.email_sender import send_emails
+#import csv
 import time, random, timeit, re, os, sys
 import zipfile
 import difflib  # for UPRN
@@ -95,67 +102,105 @@ class UKPlanning_Scraper(scrapy.Spider):
                     'Agent Address': 'other_fields.agent_address',
                     'Environmental Assessment Requested': 'other_fields.environmental_assessment',  # New
                     'Environmental Assessment Required': 'other_fields.environmental_assessment',  # New Duplicate [Perth]
-                    'Community Council': 'other_fields.community_council',  # New*
+                    'Community Council': 'other_fields.community_council',  # New* == parish
                     'Community': 'other_fields.community_council',  # New* Duplicate [BreconBeacons]
                     'Community/Town Council': 'other_fields.community_council',  # New* Duplicate [Caerphilly]
                     }
     # Important Datas: 14 + 4 + 1*
-    dates_dict = {'Application Received Date': 'other_fields.date_received',  # Duplicated in summary
+    dates_dict = {'Application Received Date':  'other_fields.date_received',  # Duplicated in summary
                   'Application Validated Date': 'other_fields.date_validated',  # Duplicated in summary
-                  'Date Application Valid': 'other_fields.date_validated',  # Duplicated in summary [NewcastleUnderLyme]
-                  'Application Valid Date': 'other_fields.date_validated',  # Duplicated in summary [Oadby]
-                  'Valid Date': 'other_fields.date_validated',  # New Duplicated in summary [EastHampshire]
+                  'Date Application Valid':     'other_fields.date_validated',  # Duplicated in summary [NewcastleUnderLyme]
+                  'Application Valid Date':     'other_fields.date_validated',  # Duplicated in summary [Oadby]
+                  'Valid Date':                 'other_fields.date_validated',  # New Duplicated in summary [EastHampshire]
+                  'Application Registered Date': 'other_fields.date_validated',  # New Duplicated in summary [Hammersmith]
 
-                  'Expiry Date': 'other_fields.application_expires_date',
-                  'Application Expiry Date': 'other_fields.application_expires_date',  # New Duplicate [MiltonKeynes]
-                  'Application Expiry Deadline' :  'other_fields.application_expires_date',  # New Duplicate [Sefton]
-                  'Statutory Expiry Date': 'other_fields.statutory_expires_date',  # New []
+                  'Expiry Date':                    'other_fields.application_expires_date',
+                  'Application Expiry Date':        'other_fields.application_expires_date',  # New Duplicate [MiltonKeynes]
+                  'Application Expiry Deadline' :   'other_fields.application_expires_date',  # New Duplicate [Sefton]
+
+                  'Statutory Expiry Date':          'other_fields.statutory_expires_date',  # New []
                   #
-                  'Expiry Date for Comment': 'other_fields.comment_expires_date',  # New
-                  'Expiry Date for Comments': 'other_fields.comment_expires_date',  # New Duplicate [Moray]
-                  'Last Date For Comments': 'other_fields.comment_expires_date',  # New Duplicate [Edinburgh]
-                  'Last Date for Comments': 'other_fields.comment_expires_date',  # New Duplicate [Glasgow]
-                  'Last date for public comments': 'other_fields.comment_expires_date',  # New Duplicate [Perth]
-                  'Comments To Be Submitted By': 'other_fields.comment_expires_date',  # New Duplicate [Leeds]
+                  'Expiry Date for Comment':        'other_fields.comment_expires_date',  # New
+                  'Expiry Date for Comments':       'other_fields.comment_expires_date',  # New Duplicate [Moray]
+                  'Last Date For Comments':         'other_fields.comment_expires_date',  # New Duplicate [Edinburgh]
+                  'Last Date for Comments':         'other_fields.comment_expires_date',  # New Duplicate [Glasgow]
+                  'Last date for public comments':  'other_fields.comment_expires_date',  # New Duplicate [Perth]
+                  'Comments To Be Submitted By':    'other_fields.comment_expires_date',  # New Duplicate [Leeds]
+                  'Closing Date for Comments':      'other_fields.comment_expires_date',  # New Duplicate [Hammersmith]
                   #
-                  'Actual Committee Date': 'other_fields.meeting_date',
-                  'Committee Date': 'other_fields.meeting_date',  # New Duplicate [Chelmsford]
+                  'Actual Committee Date':          'other_fields.meeting_date',
+                  'Committee Date':                 'other_fields.meeting_date',  # New Duplicate [Chelmsford]
                   'Actual Committee or Panel Date': 'other_fields.meeting_date',  # New Duplicate [Gedling]
-                  #
+                  'Date of Committee Meeting':      'other_fields.meeting_date',  # New Duplicate [IOW]
+                  'Committee/Delegated List Date':  'other_fields.meeting_date',  # New Duplicate [WestLothian]
+                  # Neighbour Consultation Date
                   'Latest Neighbour Consultation Date': 'other_fields.neighbour_consultation_start_date',
-                  'Neighbour Consultation Expiry Date': 'other_fields.neighbour_consultation_end_date',
-                  'Neighbour Notification Expiry Date': 'other_fields.neighbour_consultation_end_date',  # New Duplicate [Sefton]
-                  'Standard Consultation Date': 'other_fields.consultation_start_date',
-                  'Standard Consultation Expiry Date': 'other_fields.consultation_end_date',
-                  'Consultation Expiry Date': 'other_fields.consultation_end_date',  # New Duplicate [Chelmsford]
-                  'Consultation Deadline': 'other_fields.consultation_end_date',  # New Duplicate [NorthSomerest]
-                  'Public Consultation Expiry Date':  'other_fields.consultation_end_date',  # New Duplicate [Oadby]
-                  'Consultation Period To End On': 'other_fields.consultation_end_date',  # New Duplicate [Torbay]
+                  'Neighbours Last Notified':           'other_fields.neighbour_last_notified_date', # New [NewcastleUnderLyme]
+                  'Last Date for Neighbours Responses': 'other_fields.last_neighbour_responses_date',  # New [NewcastleUnderLyme]
+                  # Neighbour Consultation Expiry
+                  'Neighbour Consultation Expiry Date':             'other_fields.neighbour_consultation_end_date',
+                  'Neighbour Comments should be submitted by Date': 'other_fields.neighbour_consultation_end_date',  # New Duplicate [Bedford]
+                  'Neighbour Notification Expiry Date':             'other_fields.neighbour_notification_expiry_date',  # New [Sefton]
+                  # Consultee Consultation Date
+                  'Latest Statutory Consultee Consultation Date':   'other_fields.latest_consultee_consultation_date',  # New [Bedford]
+                  'Statutory Consultee Consultation Expiry Date':   'other_fields.consultee_consultation_expiry_date',  # New [Bedford]
+                  # Consultation Expiry
+                  'Standard Consultation Date':             'other_fields.standard_consultation_start_date',# *** changed from consultation_start to standard_cosultation_start
+                  'Standard Consultation Expiry Date':      'other_fields.standard_consultation_end_date',  # *** changed from consultation_end to standard_cosultation_end
 
-                  'Overall Consultation Expiry Date': 'other_fields.overall_consultation_expires_date',  # New []
-                  'Overall Date of Consultation Expiry': 'other_fields.overall_consultation_expires_date',  # New Duplicate []
-                  #
-                  'Last Advertised In Press Date': 'other_fields.last_advertised_date',
-                  'Advertised in Press Date': 'other_fields.last_advertised_date', # New Duplicate [Glasgow]
-                  'Latest Advertisement Expiry Date': 'other_fields.latest_advertisement_expiry_date',
-                  'Advertisement Expiry Date': 'other_fields.latest_advertisement_expiry_date',  # New Duplicate [NorthHertfordshire]
-                  #
-                  'Last Site Notice Posted Date': 'other_fields.site_notice_start_date',
+                  'Consultation Expiry Date':               'other_fields.consultation_end_date',  # New Duplicate [Chelmsford]
+                  'Consultation Deadline':                  'other_fields.consultation_end_date',  # New Duplicate [NorthSomerest]
+                  'Consultation Period To End On':          'other_fields.consultation_end_date',  # New Duplicate [Torbay]
+                  'Consultation End Date':                  'other_fields.consultation_end_date',  # New Duplicate [TowerHamlets]
+
+                  'Public Consultation Expiry Date':        'other_fields.public_consultation_end_date',  # New Duplicate [Oadby*** changed from consultation_end to public_xxx]
+                  'Public Consultation End Date':           'other_fields.public_consultation_end_date',  # New Duplicate [IOW]
+                  'Public Consultation Ends':               'other_fields.public_consultation_end_date',  # New Duplicate [Teignbridge]
+
+                  'Overall Consultation Expiry Date':       'other_fields.overall_consultation_expires_date',  # New []
+                  'Overall Date of Consultation Expiry':    'other_fields.overall_consultation_expires_date',  # New Duplicate []
+                  # Advertisement
+                  'Last Advertised In Press Date':      'other_fields.last_advertised_date',
+                  'Advertised in Press Date':           'other_fields.last_advertised_date', # New Duplicate [Glasgow]
+                  'Latest Advertisement Expiry Date':   'other_fields.latest_advertisement_expiry_date',
+                  'Advertisement Expiry Date':          'other_fields.latest_advertisement_expiry_date',  # New Duplicate [NorthHertfordshire]
+                  # Site Notice
+                  'Last Site Notice Posted Date':   'other_fields.site_notice_start_date',
                   'Latest Site Notice Expiry Date': 'other_fields.site_notice_end_date',
-                  'Site Notice Expiry Date': 'other_fields.site_notice_end_date', # New Duplicate [NorthHertfordshire]
-                  #
-                  'Internal Target Date': 'other_fields.target_decision_date',
-                  'Agreed Expiry Date': 'other_fields.agreed_expires_date',  # New
-                  'Decision Made Date': 'other_fields.decision_date',
-                  'Decision Issued Date': 'other_fields.decision_issued_date',  # Duplicated in summary
-                  'Permission Expiry Date': 'other_fields.permission_expires_date',
+                  'Site Notice Expiry Date':        'other_fields.site_notice_end_date', # New Duplicate [NorthHertfordshire]
+                  # Target Date
+                  'Internal Target Date':       'other_fields.target_decision_date',
+                  'Target Date':                'other_fields.target_decision_date', # New Duplicate [Bedford]
+                  'Target Date for Decision':   'other_fields.target_decision_date', # New Duplicate [Glasgow]
+                  'Target Decision Date':       'other_fields.target_decision_date', # New Duplicate [Stroud]
+
+                  'Revised Target Date for Decision':   'other_fields.revised_target_decision_date', # New [Glasgow]
+                  'Revised Target Decision Date':       'other_fields.revised_target_decision_date',  # New Duplicate [Stroud]
+
+                  'Agreed Extended Target Date':        'other_fields.agreed_extended_target_date',  # New [Teignbridge]
+                  'Agreed Extended Date for Decision':  'other_fields.agreed_extended_decision_date', # New [IOW]
+                  # Decision Date
+                  'Decision Made Date':     'other_fields.decision_date',
+                  'Decision Date':          'other_fields.decision_date',  # Duplicated [Hammersmith]
+                  'Decision Issued Date':   'other_fields.decision_issued_date',  # Duplicated in summary
+
+                  'Decision Notice Date':       'other_fields.decision_notice_date',  # New [NewcastleUnderLyme]
+                  'Statutory Decision Date':    'other_fields.statutory_decision_date',  # New [IOW]
+                  'Earliest Decision Date':     'other_fields.earliest_decision_date',  # New [NewcastleUnderLyme]
+                  'Agreed Expiry Date':         'other_fields.agreed_expires_date',  # New
+                  'Permission Expiry Date':     'other_fields.permission_expires_date',
+
                   'Decision Printed Date': 'other_fields.decision_published_date',
                   'Decision Due Date': 'other_fields.decision_due_date',  # New [Chelmsford]
                   'Environmental Impact Assessment Received': 'other_fields.environmental_assessment_date',  # New
+                  # Determination
                   'Determination Deadline': 'other_fields.determination_date',  # New
-                  'Statutory Determination Deadline': 'other_fields.statutory_determination_deadline',  # New []
-                  'Statutory Determination Date': 'other_fields.statutory_determination_deadline',  # New Duplicate [Oadby]
+                  'Statutory Determination Deadline':   'other_fields.statutory_determination_deadline',  # New []
+                  'Statutory Determination Date':       'other_fields.statutory_determination_deadline',  # New Duplicate [Oadby]
+                  'Statutory Determination Deadline (Unless there is an Agreed extension date above)': 'other_fields.statutory_determination_deadline', # New Duplicate [Bedford]
                   'Extended Determination Deadline': 'other_fields.extended_determination_deadline',  # New [NorthSomerest]
+                  'Agreed Extension to Statutory Determination Deadline': 'other_fields.extended_determination_deadline', # New Duplicate [Bedford]
+
                   'Temporary Permission Expiry Date': 'other_fields.temporary_permission_expires_date',  # New
                   'Local Review Body Decision Date': 'other_fields.local_review_body_decision_date'  # New*
                   }
@@ -185,6 +230,21 @@ class UKPlanning_Scraper(scrapy.Spider):
         self.year = year
         print(self.year)
 
+        def initialize_paths(data_storage_path, auth, year):
+            # add auth_name
+            data_storage_path = f"{data_storage_path}{auth}/"
+            data_upload_path = f"{auth}/"
+            if not os.path.exists(data_storage_path):
+                os.mkdir(data_storage_path)
+                upload_folder(data_upload_path) if CLOUD_MODE else None
+            # add year
+            data_storage_path = f"{data_storage_path}{year}/"
+            data_upload_path = f"{data_upload_path}{year}/"
+            if not os.path.exists(data_storage_path):
+                os.mkdir(data_storage_path)
+                upload_folder(data_upload_path) if CLOUD_MODE else None
+
+            return data_storage_path, data_upload_path
         # for testing some samples from an authority
         #if True:
         #    pass
@@ -196,9 +256,16 @@ class UKPlanning_Scraper(scrapy.Spider):
             # auth_names = auth_names[[0, 1, 2, 3[ExternalDoc], 4, 6, 7, 8[2003-2022], 9[no 2016], 11, 12
             # 10[too many requests], 13[too many requests], 14, 17, 19]]
             app_dfs = []
-            self.auth_index = 5 # 59, 239
+            self.auth_index = 0 # 59, 239
+            # Civica[13]: 4, 41, 86, 117, 123,     155(*version 2006), 168(*inaccessible), 171, 177, 192,     198, 202, 242,
+            # NEC[9]: 2, 31, 60, 95(*page load issue), 113,      115, 147, 170, 182(*download failed)
+            # Northgate[7]: 105[no comment], 106, 108(2003), 129, 133,     135, 143,
+            # No comment[7 + 4IPs]: 87, 119(no public comment), 124, 131[IP], 181, 183[IP], 187, 228, 230[IP], 243[IP], 244
+            # Dict[10]: 11(*new doc system), 88, 96[IP], 110, 140[*Northgate 2009],      209, 216, 226(*recaptcha for docs), 237, 238
+            # 32+6
+
             # IP rotations: 5, 7, 33, 35, 43;   51, 59*[8 times], 67, 77, 104;   118, 121, 131[no comment], 142, 153;
-            # 161, 178, 183[no comment], 184, 186;   190, 200, 218, 223, 225;   230, 243[no comment],
+            # 161, 178, 183[no comment], 184, 186;   190, 200, 218, 223, 225;   230[no comment], 243[no comment],
             """
             4, 47, 92, 98 for 5 
             work: 
@@ -218,14 +285,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             """
             self.year = -1
             self.auth = auth_names[int(self.auth_index)]
-            self.data_storage_path = f"{self.data_storage_path}{self.auth}/{self.year}/"
-            self.data_upload_path = f"{self.auth}/{self.year}/"
-            if not os.path.exists(f"{get_data_storage_path()}{self.auth}"):
-                os.mkdir(f"{get_data_storage_path()}{self.auth}")
-                upload_folder(f"{self.auth}") if CLOUD_MODE else None
-            if not os.path.exists(self.data_storage_path):
-                os.mkdir(self.data_storage_path)
-                upload_folder(self.data_upload_path) if CLOUD_MODE else None
+            self.data_storage_path, self.data_upload_path = initialize_paths(self.data_storage_path, self.auth, self.year)
 
             #years = np.linspace(2002, 2021, 20, dtype=int)
             #years = np.linspace(2003, 2022, 20, dtype=int)  # 11
@@ -237,7 +297,7 @@ class UKPlanning_Scraper(scrapy.Spider):
                 #    file_path = f"{get_list_storage_path()}{auth}/{auth}{year}.csv"
                 filenames = get_filenames(f"{get_list_storage_path()}{auth}/")
                 print(f"{auth}. number of files: {len(filenames)}")
-                for filename in filenames[2:]:
+                for filename in filenames[2:]: # https://pad-planning.bury.gov.uk/AniteIM.WebSearch/ExternalEntryPoint.aspx?SEARCH_TYPE=1&DOC_CLASS_CODE=DC&FOLDER1_REF=54751
                     file_path = f"{get_list_storage_path()}{auth}/{filename}"
                     df = pd.read_csv(file_path)  # , index_col=0)  # <class 'pandas.core.frame.DataFrame'>
                     print(filename, df.shape[0])
@@ -267,15 +327,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             else:
                 src_path = f"{get_list_storage_path()}{self.auth}/{self.auth}{self.year}.csv"
                 self.app_dfs = pd.read_csv(src_path)
-
-            self.data_storage_path = f"{self.data_storage_path}{self.auth}/{self.year}/"
-            self.data_upload_path = f"{self.auth}/{self.year}/"
-            if not os.path.exists(f"{get_data_storage_path()}{self.auth}"):
-                os.mkdir(f"{get_data_storage_path()}{self.auth}")
-                upload_folder(f"{self.auth}") if CLOUD_MODE else None
-            if not os.path.exists(self.data_storage_path):
-                os.mkdir(self.data_storage_path)
-                upload_folder(self.data_upload_path) if CLOUD_MODE else None
+            self.data_storage_path, self.data_upload_path = initialize_paths(self.data_storage_path, self.auth, self.year)
 
             # read the list of scraping.
             self.list_path = f"{self.data_storage_path}to_scrape_list.csv"
@@ -381,7 +433,8 @@ class UKPlanning_Scraper(scrapy.Spider):
         # sequential.
         self.index += 1
         """ # FOR_IP_TEST_ONLY
-        url = "http://lumtest.com/myip.json"
+        #url = "http://lumtest.com/myip.json"
+        url = "https://portal360.argyll-bute.gov.uk/planning/planning-documents?SDescription=04/00001/DET"
         print("url:", url)
         yield SeleniumRequest(url=url, callback=self.parse_IP)
         """
@@ -456,7 +509,9 @@ class UKPlanning_Scraper(scrapy.Spider):
             os.remove(f"{self.data_storage_path}{folder_name}/{file_name}")
 
     def get_doc_url(self, response, app_df):
-        tab_lis = response.xpath('//*[@id="pa"]/div[3]/div[3]/ul').xpath('./li')
+        # tab_lis = response.xpath('//*[@id="pa"]/div[3]/div[3]/ul').xpath('./li')
+        # or response.xpath('//*[@id="pa"]/div[4]/div[3]/ul').xpath('./li')
+        tab_lis = response.css('ul.tabs').xpath('./li')
         url = ''
         for li in tab_lis:
             try:  # tab has a link.
@@ -473,21 +528,16 @@ class UKPlanning_Scraper(scrapy.Spider):
         if url == '':
             url = app_df.at['url'].replace('summary', 'documents')
         app_df.at['other_fields.docs_url'] = url
+
     """
     Parse Functions
     """
-    def parse_summary_item(self, response):
-        #driver = response.request.meta["driver"]
-        app_df = response.meta['app_df']
-        self.get_doc_url(response, app_df)
-        items = response.xpath('//*[@id="simpleDetailsTable"]/tbody/tr')
-        n_items = len(items)
-        print(f"\nSummary Tab: {n_items}") if PRINT else None #print(f"Summary Tab: {n_items}")
+    def parse_summary(self, app_df, items):
         for item in items:
             item_name = item.xpath('./th/text()').get().strip()
             data_name = self.summary_dict[item_name]
 
-            #if data_name in self.app_dfs.columns:
+            # if data_name in self.app_dfs.columns:
             try:
                 # Empty
                 if self.is_empty(app_df.at[data_name]):
@@ -507,7 +557,64 @@ class UKPlanning_Scraper(scrapy.Spider):
             except KeyError:
                 app_df[data_name] = item.xpath('./td/text()').get().strip()
                 print(f"<{item_name}> scraped (new): {app_df.at[data_name]}") if PRINT else None
+        return app_df
 
+    def parse_summary_item(self, response):
+        ### Ensure the page content is loaded.
+        try:
+            driver = response.request.meta["driver"]
+            loaded_items = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="simpleDetailsTable"]/tbody')))
+            loaded_items = loaded_items.find_elements(By.XPATH, './tr')
+            print('loaded items: ', len(loaded_items))
+        except TimeoutException:
+            # Planning Application details not available . e.g. auth=123, year=[21:]
+            note = response.xpath('//*[@id="pageheading"]/h1/text()').get()
+            print('note: ', note)
+            # This application is no longer available for viewing. It may have been removed or restricted from public viewing.
+            if note is not None and 'details not available' in note:
+                print('*** *** *** This application is not available. *** *** ***')
+                return
+            else:
+                print('*** *** *** NEED TO RELOAD APP PAGE. *** *** ***')
+                #self.index -= 1
+                time.sleep(10)
+                # yield SeleniumRequest(url=app_df.at['url'], callback=self.re_parse_summary_item, meta={'app_df': app_df})
+                return
+        #print('--- --- test --- ---')
+
+        app_df = response.meta['app_df']
+        self.get_doc_url(response, app_df)
+        items = response.xpath('//*[@id="simpleDetailsTable"]/tbody/tr')
+        n_items = len(items)
+        print(f"\nSummary Tab: {n_items}") #if PRINT else None #print(f"Summary Tab: {n_items}")
+
+        app_df = self.parse_summary(app_df, items)
+        """
+    for item in items:
+    item_name = item.xpath('./th/text()').get().strip()
+    data_name = self.summary_dict[item_name]
+    
+    #if data_name in self.app_dfs.columns:
+    try:
+    # Empty
+    if self.is_empty(app_df.at[data_name]):
+    # Date
+    if item_name in ['Application Received', 'Application Received Date', 'Application Registered',
+    'Application Validated', 'Decision Issued Date']:
+    date_string = item.xpath('./td/text()').get().strip()
+    app_df.at[data_name] = self.convert_date(date_string)
+    # Non-Date
+    else:
+    app_df.at[data_name] = item.xpath('./td/text()').get().strip()
+    print(f"<{item_name}> scraped: {app_df.at[data_name]}") if PRINT else None
+    # Filled
+    else:
+    print(f"<{item_name}> filled.") if PRINT else None
+    # New (Non-Date)
+    except KeyError:
+    app_df[data_name] = item.xpath('./td/text()').get().strip()
+    print(f"<{item_name}> scraped (new): {app_df.at[data_name]}") if PRINT else None
+    #"""
         url = app_df.at['url'].replace('summary', 'details')
         yield SeleniumRequest(url=url, callback=self.parse_details_item, meta={'app_df': app_df})
 
@@ -553,7 +660,7 @@ class UKPlanning_Scraper(scrapy.Spider):
         for item in items:
             item_name = item.xpath('./th/text()').get().strip()
             # Duplicate
-            if item_name in ['Application Received Date', 'Application Validated Date', 'Date Application Valid', 'Application Valid Date', 'Valid Date',
+            if item_name in ['Application Received Date', 'Application Validated Date', 'Date Application Valid', 'Application Valid Date', 'Valid Date', 'Application Registered Date',
                              'Decision Issued Date']:
                 continue
             data_name = self.dates_dict[item_name]
@@ -585,10 +692,7 @@ class UKPlanning_Scraper(scrapy.Spider):
 
         # setup the app storage path.
         folder_name = str(app_df.at['name'])
-        if '/' in folder_name:
-            folder_name = re.sub('/', '-', folder_name)
-        if '*' in folder_name:
-            folder_name = re.sub(r'\*', '-', folder_name)
+        folder_name = replace_invalid_characters(folder_name)
         folder_path = f"{self.data_storage_path}{folder_name}/"
         print(folder_path) if PRINT else None
         if not os.path.exists(folder_path):
@@ -707,61 +811,84 @@ class UKPlanning_Scraper(scrapy.Spider):
         print("start scraping comments. So far time_cost: {:.0f} mins {:.4f} secs.".format(time_cost // 60, time_cost % 60))
         app_df = response.meta['app_df']
         folder_name = response.meta['folder_name']
-        # Scrape the summary of public comments
-        strs = response.xpath('//*[@id="commentsContainer"]/ul/li[1]').get()
-        public_consulted = int(re.search(r"\d+", strs).group())
-        strs = response.xpath('//*[@id="commentsContainer"]/ul/li[2]').get()
-        public_received = int(re.search(r"\d+", strs).group())
-
-        public_consulted = max(public_consulted, public_received)
-        app_df['other_fields.n_comments_public_total_consulted'] = public_consulted
-        app_df['other_fields.n_comments_public_received'] = public_received
-
-        if public_received == 0:
-            app_df['other_fields.n_comments_public_objections'] = 0
-            app_df['other_fields.n_comments_public_supporting'] = 0
-        else:
-            strs = response.xpath('//*[@id="commentsContainer"]/ul/li[3]').get()
-            app_df['other_fields.n_comments_public_objections'] = int(re.search(r"\d+", strs).group())
-            strs = response.xpath('//*[@id="commentsContainer"]/ul/li[4]').get()
-            app_df['other_fields.n_comments_public_supporting'] = int(re.search(r"\d+", strs).group())
-        print(f"\npublic comments: {public_consulted}, {public_received}, "
-              f"{app_df.at['other_fields.n_comments_public_objections']}, {app_df.at['other_fields.n_comments_public_supporting']}") if PRINT else None
-            #print(f"public comments: {public_consulted}, {public_received}, "
-            #  f"{app_df.at['other_fields.n_comments_public_objections']}, {app_df.at['other_fields.n_comments_public_supporting']}")
 
         # Scrape comments
         comment_source = []
         comment_date = []
         comment_content = []
-        #if public_consulted > 0:
-        #    self.scrape_comments(response, comment_source, comment_date, comment_content)
         try:
-            comments = response.xpath('//*[@id="comments"]').xpath('./div')
-            self.scrape_comments(comments, comment_source, comment_date, comment_content)
-        except TypeError:
-            pass
+            # Scrape the summary of public comments
+            strs = response.xpath('//*[@id="commentsContainer"]/ul/li[1]/text()').get()
+            public_consulted = int(re.search(r"\d+", strs).group())
+            strs = response.xpath('//*[@id="commentsContainer"]/ul/li[2]/text()').get()
+            public_received = int(re.search(r"\d+", strs).group())
 
-        try:
-            #next_page_url = response.xpath('//*[@id="commentsListContainer"]/p[2]/a[2]/@href').get()[0]
-            next_page_url = response.xpath('//*[@id="commentsListContainer"]').css('a.next::attr(href)').get()
-            #print('public:', next_page_url)
-            if next_page_url:  # Next public comment page
-                next_page_url = response.urljoin(next_page_url)
-                yield SeleniumRequest(url=next_page_url, callback=self.parse_public_comments2_item,
-                                      meta={'app_df': app_df, 'folder_name': folder_name, 'comment_source': comment_source,
-                                            'comment_date': comment_date, 'comment_content': comment_content})
-            else:  # Move to consultee pages
+            public_consulted = max(public_consulted, public_received)
+            app_df['other_fields.n_comments_public_total_consulted'] = public_consulted
+            app_df['other_fields.n_comments_public_received'] = public_received
+
+            if public_received == 0:
+                app_df['other_fields.n_comments_public_objections'] = 0
+                app_df['other_fields.n_comments_public_supporting'] = 0
+            else:
+                strs = response.xpath('//*[@id="commentsContainer"]/ul/li[3]/text()').get()
+                app_df['other_fields.n_comments_public_objections'] = int(re.search(r"\d+", strs).group())
+                strs = response.xpath('//*[@id="commentsContainer"]/ul/li[4]/text()').get()
+                app_df['other_fields.n_comments_public_supporting'] = int(re.search(r"\d+", strs).group())
+            print(f"\npublic comments: {public_consulted}, {public_received}, "
+                  f"{app_df.at['other_fields.n_comments_public_objections']}, {app_df.at['other_fields.n_comments_public_supporting']}") if PRINT else None
+                #print(f"public comments: {public_consulted}, {public_received}, "
+                #  f"{app_df.at['other_fields.n_comments_public_objections']}, {app_df.at['other_fields.n_comments_public_supporting']}")
+
+            #if public_consulted > 0:
+            #    self.scrape_comments(response, comment_source, comment_date, comment_content)
+            try:
+                comments = response.xpath('//*[@id="comments"]').xpath('./div')
+                self.scrape_comments(comments, comment_source, comment_date, comment_content)
+            except TypeError:
+                pass
+
+            try:
+                #next_page_url = response.xpath('//*[@id="commentsListContainer"]/p[2]/a[2]/@href').get()[0]
+                next_page_url = response.xpath('//*[@id="commentsListContainer"]').css('a.next::attr(href)').get()
+                #print('public:', next_page_url)
+                if next_page_url:  # Next public comment page
+                    next_page_url = response.urljoin(next_page_url)
+                    yield SeleniumRequest(url=next_page_url, callback=self.parse_public_comments2_item,
+                                          meta={'app_df': app_df, 'folder_name': folder_name, 'comment_source': comment_source,
+                                                'comment_date': comment_date, 'comment_content': comment_content})
+                else:  # Move to consultee pages
+                    url = app_df.at['url'].replace('summary', 'consulteeComments')
+                    yield SeleniumRequest(url=url, callback=self.parse_consultee_comments_item,
+                                          meta={'app_df': app_df, 'folder_name': folder_name, 'comment_source': comment_source,
+                                                'comment_date': comment_date, 'comment_content': comment_content})
+            except TypeError:  # Public comment details can not display.
+                # Move to consultee pages
                 url = app_df.at['url'].replace('summary', 'consulteeComments')
                 yield SeleniumRequest(url=url, callback=self.parse_consultee_comments_item,
                                       meta={'app_df': app_df, 'folder_name': folder_name, 'comment_source': comment_source,
                                             'comment_date': comment_date, 'comment_content': comment_content})
-        except TypeError:  # Public comment details can not display.
+        except TypeError:  # No comment page
+            print('This application has no page for public comments.') if PRINT else None
+            #app_df.at['other_fields.n_comments'] = 0
+
+            app_df['other_fields.n_comments_public_total_consulted'] = 0
+            app_df['other_fields.n_comments_public_received'] = 0
+            app_df['other_fields.n_comments_public_objections'] = 0
+            app_df['other_fields.n_comments_public_supporting'] = 0
+
             # Move to consultee pages
             url = app_df.at['url'].replace('summary', 'consulteeComments')
             yield SeleniumRequest(url=url, callback=self.parse_consultee_comments_item,
                                   meta={'app_df': app_df, 'folder_name': folder_name, 'comment_source': comment_source,
                                         'comment_date': comment_date, 'comment_content': comment_content})
+
+            #app_df['other_fields.n_comments_consultee_total_consulted'] = 0
+            #app_df['other_fields.n_comments_consultee_responded'] = 0
+            # constraint_url  # New
+            #url = app_df.at['url'].replace('summary', 'constraints')
+            #app_df['other_fields.constraint_url'] = url
+            #yield SeleniumRequest(url=url, callback=self.parse_constraints_item, meta={'app_df': app_df, 'folder_name': folder_name})
 
     def parse_public_comments2_item(self, response):
         app_df = response.meta['app_df']
@@ -798,9 +925,9 @@ class UKPlanning_Scraper(scrapy.Spider):
         comment_content = response.meta['comment_content']
         try:
             # Scrape the summary of consultee comments
-            strs = response.xpath('//*[@id="commentsContainer"]/ul/li[1]').get()
+            strs = response.xpath('//*[@id="commentsContainer"]/ul/li[1]/text()').get()
             app_df['other_fields.n_comments_consultee_total_consulted'] = int(re.search(r"\d+", strs).group())
-            strs = response.xpath('//*[@id="commentsContainer"]/ul/li[2]').get()
+            strs = response.xpath('//*[@id="commentsContainer"]/ul/li[2]/text()').get()
             app_df['other_fields.n_comments_consultee_responded'] = int(re.search(r"\d+", strs).group())
         except TypeError:  # Consultee page cannot display.
             app_df['other_fields.n_comments_consultee_total_consulted'] = 0
@@ -816,6 +943,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             comments = response.xpath('//*[@id="comments"]').xpath('./div')
             self.scrape_comments(comments, comment_source, comment_date, comment_content)
         except TypeError:
+            #print('This application has no consultee comments.') if PRINT else None
             pass
 
         # next_page_url = response.xpath('//*[@id="commentsListContainer"]/p[2]/a[2]/@href').extract()[0]
@@ -926,318 +1054,30 @@ class UKPlanning_Scraper(scrapy.Spider):
         # document_url
         yield SeleniumRequest(url=app_df.at['other_fields.docs_url'], callback=self.parse_documents_item, meta={'app_df': app_df, 'folder_name': folder_name})
 
-    def unzip_documents(self, storage_path, wait_unit=1.0, wait_total=100):
-        zipname = ''
-        n_wait = 0
-
-        while zipname == '' and n_wait < wait_total:
-            time.sleep(wait_unit)
-            n_wait += wait_unit
-            rootfiles = os.listdir(get_project_root())
-            for filename in rootfiles:
-                # print(f"{n_wait} checking: {filename}")
-                if filename.endswith('.zip'):
-                    zipname = filename
-                    break
-        print("{:.1f} secs, zipname: {:s}".format(n_wait, zipname))
-
-        unzip_dir = f"{storage_path}documents/"
-        with zipfile.ZipFile(zipname, 'r') as zip_ref:
-            zip_ref.extractall(unzip_dir)
-        os.remove(zipname)
-        return unzip_dir
-
-    def get_document_info_columns(self, response):
-        columns = response.xpath('//*[@id="Documents"]/tbody/tr[1]/th')
-        n_columns = len(columns)
-        date_column = n_columns
-        type_column = n_columns
-        description_column = n_columns
-        for i, column in enumerate(columns):
-            try:
-                if 'date' in str.lower(column.xpath('./a/text()').get()):
-                    date_column = i + 1
-                    continue
-                if 'type' in str.lower(column.xpath('./a/text()').get()):
-                    type_column = i + 1
-                    continue
-                if 'description' in str.lower(column.xpath('./a/text()').get()):
-                    description_column = i + 1
-                    continue
-            except TypeError:
-                continue
-        print(f"date column {date_column}, type column {type_column}, description column {description_column}, n_columns {n_columns}") if PRINT else None
-        return date_column, type_column, description_column
-
-    def scrape_documents_by_checkbox(self, response, driver, checkboxs, n_documents, storage_path):
-        n_checkboxs = len(checkboxs)
-        def rename_documents():
-            docfiles = os.listdir(unzip_dir)
-            docfiles.sort(key=str.lower)
-            date_column, type_column, description_column = self.get_document_info_columns(response)
-
-            # Click 'Description' button to sort documents. 点击网页上description的按钮进行排序
-            description_button = None
-            Descending = False
-            try:
-                sorting_buttons = driver.find_elements(By.CLASS_NAME, 'ascending')
-                #sorting_buttons = driver.find_elements(By.XPATH, '//*[@id="Documents"]/tbody/tr')[0]
-                for sorting_button in sorting_buttons:
-                    if 'description' in str.lower(sorting_button.text):
-                        description_button = sorting_button
-                        break
-                description_button.click()
-            except AttributeError:
-                try:
-                    sorting_buttons = driver.find_elements(By.CLASS_NAME, 'descending')
-                    for sorting_button in sorting_buttons:
-                        if 'description' in str.lower(sorting_button.text):
-                            description_button = sorting_button
-                            break
-                    description_button.click()
-                    Descending = True
-                except AttributeError:
-                    print(f"failed to sort documents items.")
-
-            # 通过driver获取排序后的文档信息
-            unpaired_bases = []
-            unpaired_extensions = []
-            unpaired_names = []
-            unpaired_identities = []
-            document_items = driver.find_elements(By.XPATH, '//*[@id="Documents"]/tbody/tr')[1:]
-            if Descending:
-                document_items = document_items[::-1]
-            print("length comparison:", len(docfiles), len(document_items)) if PRINT else None
-            for i, document_item in enumerate(document_items):
-                #item_info = document_item.text
-                #print(item_info)
-                document_date = document_item.find_element(By.XPATH, f'./td[{date_column}]').text
-                document_type = document_item.find_element(By.XPATH, f'./td[{type_column}]').text
-                document_description = document_item.find_element(By.XPATH, f'./td[{description_column}]').text
-                item_identity = document_item.find_elements(By.XPATH, './td/a')[-1].get_attribute('href').split('-')[-1]
-                item_identity = item_identity.split('.')[0]  # remove the suffix. Some doc names end with .tif but their link names end with .pdf.
-                document_name = f"date={document_date}&type={document_type}&desc={document_description}&{item_identity}"
-                print(document_name) if PRINT else None
-                if '/' in document_name:
-                    document_name = re.sub('/', '-', document_name)
-
-                docfile_base, docfile_extension = os.path.splitext(docfiles[i])
-                if docfile_base.endswith(item_identity):
-                    os.rename(unzip_dir + docfiles[i], f"{storage_path}{document_name}{docfile_extension}")
-                else:
-                    print(i+1, "- - - ", docfile_base, docfile_extension) if PRINT else None
-                    unpaired_bases.append(docfile_base)
-                    unpaired_extensions.append(docfile_extension)
-                    unpaired_names.append(document_name)
-                    unpaired_identities.append(item_identity)
-
-            # pair item_identity with the name of downloaded documents
-            for docfile_base, docfile_extension in zip(unpaired_bases, unpaired_extensions):
-                print(unpaired_names) if PRINT else None
-                for i, identity in enumerate(unpaired_identities):
-                    if docfile_base.endswith(identity):
-                        paired_name = unpaired_names[i]
-                        os.rename(unzip_dir + docfile_base + docfile_extension, f"{storage_path}{paired_name}{docfile_extension}")
-                        unpaired_names.remove(paired_name)
-                        unpaired_identities.remove(identity)
-                        continue
-            os.rmdir(unzip_dir)
-
-        max_checkboxs = 24
-        n_downloads = int(np.ceil(n_checkboxs / max_checkboxs))
-        n_full_downloads = n_downloads - 1
-        print(f"Downloading {n_checkboxs} documents by {n_downloads} downloads ...")
-        download_failure = False
-        try:
-            for i in range(n_full_downloads):
-                start_index = i * max_checkboxs
-                end_index = (i + 1) * max_checkboxs
-                for checkbox in checkboxs[start_index: end_index]:
-                    checkbox.click()
-                time.sleep(0.1)
-                driver.find_element(By.ID, 'downloadFiles').click()
-                for checkbox in checkboxs[start_index: end_index]:
-                    checkbox.click()
-                # Unzip downloaded documents.
-                unzip_dir = self.unzip_documents(storage_path)
-        except FileNotFoundError as error:
-            print("Downloading Failed:", error)
-            download_failure = True
-
-        try:
-            start_index = n_full_downloads * max_checkboxs
-            end_index = n_documents
-            for checkbox in checkboxs[start_index: end_index]:
-                checkbox.click()
-            time.sleep(0.1)
-            download_time = time.time()
-            driver.find_element(By.ID, 'downloadFiles').click()
-            print("Download button time cost {:.4f} secs.".format(time.time()-download_time)) if PRINT else None
-            # Unzip downloaded documents.
-            unzip_dir = self.unzip_documents(storage_path)
-        except FileNotFoundError as error:
-            print("Downloading Failed:", error)
-            download_failure = True
-
-        if download_failure:
-            self.failures += 1
-        else:
-            rename_documents()
-
-    # similar to the rename_documents() in scrape_documents_by_checkbox(), but without: 1>. clicking sort button 2>. pair un-matched documents.
-    def rename_documents_and_get_file_urls(self, response, folder_name):
-        date_column, type_column, description_column = self.get_document_info_columns(response)
-        document_items = response.xpath('//*[@id="Documents"]/tbody/tr')[1:]
-        document_paths = []
-        file_urls = []
-        for i, document_item in enumerate(document_items):
-            document_date = document_item.xpath(f'./td[{date_column}]/text()').get().strip()
-            document_type = document_item.xpath(f'./td[{type_column}]/text()').get().strip()
-            try:
-                document_description = document_item.xpath(f'./td[{description_column}]/text()').get().strip()
-            except AttributeError:
-                document_description = ''
-            file_url = document_item.xpath('./td/a')[-1].xpath('./@href').get()
-            # file_url = document_item.css('a::attr(href)').get()
-            """ # the docs downloaded by file links are different from the docs downloaded from download button (.zip). Set extensions could results in crashed docs.
-            try:
-                item_identity = document_item.xpath('./td/input')[0].xpath('./@value').get().strip().split('-')[-1]
-                print(i, item_identity)
-            except TypeError:
-                item_identity = file_url.split('-')[-1]
-            """
-            item_identity = file_url.split('-')[-1]
-            document_name = f"date={document_date}&type={document_type}&desc={document_description}&{item_identity}"
-            print(document_name) if PRINT else None
-            invalid_chars = ['/', ' ', ':']
-            for invalid_char in invalid_chars:
-                if invalid_char in document_name:
-                    document_name = re.sub(invalid_char, '_', document_name)
-            document_paths.append(f"{self.data_upload_path}{folder_name}/{document_name}")
-            file_urls.append(response.urljoin(file_url))
-        return document_paths, file_urls
-
-    def scrape_documents_by_NEC(self, response, n_documents, storage_path):
-        driver = response.request.meta["driver"]
-        select = Select(driver.find_element(By.NAME, 'searchResult_length'))
-        select.select_by_visible_text('100')
-        print(f"Downloading {n_documents} documents separately ...")
-
-        checkboxs = driver.find_elements(By.NAME, 'selectCheckBox')
-        document_items = driver.find_elements(By.XPATH, '//*[@id="searchResult"]/tbody/tr')
-        unzip_dir = None
-        existing_names = []
-        for i, checkbox in enumerate(checkboxs):
-            checkbox.click()
-            driver.find_element(By.ID, 'linkDownload').click()
-            try:
-                unzip_dir = self.unzip_documents(storage_path, wait_unit=0.1, wait_total=10)
-                docfile = os.listdir(unzip_dir)[0]
-
-                document_date = document_items[i].find_element(By.XPATH, f'./td[8]').text
-                #document_date = re.sub('/', '-', document_date)
-                document_type = document_items[i].find_element(By.XPATH, f'./td[3]').text
-                document_description = document_items[i].find_element(By.XPATH, f'./td[7]').text
-                document_filetype = document_items[i].find_element(By.XPATH, f'./td[12]').text
-                document_name = f"date={document_date}&type={document_type}({document_filetype[1:].lower()})&desc={document_description}"
-                if '/' in document_name:
-                    document_name = re.sub('/', '-', document_name)
-                if document_name not in existing_names:
-                    existing_names.append(document_name)
-                else:
-                    rename_index = 2
-                    base = document_name
-                    duplicate = True
-                    while duplicate:
-                        document_name = base + str(rename_index)
-                        if document_name not in existing_names:
-                            duplicate = False
-                            existing_names.append(document_name)
-                        else:
-                            rename_index += 1
-                print(document_name) if PRINT else None
-                docfile_extension = docfile.split('.')[-1]
-                os.rename(unzip_dir + docfile, f"{storage_path}{document_name}.{docfile_extension.lower()}")
-            except FileNotFoundError as error:
-                print(f"Downloading {i}/{n_documents} Failed: {error}")
-                self.failures += 1
-            checkbox.click()
-        if unzip_dir is not None:
-            os.rmdir(unzip_dir)
-
-    def scrape_documents_by_NEC2_USELESS(self, response, n_documents, storage_path):
-        driver = response.request.meta["driver"]
-        driver.find_element(By.ID, 'selectAll').click()
-        driver.find_element(By.ID, 'linkDownload').click()
-        print(f"Downloading {n_documents} documents by 1 download ...")
-        # process zip
-        try:
-            unzip_dir = self.unzip_documents(storage_path)
-            # Rename downloaded documents:
-            docfiles = os.listdir(unzip_dir)
-
-            driver = response.request.meta["driver"]
-            select = Select(driver.find_element(By.NAME, 'searchResult_length'))
-            select.select_by_visible_text('100')
-            # driver.refresh()
-            # time.sleep(5)
-
-            document_items = driver.find_elements(By.XPATH, '//*[@id="searchResult"]/tbody/tr')
-            # 'Correspondence for discharge of condition 53530 details of methodology and painting scheme - acceptable 17/02/2011 0 0 1.0.0 .msg'
-            day = '[0-9]{2}'
-            month = '\w*'
-            year = '[0-9]{4}'
-            pattern_date = f'{day}/{month}/{year}'
-            existing_names = []
-
-            for i, document_item in enumerate(document_items):
-                document_info = document_item.text
-                date_received = re.search(pattern_date, document_info, re.I).group()
-                document_info = document_info.split(date_received)[0]
-                date_received = re.sub('/', '-', date_received)
-
-                case_number = re.search('\d+', document_info, re.I).group()
-                document_info = document_info.split(case_number)
-                document_type = document_info[0].strip()
-                description = document_info[1].strip()
-                docname = f"date={date_received}&type={document_type}&case_num={case_number}&desc={description}"
-                if docname not in existing_names:
-                    existing_names.append(docname)
-                else:
-                    rename_index = 2
-                    base = docname
-                    duplicate = True
-                    while duplicate:
-                        docname = base + str(rename_index)
-                        if docname not in existing_names:
-                            duplicate = False
-                            existing_names.append(docname)
-                        else:
-                            rename_index += 1
-                print(i, unzip_dir + docfiles[i], f"{storage_path}{docname+docfiles[i][-4:]}") if PRINT else None
-                os.rename(unzip_dir + docfiles[i], f"{storage_path}{docname+docfiles[i][-4:]}")
-                """
-                date_received = document_item.xpath(f'./td[8]/text()').get()
-                date_received = re.sub('/', '-', date_received)
-                document_type = document_item.xpath(f'./td[3]/text()').get()
-                case_number = document_item.xpath(f'./td[5]/text()').get()
-                description = document_item.xpath(f'./td[7]/text()').get()
-                docname = f"date={date_received}&type={document_type}&case_num={case_number}&desc={description}"
-                os.rename(unzip_dir + docfiles[i], f"{storage_path}{docname+docfiles[-4:]}")
-                #"""
-
-            # n_remaining_documents = n_documents - 10
-            # if n_remaining_documents > 0:
-            #    docfiles = docfiles[10:]
-            # """
-            os.rmdir(unzip_dir)
-        except FileNotFoundError as error:
-            print("Downloading Failed:", error)
-            self.failures += 1
 
     def parse_documents_item(self, response):
         app_df = response.meta['app_df']
         folder_name = response.meta['folder_name']
+        def create_item(folder_name, file_urls, document_names, IP_index=0):
+            if not os.path.exists(self.failed_downloads_path + folder_name):
+                os.mkdir(self.failed_downloads_path + folder_name)
+
+            item = DownloadFilesItem()
+            item['file_urls'] = file_urls
+            item['document_names'] = document_names
+            item['IP_index'] = IP_index  # new
+            """
+            csrf = response.xpath('//*[@id="caseDownloadForm"]/input[1]/@value').get()
+            print("csrf:", csrf)
+            item['session_csrf'] = csrf
+            """
+
+            driver = response.request.meta["driver"]
+            cookies = driver.get_cookies()
+            print("cookies:", cookies) if PRINT else None
+            item['session_cookies'] = cookies
+            return item
+
         try:
             mode_str = response.request.url.split('activeTab=')[1]
             mode = mode_str.split('&')[0]
@@ -1245,6 +1085,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             mode = 'associatedDocuments'
 
         if mode == 'documents':
+            ### get n_documents ###
             documents_str = response.xpath('//*[@id="tab_documents"]/span/text()').get()
             if documents_str is None:
                 documents_str = response.xpath('//*[@id="pa"]/div[3]/div[3]/ul/li[3]/span/text()').get()
@@ -1262,57 +1103,145 @@ class UKPlanning_Scraper(scrapy.Spider):
                       " time_cost: {:.0f} mins {:.4f} secs.".format(time_cost // 60, time_cost % 60))
             # other_fields.n_documents
             app_df.at['other_fields.n_documents'] = n_documents
-            if n_documents > 0:
-                driver = response.request.meta["driver"]
-                checkboxs = driver.find_elements(By.NAME, 'file')
-                if len(checkboxs) < 0:  # Download through checkboxs 24-02-17, ***Discarded. To use this approach, set 'len(checkboxs) > 0'.
-                    self.scrape_documents_by_checkbox(response, driver, checkboxs, n_documents, storage_path)
-                else:  # No checkboxs and the download button.
-                    document_names, file_urls = self.rename_documents_and_get_file_urls(response, folder_name)
-                    if not os.path.exists(self.failed_downloads_path + folder_name):
-                        os.mkdir(self.failed_downloads_path + folder_name)
 
-                    item = DownloadFilesItem()
-                    item['file_urls'] = file_urls
-                    item['document_names'] = document_names
-                    """
-                    csrf = response.xpath('//*[@id="caseDownloadForm"]/input[1]/@value').get()
-                    print("csrf:", csrf)
-                    item['session_csrf'] = csrf
-                    """
-                    cookies = driver.get_cookies()
-                    print("cookies:", cookies) if PRINT else None
-                    item['session_cookies'] = cookies
-                    yield item
-        elif mode == 'externalDocuments':
-            # self.scrape_external_documents(response, app_df, storage_path)
-            docs_url = response.xpath('//*[@id="pa"]/div[3]/div[3]/div[3]/p/a/@href').get()
+            ### download documents ###
+            if n_documents > 0:
+                #document_names, file_urls = self.rename_documents_and_get_file_urls(response, self.data_upload_path, folder_name)
+                file_urls, document_names = get_documents(response, self.data_upload_path, folder_name)
+                print(f"----- ------ ------ ----- -----, IP test: {response.meta['IP_index']}")
+                item = create_item(folder_name, file_urls, document_names, response.meta['IP_index'])
+                yield item
+        elif mode == 'externalDocuments':  # Identify and redirect to the associated third-party document systems.
+            docs_url = response.css('div.tabcontainer.toplevel').xpath('./p/a/@href').get()
+            #docs_url = response.xpath('//*[@id="pa"]/div[3]/div[3]/div[3]/p/a/@href').get()
+            # Civica:       //*[@id="pa"]/div[3]/div[3]/div[3]/p/a
+            # NEC:          //*[@id="pa"]/div[3]/div[3]/div[3]/p/a
+            # Northgate:    //*[@id="pa"]/div[3]/div[3]/div[9]/p/a
             app_df.at['other_fields.docs_url'] = docs_url
             print(f'<{mode}> external document link:', docs_url)
             yield SeleniumRequest(url=docs_url, callback=self.parse_documents_item, meta={'app_df': app_df, 'folder_name': folder_name})
             return
-        elif mode == 'associatedDocuments':
+        elif mode == 'associatedDocuments':  # Scrape the associated third-party document systems.
             mode_str = response.request.url.split('?')[1]
-            mode_str = mode_str.split('=')[0]
-            if mode_str == 'SDescription':
+            print('mode_str: ', mode_str) if PRINT else None
+            system_name = 'Unknown'
+            if 'SDescription' in mode_str or 'ref_no' in mode_str:
+                """ Civica [13 LAs] examples:
+                [4]
+                [41]
+                [86]
+                [117]
+                [123]
+                https://myserviceplanning.gateshead.gov.uk/Planning/planning-documents?SDescription=DC/03/01849/FUL
+                [155 Norwich| SDescription |Civica 2006] https://documents.norwich.gov.uk/Planning/dialog.page?org.apache.shale.dialog.DIALOG_NAME=gfplanningsearch&Param=lg.Planning&viewdocs=true&SDescription=06/00022/F
+                [***168 ]
+                [171]
+                [177]
+                [192]
+                [198]
+                [202]
+                [242]
+                https://documents.richmondshire.gov.uk/planning/planning-documents?SDescription=03/01572/LBC&viewdocs=true
+                https://padocs.lewes-eastbourne.gov.uk/planning/planning-documents?ref_no=LW/04/0007
+                """
                 system_name = 'Civica'
-            elif mode_str == 'SEARCH_TYPE':  # 'FileSystemId':
-                system_name = 'NEC'
-            else:
-                system_name = 'Unknown'
+            elif 'SEARCH_TYPE' in mode_str or 'FileSystemId' in mode_str or 'doc_class_code' in mode_str:
+                """
+                NEC [9 LAs]:
+                [2 AdurWorthing| FileSystemId] https://docs.adur-worthing.gov.uk/PublicAccess_Live/SearchResult/RunThirdPartySearch?FileSystemId=DA&FOLDER1_REF=SU/1/01/TP/18916
+                [31 Bury| SEARCH_TYPE] https://pad-planning.bury.gov.uk/AniteIM.WebSearch/ExternalEntryPoint.aspx?SEARCH_TYPE=1&DOC_CLASS_CODE=DC&FOLDER1_REF=49332
+                [60 DerbyshireDales| SEARCH_TYPE] https://plandocs.derbyshiredales.gov.uk/PublicAccess_Live/ExternalEntryPoint.aspx?SEARCH_TYPE=1&DOC_CLASS_CODE=PD&FOLDER1_REF=04/01/0027
+                [***95 Hambleton*** |?] 
+                [113 Knowsley| FileSystemId] https://epa2.knowsley.gov.uk/PublicAccess_Live/SearchResult/RunThirdPartySearch?FileSystemId=DC&FOLDER1_REF=04/00001/FUL
+                [115 Lancaster| FileSystemId] https://planningdocstest.lancaster.gov.uk/PublicAccess_Live/SearchResult/RunThirdPartySearch?Folder1_Ref=03/00007/FUL&FileSystemId=DC 
+                [147 NorthHertfordshire| doc_class_code] https://documentportal.north-herts.gov.uk/GetDocList/Default.aspx?doc_class_code=DC&case_number=03/00004/1
+                [170 Rhondda| SEARCH_TYPE] https://documents0122.rctcbc.gov.uk/Publicaccess_Live/ExternalEntrypoint.aspx?SEARCH_TYPE=1&DOC_CLASS_CODE=DC&folder1_ref=01/6003/10
+                [***182 Selby***download error| FileSystemId] http://publicaccess1.selby.gov.uk/PublicAccess_LIVE/SearchResult/RunThirdPartySearch?FileSystemId=PL&FOLDER1_REF=CO/2004/0021
+                
+                Northgate [7 LAs]:
+                [105 Hinckley| SEARCH_TYPE] https://publicdocuments.hinckley-bosworth.gov.uk/PublicAccess_LIVE/ExternalEntryPoint.aspx?SEARCH_TYPE=1&DOC_CLASS_CODE=PL&FOLDER1_REF=11/00935/FUL
+                [106 Horsham| FileSystemId] https://iawpa.horsham.gov.uk/PublicAccess_LIVE/SearchResult/RunThirdPartySearch?FileSystemId=DH&FOLDER1_REF=DC/14/0006
+                [108 Huntingdonshire| FileSystemId] https://docs.huntingdonshire.gov.uk/PublicAccess_Live/SearchResult/RunThirdPartySearch?FileSystemId=PS&FOLDER1_REF=1102106FUL
+                [129 MerthyrTydfil| FileSystemId] https://enterprise.merthyr.gov.uk/PublicAccess_LIVE/SearchResult/RunThirdPartySearch?FileSystemId=DC&FOLDER1_REF=P/12/0009
+                [133 MidSussex| FileSystemId] https://padocs.midsussex.gov.uk/PublicAccess_Live/SearchResult/RunThirdPartySearch?FileSystemId=DM&FOLDER1_REF=DM/22/0020
+                [135 MiltonKeynes| FileSystemId] https://npaedms.milton-keynes.gov.uk/PublicAccess_LIVE/SearchResult/RunThirdPartySearch?FileSystemId=DC&FOLDER1_REF=18/00002/FUL
+                [143 Newport| FileSystemId] https://documents.newport.gov.uk/PublicAccess_LIVE/SearchResult/RunThirdPartySearch?FileSystemId=PL&FOLDER1_REF=12/0004]
+                """
+                try:
+                    powered_by = response.css('.powered-by').xpath('./a/text()').get()
+                    #print(powered_by)
+                    if 'NEC' in powered_by:
+                        system_name = 'NEC'
+                    elif 'Northgate' in powered_by:
+                        system_name = 'Northgate'
+                except TypeError:
+                    copyright = response.xpath('//*[@id="tblFooter"]/tbody/tr/td/p/text()').get()
+                    if 'NEC' in copyright:
+                        system_name = 'NEC'
+                    elif 'Northgate' in copyright:
+                        system_name = 'Northgate'
+
+            if system_name == 'Unknown':
                 print('Unknown document system.')
 
-            if system_name == 'NEC':  # Bury
-                documents_str = response.xpath('//*[@id="searchResult_info"]/text()').get()
-                documents_str = documents_str.split('of')[1]
-                n_documents = int(re.search(r"\d+", documents_str).group())
-                print(f"<NEC mode> n_documents: {n_documents}")
-                app_df.at['other_fields.n_documents'] = n_documents
-                if n_documents > 0:
-                    self.scrape_documents_by_NEC(response, n_documents, storage_path)
             if system_name == 'Civica':  # Ryedale
-                pass
+                ### get n_documents ###
+                driver = response.request.meta["driver"]
+                # application_viewer = '//*[@id="applicationviewer"]'
+                # civica_document_list = '//*[@id="applicationviewer"]/div/div/div[2]/div/div[3]/div'
+                # civica_doclist = '//*[@id="applicationviewer"]/div/div/div[2]/div/div[3]/div/div/div/div'
+                Civica_version = 2024
+                try:
+                    #document_list = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, f'{civica_doclist}/ul')))
+                    document_list = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CLASS_NAME, 'civica-doclist')))
+                    document_items = document_list.find_elements(By.XPATH, './ul/li')
+                    #print('driver document items', document_items)
+                    n_documents = len(document_items)
+                except TimeoutException:
+                    try:
+                        document_list = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.ID, '_id58:data:tbody_element')))
+                        document_items = document_list.find_elements(By.XPATH, './tr')
+                        n_documents = len(document_items)
+                        Civica_version = 2006
+                    except TimeoutException:
+                        print('No documents are available.') if PRINT else None
+                        n_documents = 0
 
+                print(f"{app_df.name} <{system_name} mode (ver.{Civica_version})> n_documents: {n_documents}, folder_name: {folder_name}")
+                app_df.at['other_fields.n_documents'] = n_documents
+
+                ### download documents ###
+                if n_documents > 0:
+                    file_urls, document_names = get_Civica_documents(response, document_items, n_documents, self.data_upload_path, folder_name, Civica_version)
+                    item = create_item(folder_name, file_urls, document_names)
+                    yield item
+
+            if system_name == 'NEC' or system_name == 'Northgate':
+                # NEC: AdurWorthing, Bury
+                ### get n_documents ###
+                version = 2024
+                try:
+                    documents_str = response.xpath('//*[@id="searchResult_info"]/text()').get()  # documents_str = 'Showing 1 to 10 of {n_documents} entries'
+                    documents_str = documents_str.split('of')[1]  # documents_str = '{n_documents} entries'
+                    n_documents = int(re.search(r"\d+", documents_str).group())
+                except AttributeError:
+                    try:
+                        # //*[@id="PanelMain"]/div[1]
+                        documents_str = response.css('div.TitleLabel').xpath('./text()').get()  # documents_str = 'Search Results - {n_documents} records found'
+                        n_documents = int(re.search(r"\d+", documents_str).group())
+                        version = 2009
+                    except TypeError:
+                        print('No documents are available.') if PRINT else None
+                        n_documents = 0
+
+                print(f"{app_df.name} <{system_name} mode (ver.{version})> n_documents: {n_documents}, folder_name: {folder_name}")
+                app_df.at['other_fields.n_documents'] = n_documents
+
+                ### download documents ###
+                if n_documents > 0:
+                    file_urls, document_names = get_NEC_or_Northgate_documents(response, n_documents, self.data_upload_path, folder_name, version)
+                    item = create_item(folder_name, file_urls, document_names)
+                    yield item
         else:
             print('Unknown document mode.')
 
@@ -1403,10 +1332,7 @@ class UKPlanning_Scraper(scrapy.Spider):
         app_df2 = pd.DataFrame(app_df).T
 
         folder_name = str(app_df.at['name'])
-        if '/' in folder_name:
-            folder_name = re.sub('/', '-', folder_name)
-        if '*' in folder_name:
-            folder_name = re.sub(r'\*', '-', folder_name)
+        folder_name = replace_invalid_characters(folder_name)
         app_df2.to_csv(f"{self.result_storage_path}{app_df.name}-{folder_name}.csv", index=False)
         if CLOUD_MODE and app_df.at['other_fields.n_documents'] == 0:
             folder_path = f"{self.data_storage_path}{folder_name}"
