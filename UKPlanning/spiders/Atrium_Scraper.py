@@ -91,7 +91,7 @@ class Atrium_Scraper(scrapy.Spider):
             print(auth_names)
 
             app_dfs = []
-            self.auth_index = 2  #1, 3, 13
+            self.auth_index = 12  #1, 3, 13
             """
             # A: 0[Bridgend]    # [Details], [Other Details], [Decision], [Consultees], [Documents], [Public Notices]
             # B: 1[Cherwell]    # [Main Details], [Applicant/Agents], [Publicity], [Supporting Docs], [Properties], [Site History]
@@ -174,7 +174,7 @@ class Atrium_Scraper(scrapy.Spider):
                 #    file_path = f"{get_list_storage_path()}{auth}/{auth}{year}.csv"
                 filenames = get_filenames(f"{get_list_storage_path()}{auth}/")
                 print(f"{auth}. number of files: {len(filenames)}")
-                for filename in filenames[2:]:
+                for filename in filenames[9:]:
                     file_path = f"{get_list_storage_path()}{auth}/{filename}"
                     df = pd.read_csv(file_path)  # , index_col=0)  # <class 'pandas.core.frame.DataFrame'>
                     print(filename, df.shape[0])
@@ -796,8 +796,8 @@ class Atrium_Scraper(scrapy.Spider):
         return item
 
     ### Case 1 ### Multiple Tables
-    # [date, description]: For Glamorgan, Essex
-    # [date, type, description]: For Cherwell/WestNorthamptonshire
+    # [date, description]: For Glamorgan, Essex, Lancashire, Somerset
+    # [date, type, description]: For Cherwell/WestNorthamptonshire, Leicester
     def get_column_indexes(self, columns, keywords):
         n_columns = len(columns)
         n_keywords = len(keywords)
@@ -815,7 +815,8 @@ class Atrium_Scraper(scrapy.Spider):
         return column_indexes
     # [date_column, description_column] = self.get_column_indexes(columns, keywords=['date', 'file name'])
 
-    # For Glamorgan, Essex
+    # For Glamorgan, Essex, Lancashire, Somerset
+    # (Multi tabs without column names) For Cumbria, Leicestershire
     def rename_document_date_desc(self, document_item, document_name, document_type='-', description_column=2, date_column=3, path='td'):
         #item_extension = file_url.split('.')[-1]
         #document_name = f"uid={n_documents}.{item_extension}"
@@ -832,7 +833,7 @@ class Atrium_Scraper(scrapy.Spider):
         except NoSuchElementException:
             pass
         return document_name
-    # document_name = self.rename_document(document_item, document_name, document_type=document_table_name, description_column=description_column, date_column=date_column, path='td'))
+    # document_name = self.rename_document_date_desc(document_item, document_name, document_type=document_table_name, description_column=description_column, date_column=date_column, path='td'))
 
     # For Cherwell/WestNorthamptonshire
     def rename_document(self, document_item, document_name, description_column=2, type_column=1, date_column=3, path='td'):
@@ -854,8 +855,12 @@ class Atrium_Scraper(scrapy.Spider):
     ### Case 2 ### Single Table with headers and document items mixed.
     # For Crawley (table_path = '//*[@id="documents"]/div/div[2]/table/tbody'),
     #      Redcar (table_path = '//*[@id="documents"]/div[2]/table/tbody')
-    # default paths: row: './tr'', header: './th', url & description: './td[1]/label/span/a', date: './td[3]'.
-    def get_documents_from_single_table(self, driver, app_df, folder_name, tab_index, table_path='//*[@id="documents"]/div[2]/table/tbody'):
+    #        Kent (table_path = '//*[@id="main"]/div[1]/div/div/div[2]/div[1]/table/tbody')
+    # default paths: row: './tr', header: './th', url & description: './td[1]/label/span/a', date: './td[3]'.
+    #        Kent    row: './tr', header: './th', url & description: './td[2]/a', date: './td[3]'.
+    # Not encapsulated: Leicester
+    def get_documents_from_single_table(self, driver, app_df, folder_name, tab_index,
+                                        table_path='//*[@id="documents"]/div[2]/table/tbody', description_path='./td[1]/label/span/a'):
         try:
             document_table = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, f'{table_path}')))
             #document_table = driver.find_element(By.XPATH, '//*[@id="documents"]/div[2]/table/tbody')
@@ -876,11 +881,11 @@ class Atrium_Scraper(scrapy.Spider):
                 print(f"header: {header_name}") if PRINT else None
             except NoSuchElementException:
                 n_documents += 1
-                file_url = row_item.find_element(By.XPATH, './td[1]/label/span/a').get_attribute('href')
+                file_url = row_item.find_element(By.XPATH, description_path).get_attribute('href')
                 file_urls.append(file_url)
 
                 item_identity = f"{n_documents}.{file_url.split('.')[-1]}"
-                document_description = row_item.find_element(By.XPATH, './td[1]/label/span/a').text.strip()
+                document_description = row_item.find_element(By.XPATH, description_path).text.strip()
                 document_date = row_item.find_element(By.XPATH, './td[3]').text.strip()
 
                 document_name = f"date={document_date}&type={header_name}&desc={document_description}&uid={item_identity}"
@@ -889,8 +894,8 @@ class Atrium_Scraper(scrapy.Spider):
                 document_names.append(f"{self.data_upload_path}{folder_name}/{document_name}")
         app_df.at['other_fields.n_documents'] = n_documents
         print(f'Total documents: {n_documents}') if PRINT else None
-        return n_documents, file_urls, document_names
-    # [n_documents, file_urls, document_names] = self.get_documents_from_single_table(driver, app_df, folder_name, tab_index, table_path='//*[@id="documents"]/div[2]/table/tbody')
+        return n_documents, file_urls, document_names, app_df
+    # [n_documents, file_urls, document_names, app_df] = self.get_documents_from_single_table(driver, app_df, folder_name, tab_index, table_path='//*[@id="documents"]/div[2]/table/tbody', description_path='./td[1]/label/span/a')
 
     """ Bridgend 
     Features: [Details], [Other Details], [Decision], [Consultees], [Documents], [Public Notices]
@@ -1272,7 +1277,7 @@ class Atrium_Scraper(scrapy.Spider):
                         document_items = document_table.find_elements(By.XPATH, './tr')[1:]
                         n_table_documents = len(document_items)
                         print(f"Table {table_index+1}: {document_table_name}, including {n_table_documents} documents.") if PRINT else None
-                        for document_index, document_item in enumerate(document_items):
+                        for document_item in document_items:
                             n_documents += 1
                             file_url = document_item.find_element(By.XPATH, f'./td[{description_column}]/a').get_attribute('href')
                             file_urls.append(file_url)
@@ -1545,7 +1550,7 @@ class Atrium_Scraper(scrapy.Spider):
                 parse_neighbour()
             # --- --- --- Documents --- --- ---
             elif 'Document' in tab_name:
-                [n_documents, file_urls, document_names] = self.get_documents_from_single_table(driver, app_df, folder_name, tab_index, table_path='//*[@id="documents"]/div[2]/table/tbody')
+                [n_documents, file_urls, document_names, app_df] = self.get_documents_from_single_table(driver, app_df, folder_name, tab_index, table_path='//*[@id="documents"]/div[2]/table/tbody', description_path='./td[1]/label/span/a')
                 if n_documents > 0:
                     item = self.create_item(driver, folder_name, file_urls, document_names)
                     yield item
@@ -1702,7 +1707,7 @@ class Atrium_Scraper(scrapy.Spider):
                     print(f"number of comments: {app_df.at['other_fields.n_comments']}")
                 parse_publicity()
             # --- --- --- Documents --- --- ---
-            elif 'Supporting Docs' in tab_name:  # get_column_indexes(), rename_document(). [type with links]. old identity.
+            elif 'Supporting Docs' in tab_name:  # old identity.
                 def get_supporting_documents():
                     """  https://planningregister.cherwell.gov.uk/Planning/Display/11/00006/F#undefined
                     div
@@ -1748,7 +1753,7 @@ class Atrium_Scraper(scrapy.Spider):
                         document_items = document_table.find_elements(By.XPATH, './tr')[1:]
                         n_table_documents = len(document_items)
                         print(f"Table {table_index+1}: {document_table_name}, including {n_table_documents} documents.") if PRINT else None
-                        for document_index, document_item in enumerate(document_items):
+                        for document_item in document_items:
                             n_documents += 1
                             file_url = document_item.find_element(By.XPATH, f'./td[{type_column}]/a').get_attribute('href')
                             file_urls.append(file_url)
@@ -1933,7 +1938,7 @@ class Atrium_Scraper(scrapy.Spider):
                     |--div  [btn-group, start download button]
                     |--p  "To download ..."
                 """
-                [n_documents, file_urls, document_names] = self.get_documents_from_single_table(driver, app_df, folder_name, tab_index, table_path='//*[@id="documents"]/div/div[2]/table/tbody')
+                [n_documents, file_urls, document_names, app_df] = self.get_documents_from_single_table(driver, app_df, folder_name, tab_index, table_path='//*[@id="documents"]/div/div[2]/table/tbody', description_path='./td[1]/label/span/a')
                 if n_documents > 0:
                     item = self.create_item(driver, folder_name, file_urls, document_names)
                     yield item
@@ -1950,7 +1955,7 @@ class Atrium_Scraper(scrapy.Spider):
         
         2. (0/0): No tab for other consultations, constraints, details.
         
-        3. Doc system: Multiple tabs for documents.
+        3. Encapsulated Doc system: Multiple tabs for documents.
     """
     def parse_data_item_Cumbria(self, response):
         app_df = response.meta['app_df']
@@ -2014,15 +2019,18 @@ class Atrium_Scraper(scrapy.Spider):
             def get_supporting_documents_from_tab(tab_index, tab_name, n_documents, file_urls, document_names):
                 document_table = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, f'//*[@id="tab-content"]/div[{tab_index+1}]/table/tbody')))
                 document_items = document_table.find_elements(By.XPATH, './tr')
-                n_documents_in_table = len(document_items)
-                print(f"\nDocument Tab {tab_index+1} <{tab_name}>: {n_documents_in_table} docs") if PRINT else None
-                n_documents += n_documents_in_table
-                for document_index, document_item in enumerate(document_items):
+                n_table_documents = len(document_items)
+                print(f"\nDocument Tab {tab_index+1}: <{tab_name}>, including {n_table_documents} documents.") if PRINT else None
+                for document_item in document_items:
+                    n_documents += 1
                     file_url = document_item.find_element(By.XPATH, f'./td[2]/a').get_attribute('href')
                     file_urls.append(file_url)
 
                     item_identity = file_url.split('.')[-1]  # uid is included in doc description, so identity contains only an extension such as .pdf
                     document_name = f".{item_identity}"
+                    document_name = self.rename_document_date_desc(document_item, document_name, document_type=tab_name,
+                                                                   description_column=2, date_column=3, path='td')
+                    """
                     try:
                         document_description = document_item.find_element(By.XPATH, f'./td[2]').text.strip()
                         if len(document_description) > 0:
@@ -2038,13 +2046,13 @@ class Atrium_Scraper(scrapy.Spider):
                             document_name = f"date={document_date}&{document_name}"
                     except NoSuchElementException:
                         pass
+                    #"""
                     # document_name = f"date={document_date}&type={document_type}&desc={document_description}&{item_identity}"
-                    print(f"    Document {document_index+1}: {document_name}") if PRINT else None
+                    print(f"    Document {n_documents}: {document_name}") if PRINT else None
                     document_name = replace_invalid_characters(document_name)
                     document_names.append(f"{self.data_upload_path}{folder_name}/{document_name}")
                 return n_documents, file_urls, document_names
             n_documents, file_urls, document_names = get_supporting_documents_from_tab(tab_index, tab_name, n_documents, file_urls, document_names)
-
         app_df.at['other_fields.n_documents'] = n_documents
         print(f'Total documents: {n_documents}') if PRINT else None
         if n_documents > 0:
@@ -2165,7 +2173,7 @@ class Atrium_Scraper(scrapy.Spider):
                         document_items = document_table.find_elements(By.XPATH, './tr')[1:]
                         n_table_documents = len(document_items)
                         print(f"Table {table_index+1}: {document_table_name}, including {n_table_documents} documents.") if PRINT else None
-                        for document_index, document_item in enumerate(document_items):
+                        for document_item in document_items:
                             n_documents += 1
                             file_url = document_item.find_element(By.XPATH, f'./td[{description_column}]/a').get_attribute('href')
                             file_urls.append(file_url)
@@ -2540,16 +2548,17 @@ class Atrium_Scraper(scrapy.Spider):
                 assert 0 == 1
         self.ending(app_df)
 
-    """ Kent # https://www.kentplanningapplications.co.uk/Disclaimer?returnUrl=%2FPlanning%2FDisplay%2FDA%2F03%2F104https://www.kentplanningapplications.co.uk/Disclaimer?returnUrl=%2FPlanning%2FDisplay%2FDA%2F03%2F104
-    Feautres: [Main Details], [Map]
-    
+
+
+    """ Kent # https://www.kentplanningapplications.co.uk/Planning/Display/KCC/MA/0013/2011
+    Feautres: [Main Details], [Map] 
         1. Encapsulated(1/1)
         Tab Main Page: Framework {item: dt, value: dd}, similar to Cumbria.
         
         2. No tab for other consultations, constraints, details.
         
-        3. Doc system in Main Details Page.
-        Tab Document mixes the headers and document items. Independent columns.
+        3. Encapsulated Doc system <get_documents_from_single_table>: in Main Details Page. (description_path is different from Crawley and Redcar)
+        Single table with headers and document items mixed. Framework [date, description(with links)].
             #Type    Date
             #    Document items
             #Type    Date
@@ -2600,42 +2609,7 @@ class Atrium_Scraper(scrapy.Spider):
         tabs = driver.find_elements(By.XPATH, '//*[@id="myTopnav"]/a')[:-1]
         app_df = self.set_default_items(app_df)
 
-        def get_documents_from_type_mix_table():  # Redcar's doc system is also a type mix table.
-            try:
-                document_table = driver.find_element(By.XPATH, '//*[@id="main"]/div[1]/div/div/div[2]/div[1]/table/tbody')
-            except NoSuchElementException:  # No documents found for this application
-                app_df.at['other_fields.n_documents'] = 0
-                print(driver.find_element(By.XPATH, '//*[@id="main"]/div[1]/div/div/div[2]/div[1]/p[2]').text.strip()) if PRINT else None
-                return 0, [], []
-
-            row_items = document_table.find_elements(By.XPATH, './tr')
-            headers = document_table.find_elements(By.XPATH, './tr/th/span')
-            n_headers = len(headers)
-            print(f"\n Document Tab: {n_headers} tables") if PRINT else None
-
-            table_index, n_documents, file_urls, document_names = 0, 0, [], []
-            for item_index, row_item in enumerate(row_items):
-                try:
-                    header_name = row_item.find_element(By.XPATH, './th').text.strip()
-                    table_index += 1
-                    print(f"header: {header_name}") if PRINT else None
-                except NoSuchElementException:
-                    n_documents += 1
-                    file_url = row_item.find_element(By.XPATH, './td[2]/a').get_attribute('href')
-                    file_urls.append(file_url)
-
-                    document_type = header_name
-                    document_description = row_item.find_element(By.XPATH, './td[2]/a').text.strip()
-                    document_date = row_item.find_element(By.XPATH, './td[3]').text.strip()
-                    item_identity = f"{n_documents}.{file_url.split('.')[-1]}"
-                    document_name = f"date={document_date}&type={document_type}&desc={document_description}&uid={item_identity}"
-                    print(f"    Document {n_documents}: {document_name}") if PRINT else None
-                    document_name = replace_invalid_characters(document_name)
-                    document_names.append(f"{self.data_upload_path}{folder_name}/{document_name}")
-            app_df.at['other_fields.n_documents'] = n_documents
-            print(f'Total documents: {n_documents}') if PRINT else None
-            return n_documents, file_urls, document_names
-        n_documents, file_urls, document_names = get_documents_from_type_mix_table()
+        [n_documents, file_urls, document_names, app_df] = self.get_documents_from_single_table(driver, app_df, folder_name, tab_index=-1, table_path='//*[@id="main"]/div[1]/div/div/div[2]/div[1]/table/tbody', description_path='./td[2]/a')
         if n_documents > 0:
             item = self.create_item(driver, folder_name, file_urls, document_names)
             yield item
@@ -2654,7 +2628,7 @@ class Atrium_Scraper(scrapy.Spider):
 
 
 
-    """ Lancashire # https://planningregister.lancashire.gov.uk/Planning/Display/08/02/0031  #***#  Applicants + Attachments
+    """ Lancashire # https://planningregister.lancashire.gov.uk/Planning/Display/06/09/0043  #***#  Applicants + Attachments
     Features:   [Main Details], [Applicants], [Consultees and Constraints], [Committee], [Attachments]
         
         1. Encapsulated(3/3)
@@ -2662,12 +2636,12 @@ class Atrium_Scraper(scrapy.Spider):
         Tab Applicants: A neighbour list.
         
         Tab Committee: Has phone and email contacts.
-        Tab Attachment: multi-tables with types as sub table names. [similar to Essex, Glamorgan] 
+        3. Encapsulated Doc system: Multi-tables with types as sub table names. [similar to Essex, Glamorgan] 
             #Shared Columns
             #Type1
-            #    Document items.
+            #    Document items. [date, description, file(with links)].
             #Type2
-            #    Document items.
+            #    Document items. [date, description, file(with links)].
     """
     def parse_data_item_Lancashire(self, response):
         app_df = response.meta['app_df']
@@ -2800,8 +2774,8 @@ class Atrium_Scraper(scrapy.Spider):
             elif 'Attachment' in tab_name:
                 def get_documents():
                     try:
-                        document_table_list = driver.find_element(By.XPATH, f'//*[@id="documents"]/div/div/table')
-                    except NoSuchElementException:  # There are no documents associated with this Planning application
+                        document_table_list = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, f'//*[@id="documents"]/div/div/table')))
+                    except TimeoutException:  # There are no documents associated with this Planning application
                         app_df.at['other_fields.n_documents'] = 0
                         no_docs_string = driver.find_element(By.XPATH, '//*[@id="documents"]/div/div/p[2]').text.strip()
                         print(f"\n{tab_index+2}. <NULL> Attachment Tab: {no_docs_string}.") if PRINT else None
@@ -2812,48 +2786,23 @@ class Atrium_Scraper(scrapy.Spider):
                     print(f"\n{tab_index+2}. Attachment Tab: {n_tables} tables") if PRINT else None
 
                     columns = document_table_list.find_elements(By.XPATH, './thead/tr/th')
-                    def get_document_info_columns(columns):
-                        n_columns = len(columns)
-                        date_column, description_column = n_columns+1, n_columns+1
-                        for i, column in enumerate(columns):
-                            try:
-                                if 'date' in str.lower(column.text.strip()):
-                                    date_column = i + 1
-                                    continue
-                                if 'description' in str.lower(column.text.strip()):
-                                    description_column = i + 1
-                                    continue
-                            except TypeError:
-                                continue
-                        print(f"    Columns: date column {date_column}/{n_columns}, description column {description_column}/{n_columns}") if PRINT else None
-                        return date_column, description_column
-                    date_column, description_column = get_document_info_columns(columns)
+                    [date_column, description_column] = self.get_column_indexes(columns, keywords=['date', 'description'])
 
                     n_documents, file_urls, document_names = 0, [], []
                     for table_index, document_table in enumerate(document_tables):
-                        document_table_name = document_table.find_element(By.XPATH, './tr[1]/th/span').text.strip()
+                        document_table_name = document_table.find_element(By.XPATH, './tr[1]/th').text.strip()
                         document_items = document_table.find_elements(By.XPATH, './tr')[1:]
                         n_table_documents = len(document_items)
                         print(f"Table {table_index+1}: {document_table_name}, including {n_table_documents} documents.") if PRINT else None
-                        for document_index, document_item in enumerate(document_items):
+                        for document_item in document_items:
                             n_documents += 1
                             file_url = document_item.find_element(By.XPATH, f'./td[2]/a').get_attribute('href')
                             file_urls.append(file_url)
 
                             item_extension = file_url.split('.')[-1]
                             document_name = f"uid={n_documents}.{item_extension}"
-                            try:
-                                document_description = document_item.find_element(By.XPATH, f'./td[{description_column}]').text.strip()
-                                document_name = f"desc={document_description}&{document_name}"
-                            except NoSuchElementException:
-                                pass
-                            document_type = document_table_name
-                            document_name = f"type={document_type}&{document_name}"
-                            try:
-                                document_date = document_item.find_element(By.XPATH, f'./td[{date_column}]').text.strip()
-                                document_name = f"date={document_date}&{document_name}"
-                            except NoSuchElementException:
-                                pass
+                            document_name = self.rename_document_date_desc(document_item, document_name, document_type=document_table_name,
+                                                                           description_column=description_column, date_column=date_column, path='td')
                             # document_name = f"date={document_date}&type={document_type}&desc={document_description}&{item_identity}"
                             print(f"    Document {n_documents}: {document_name}") if PRINT else None
                             document_name = replace_invalid_characters(document_name)
@@ -2872,12 +2821,15 @@ class Atrium_Scraper(scrapy.Spider):
 
 
 
-    """ Leicester
+    """ Leicester, https://planning.leicester.gov.uk/Planning/Display/20080005
     Similar to Fylde, Differences: 1) XPATHs; 2) Phone contact; 3) Document groups in a tbody; 4) No consultation; 5) Has a Map tab.
         Planning Online Status | [Application Details(Summary/Important Dates/Further Information/ Condition Details//Information Notes)], 
                                  [Documents], ([Consultations]), ([Map]), [Appeals] 
     1. Encapsulated(0/1): both item and item_value use ./td
     
+    
+    3. Doc system: Single table with headers and document items mixed.
+    header class_name is different, so have not encapsulated to <get_documents_from_single_table>.
     """
     def parse_data_item_Leicester(self, response):
         ### Ensure the page content is loaded.
@@ -2954,34 +2906,15 @@ class Atrium_Scraper(scrapy.Spider):
                         document_table_list = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="documentspane"]/div/table')))
                     except TimeoutException:  # ***** situation to be completed: No documents
                         app_df.at['other_fields.n_documents'] = 0
-                        print(f"\n{tab_index+2}. Document Tab: {app_df.at['other_fields.n_documents']} items.") if PRINT else None
-                        return app_df.at['other_fields.n_documents'], [], []
+                        print(f"\n{tab_index+2}. <NULL> Document Tab: {app_df.at['other_fields.n_documents']} items.") if PRINT else None
+                        return 0, [], []
 
                     document_tables = document_table_list.find_elements(By.XPATH, './tbody')
                     n_tables = len(document_tables)
                     print(f"\n{tab_index+2}. Document Tab: {n_tables} tables") if PRINT else None
 
                     columns = document_table_list.find_elements(By.XPATH, './thead/tr/th')
-                    def get_document_info_columns(columns):
-                        n_columns = len(columns)
-                        date_column, type_column, description_column = n_columns, n_columns, n_columns
-                        for i, column in enumerate(columns):
-                            try:
-                                if 'date' in str.lower(column.text.strip()):
-                                    date_column = i + 1
-                                    continue
-                                if 'type' in str.lower(column.text.strip()):
-                                    type_column = i + 1
-                                    continue
-                                if 'description' in str.lower(column.text.strip()):
-                                    description_column = i + 1
-                                    continue
-                            except TypeError:
-                                continue
-                        print(
-                            f"    Columns: date column {date_column}/{n_columns}, type column {type_column}/{n_columns}, description column {description_column}/{n_columns}") if PRINT else None
-                        return date_column, type_column, description_column
-                    date_column, type_column, description_column = get_document_info_columns(columns)
+                    [date_column, type_column, description_column] = self.get_column_indexes(columns, keywords=['date', 'type', 'description'])
 
                     n_documents, file_urls, document_names = 0, [], []
                     #driver.find_element(By.CLASS_NAME, 'copyright-agreement').click()
@@ -2993,12 +2926,13 @@ class Atrium_Scraper(scrapy.Spider):
                         n_table_documents = len(document_items) - len(document_table_names)
                         print(f"Table {table_index+1} includes {n_table_documents} documents.") if PRINT else None
                         table_name_counter = 0
-                        for document_index, document_item in enumerate(document_items):
+                        for document_item in document_items:
                             try:
                                 document_table_name = document_item.find_element(By.XPATH, './th[2]/strong').text.strip()
                                 print(f"    Group name: {document_table_name}")
                                 table_name_counter += 1
                             except NoSuchElementException:
+                                n_documents += 1
                                 file_url = document_item.find_element(By.XPATH, f'./td[{type_column}]/span/a').get_attribute('href')
                                 file_urls.append(file_url)
 
@@ -3017,10 +2951,9 @@ class Atrium_Scraper(scrapy.Spider):
                                 except NoSuchElementException:
                                     pass
                                 # document_name = f"date={document_date}&type={document_type}&desc={document_description}&{item_identity}"
-                                print(f"    Document {document_index+1-table_name_counter}: {document_name}") if PRINT else None
+                                print(f"    Document {n_documents}: {document_name}") if PRINT else None
                                 document_name = replace_invalid_characters(document_name)
                                 document_names.append(f"{self.data_upload_path}{folder_name}/{document_name}")
-                        n_documents += n_table_documents
                     app_df.at['other_fields.n_documents'] = n_documents
                     print(f'Total documents: {n_documents}') if PRINT else None
                     return n_documents, file_urls, document_names
@@ -3044,14 +2977,15 @@ class Atrium_Scraper(scrapy.Spider):
 
 
 
-    """ Leicestershire # https://leicestershire.planning-register.co.uk/Disclaimer?returnUrl=%2FPlanning%2FDisplay%3FapplicationNumber%3D2001%252F9200%252F03
+    """ Leicestershire # https://leicestershire.planning-register.co.uk/Planning/Display?applicationNumber=2014%2F0001%2F06 
     Features:  Mage Page | Multiple Document Tabs.  Similar to Cumbria.
         1. Encapsulated(1/1)
         Tab Main Page: Framework {item: tr/td[1], value: tr/td[2]}
         
         2. (0/0): No tab for other consultations, constraints, details.
         
-        3. Doc system: Multiple tabs for documents. 
+        3. Encapsulated Doc system: Multiple tabs for documents. 
+        item_extension need an extra operation.
     """
     def parse_data_item_Leicestershire(self, response):
         app_df = response.meta['app_df']
@@ -3106,32 +3040,18 @@ class Atrium_Scraper(scrapy.Spider):
                 def get_supporting_documents_from_tab(tab_index, tab_name, n_documents, file_urls, document_names):
                     document_table = panels.find_element(By.XPATH, f'./div[2]/div[{tab_index+1}]/table/tbody')
                     document_items = document_table.find_elements(By.XPATH, './tr')
-                    n_documents_in_table = len(document_items)
-                    print(f"\nDocument Tab {tab_index+1} <{tab_name}>: {n_documents_in_table} docs") if PRINT else None
-                    # n_documents += n_documents_in_table
-                    for document_index, document_item in enumerate(document_items):
+                    n_table_documents = len(document_items)
+                    print(f"\nDocument Tab {tab_index+1}: <{tab_name}>, including {n_table_documents} documents.") if PRINT else None
+                    for document_item in document_items:
+                        n_documents += 1
                         file_url = document_item.find_element(By.XPATH, f'./td[2]/a').get_attribute('href')
                         file_urls.append(file_url)
-                        n_documents += 1
 
                         item_extension = file_url.split('.')[-1]
                         item_extension = item_extension.split('&')[0]
                         document_name = f"uid={n_documents}.{item_extension}"
-                        try:
-                            document_description = document_item.find_element(By.XPATH, f'./td[2]').text.strip()
-                            if len(document_description) > 0:
-                                document_name = f"desc={document_description}&{document_name}"
-                        except NoSuchElementException:
-                            pass
-                        # Use doc tab name as doc type name
-                        document_type = tab_name  # driver.find_element(By.XPATH, f'//*[@id="myTopnav"]/a[{tab_index+1}]').text.strip()
-                        document_name = f"type={document_type}&{document_name}"
-                        try:
-                            document_date = document_item.find_element(By.XPATH, f'./td[3]').text.strip()
-                            if len(document_date) > 0:
-                                document_name = f"date={document_date}&{document_name}"
-                        except NoSuchElementException:
-                            pass
+                        document_name = self.rename_document_date_desc(document_item, document_name, document_type= tab_name,
+                                                                       description_column=2, date_column=3, path='td')
                         # document_name = f"date={document_date}&type={document_type}&desc={document_description}&{item_identity}"
                         print(f"    Document {n_documents}: {document_name}") if PRINT else None
                         document_name = replace_invalid_characters(document_name)
@@ -3147,7 +3067,6 @@ class Atrium_Scraper(scrapy.Spider):
             app_df.at['other_fields.n_documents'] = 0
             print(f"No Document Tab.") if PRINT else None
         self.ending(app_df)
-
 
 
     """ Lincolnshire # https://lincolnshire.planning-register.co.uk/Disclaimer?returnUrl=%2FPlanning%2FDisplay%3FapplicationNumber%3DPL%255C0091%255C06 
@@ -3344,12 +3263,12 @@ class Atrium_Scraper(scrapy.Spider):
         Tab Main Page: Framework {item: label, value: div} 
         
         Tab Consultations: multiple tables for neighbour, consltee comments.
-        Tab Document: multi-tables with types as sub table names. [similar to Essex, Glamorgan, Lancashire] 
+        3. Encapsulated Doc system: Multi-tables with types as sub table names. [Similar to Essex, Glamorgan, Lancashire except column names] 
             #Shared Columns
             #Type1
-            #    Document items.
+            #    Document items [date, description(with links)].
             #Type2
-            #    Document items.
+            #    Document items [date, description(with links)].
      """
     def parse_data_item_Somerset(self, response):
         app_df = response.meta['app_df']
@@ -3468,48 +3387,23 @@ class Atrium_Scraper(scrapy.Spider):
                     print(f"\n{tab_index+2}. Document Tab: {n_tables} tables") if PRINT else None
 
                     columns = document_table_list.find_elements(By.XPATH, './thead/tr/th')
-                    def get_document_info_columns(columns):
-                        n_columns = len(columns)
-                        date_column, description_column = n_columns, n_columns
-                        for i, column in enumerate(columns):
-                            try:
-                                if 'date' in str.lower(column.text.strip()):
-                                    date_column = i + 1
-                                    continue
-                                if 'file name' in str.lower(column.text.strip()):
-                                    description_column = i + 1
-                                    continue
-                            except TypeError:
-                                continue
-                        print(f"    Columns: date column {date_column}/{n_columns}, description column {description_column}/{n_columns}") if PRINT else None
-                        return date_column, description_column
-                    date_column, description_column = get_document_info_columns(columns)
+                    [date_column, description_column] = self.get_column_indexes(columns, keywords=['date', 'file name'])
 
                     n_documents, file_urls, document_names = 0, [], []
                     for table_index, document_table in enumerate(document_tables):
                         document_table_name = document_table.find_element(By.XPATH, './tr[1]/th').text.strip()
                         document_items = document_table.find_elements(By.XPATH, './tr')[1:]
                         n_table_documents = len(document_items)
-                        print(f"\n{tab_index+2}. Table {table_index+1}: {document_table_name}, including {n_table_documents} documents.") if PRINT else None
-                        for document_index, document_item in enumerate(document_items):
+                        print(f"Table {table_index+1}: {document_table_name}, including {n_table_documents} documents.") if PRINT else None
+                        for document_item in document_items:
                             n_documents += 1
                             file_url = document_item.find_element(By.XPATH, f'./td[{description_column}]/a').get_attribute('href')
                             file_urls.append(file_url)
 
                             item_extension = file_url.split('.')[-1]
                             document_name = f"uid={n_documents}.{item_extension}"
-                            try:
-                                document_description = document_item.find_element(By.XPATH, f'./td[{description_column}]').text.strip()
-                                document_name = f"desc={document_description}&{document_name}"
-                            except NoSuchElementException:
-                                pass
-                            document_type = document_table_name
-                            document_name = f"type={document_type}&{document_name}"
-                            try:
-                                document_date = document_item.find_element(By.XPATH, f'./td[{date_column}]').text.strip()
-                                document_name = f"date={document_date}&{document_name}"
-                            except NoSuchElementException:
-                                pass
+                            document_name = self.rename_document_date_desc(document_item, document_name, document_type=document_table_name,
+                                                                           description_column=description_column, date_column=date_column, path='td')
                             # document_name = f"date={document_date}&type={document_type}&desc={document_description}&{item_identity}"
                             print(f"    Document {n_documents}: {document_name}") if PRINT else None
                             document_name = replace_invalid_characters(document_name)
