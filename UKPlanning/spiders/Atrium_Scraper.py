@@ -91,7 +91,7 @@ class Atrium_Scraper(scrapy.Spider):
             print(auth_names)
 
             app_dfs = []
-            self.auth_index = 15  #1, 3, 13
+            self.auth_index = 17  #1, 3, 13
             """
             # A: 0[Bridgend]    # [Details], [Other Details], [Decision], [Consultees], [Documents], [Public Notices]
             # B: 1[Cherwell]    # [Main Details], [Applicant/Agents], [Publicity], [Supporting Docs], [Properties], [Site History]
@@ -132,11 +132,11 @@ class Atrium_Scraper(scrapy.Spider):
             # K: 13 [Lincolnshire]  # https://lincolnshire.planning-register.co.uk/Disclaimer?returnUrl=%2FPlanning%2FDisplay%3FapplicationNumber%3DPL%255C0091%255C06
             #       (Disclaimer | Agree)
             #       [Main Details], [Associated Documents], [Consultees]  #***#
-            #"""
-
+            #
             # L: 15 [Norfolk]  # https://eplanning.norfolk.gov.uk/Planning/Display/L/3/2001/3003  #***#  Main Details + Appeals
             #       [Main Details], [Location], [Documents], [Constraints], [Consultations], [Appeals]
-            #
+            # 
+            """
             # M: 17 [NorthumberlandPark]  # https://nnpa.planning-register.co.uk/Planning/Display/02NP0007 #***#  没有main details, 注意与F区分
             #    21 [SouthWestDevon]    # http://apps.westdevon.gov.uk/PlanningSearchMVC/Home/Details/021514
             #       [Proposal and Location], [Applicant Details], [Consultation], [Decision], [Documents]
@@ -267,10 +267,22 @@ class Atrium_Scraper(scrapy.Spider):
             self.parse_func = self.parse_data_item_Leicestershire
         elif auth_names[self.auth_index] in ['Lincolnshire']:
             self.parse_func = self.parse_data_item_Lincolnshire
+        elif auth_names[self.auth_index] in ['Norfolk']:
+            self.parse_func = self.parse_data_item_Norfolk
+        elif auth_names[self.auth_index] in ['NorthumberlandPark', 'SouthWestDevon']:
+            self.parse_func = self.parse_data_item_NorthumberlandPark
         elif auth_names[self.auth_index] in ['Redcar']:
             self.parse_func = self.parse_data_item_Redcar
         elif auth_names[self.auth_index] in ['Somerset']:
             self.parse_func = self.parse_data_item_Somerset
+        elif auth_names[self.auth_index] in ['Suffolk']:
+            self.parse_func = self.parse_data_item_Suffolk
+        elif auth_names[self.auth_index] in ['Surrey']:
+            self.parse_func = self.parse_data_item_Surrey
+        elif auth_names[self.auth_index] in ['WelwynHatfield']:
+            self.parse_func = self.parse_data_item_WelwynHatfield
+        elif auth_names[self.auth_index] in ['WestSussex']:
+            self.parse_func = self.parse_data_item_WestSussex
         else:
             pass
 
@@ -436,12 +448,14 @@ class Atrium_Scraper(scrapy.Spider):
                     # --- --- --- Applicant/Agent/Officer Info --- --- ---
                     'Applicant Name':       'other_fields.applicant_name',  # NorthDevon
                     'Applicants Name':      'other_fields.applicant_name',  # A
+                    "Applicant's Name":     'other_fields.applicant_name',  # Norfolk
                     'Applicant':            'other_fields.applicant_name',  # Cherwell & Crawley & Fylde
                     "Applicant's Address":  'other_fields.applicant_address',  # Cherwell & Crawley
                     'Applicant Address':    'other_fields.applicant_address',  # Redcar
 
                     'Agent Name':       'other_fields.agent_name',  # Leicester
                     'Agents Name':      'other_fields.agent_name',  # A
+                    "Agent's Name":     'other_fields.agent_name',  # Norfolk
                     'Agent':            'other_fields.agent_name',  # Cherwell & Crawley & Fylde
                     'Agent Address':    'other_fields.agent_address',  # A & Fylde
                     "Agent's Address":  'other_fields.agent_address',  # Cherwell & Crawley
@@ -471,6 +485,7 @@ class Atrium_Scraper(scrapy.Spider):
                     'Advert Expiry': 'other_fields.latest_advertisement_expiry_date',  # Fylde
 
                     # Appeals
+                    'Appeal Reference': 'other_fields.appeal_reference', # Norfolk
                     #'Appeal Status': 'other_fields.appeal_status',  # Cherwell
                     'Appeal Received Date': 'other_fields.appeal_date',  # Cherwell
                     'Appeal Date': 'other_fields.appeal_date',           # Lancashire
@@ -478,6 +493,11 @@ class Atrium_Scraper(scrapy.Spider):
                     'Appeal Decision':      'other_fields.appeal_result',  # Fylde
                     'Appeal':               'other_fields.appeal_result',  # Glamorgan
                     'Appeal Decision Date': 'other_fields.appeal_decision_date',  # Cherwell
+                    'Planning Inspectorate Reference': 'other_fields.planning_inspectorate reference', # Norfolk
+                    'Appeal Method': 'other_fields.appeal_method',  # Norfolk
+                    'Inspectorate Start Date': 'other_fields.inspectorate_start_date',  # Norfolk
+                    'Inquiry Hearing Date': 'other_fields.inquiry_hearing_date',  # Norfolk
+                    'Inquiry Hearing Venue': 'other_fields.inquiry_hearing_venue',  # Norfolk
 
                     # Comments
                     'Comments Due Date': 'other_fields.comment_expires_date',  # Cherwell & Crawley
@@ -499,6 +519,7 @@ class Atrium_Scraper(scrapy.Spider):
                     'Consultation Expiry':          'other_fields.consultation_end_date',  # Essex
                     'Consultation End':             'other_fields.consultation_end_date',  # Fylde
                     'Consultation Expiry Date':     'other_fields.consultation_end_date',  # Lincolnshire
+                    'Consultations Expiry Date':    'other_fields.consultation_end_date',  # Norfolk
                     'Public Consultation Start Date':'other_fields.public_consultation_start_date',  # Redcar
                     'Start of Public Consultation':  'other_fields.public_consultation_start_date',  # Leicestershire
                     'Public Consultation Expiry':   'other_fields.public_consultation_end_date',  # Cumbria
@@ -603,7 +624,7 @@ class Atrium_Scraper(scrapy.Spider):
     """
     data items
     """
-    # For Bridgend x1, Glamorgan x2, Crawley x1, Cumbria x1, Essex x2, Kent x1, Lancashire x2, Lincolnshire x1, Somerset x1
+    # For Bridgend x1, Glamorgan x2, Crawley x1, Cumbria x1, Essex x2, Kent x1, Lancashire x2, Lincolnshire x1, Norfolk x2, Somerset x1
     def scrape_data_items(self, app_df, items, item_values):
         for item, value in zip(items, item_values):
             item_name = item.text.strip()
@@ -694,7 +715,7 @@ class Atrium_Scraper(scrapy.Spider):
 
     ### Case 1 ### Try the only table in a tab, catch NoSuchElement.
     # Multi-columns #
-    # td: For Glamorgan x5, Essex x1, Lincolnshire x1.
+    # td: For Glamorgan x5, Essex x1, Lincolnshire x1, Norfolk x1.
     # trtd: For Bridgend x3
     # div : For Redcar x3
     def scrape_for_csv(self, csv_name, table_columns, table_items, folder_name, path='td'):
@@ -713,7 +734,7 @@ class Atrium_Scraper(scrapy.Spider):
 
     # Single column #
     # div[2]: For Redcar x1
-    # td: For Cherwell/WestNorthamptonshire x1
+    # td: For Cherwell/WestNorthamptonshire x1, Norfolk x1
     def scrape_for_csv_single(self, csv_name, column_name, table_items, folder_name, path='td'):
         content_dict = {column_name: [table_item.find_element(By.XPATH, f'./{path}').text.strip() for table_item in table_items]}
         content_df = pd.DataFrame(content_dict)
@@ -797,7 +818,7 @@ class Atrium_Scraper(scrapy.Spider):
 
     ### Case 1 ### Multiple Tables
     # [date, description]: For Glamorgan, Essex, Lancashire, Somerset, Lincolnshire(file)
-    # [date, type, description]: For Cherwell/WestNorthamptonshire, Leicester
+    # [date, type, description]: For Cherwell/WestNorthamptonshire, Leicester, Norfolk
     def get_column_indexes(self, columns, keywords):
         n_columns = len(columns)
         n_keywords = len(keywords)
@@ -835,7 +856,7 @@ class Atrium_Scraper(scrapy.Spider):
         return document_name
     # document_name = self.rename_document_date_desc(document_item, document_name, document_type=document_table_name, description_column=description_column, date_column=date_column, path='td'))
 
-    # For Cherwell/WestNorthamptonshire
+    # For Cherwell/WestNorthamptonshire, Norfolk
     def rename_document(self, document_item, document_name, description_column=2, type_column=1, date_column=3, path='td'):
         try:
             document_description = document_item.find_element(By.XPATH, f'./{path}[{description_column}]').text.strip()
@@ -1586,7 +1607,7 @@ class Atrium_Scraper(scrapy.Spider):
         2. Encapsulated(3/3): [Publicity(Neighbours, Consultee, Public Notice), Properties, Site History]
         Tab Publicity: empty table. 
         
-        3. Encapsulated Doc system: Multi-tables. 
+        3. Encapsulated Doc system: Multi-tables. (old doc id)
             #Shared Columns
             #Table1
             #    Document items [date, type(with links), description].
@@ -1845,7 +1866,6 @@ class Atrium_Scraper(scrapy.Spider):
         try:
             # --- --- --- Main Details --- --- ---
             tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="proposal"]')))
-
             items = tab_panel.find_elements(By.XPATH, './div/label')
             item_values = tab_panel.find_elements(By.XPATH, './div/div/span')
             n_items = len(items)
@@ -3082,12 +3102,13 @@ class Atrium_Scraper(scrapy.Spider):
         self.ending(app_df)
 
 
+
     """ Lincolnshire # https://lincolnshire.planning-register.co.uk/Disclaimer?returnUrl=%2FPlanning%2FDisplay%3FapplicationNumber%3DPL%255C0091%255C06 
     Features: [Main Details], [Associated Documents], [Consultees] 
         1. Encapsulated(1/1)
         Tab Main Page: Framework {item: dt, value: dd}
        
-        2. Encapsulated(1/1): [Consultees]
+        2. Encapsulated(1/1): [Consultees] (scrape_for_csv)
        
         3. Encapsulated Doc system: Multi-tables with types as sub table names.
             #Shared Columns
@@ -3202,6 +3223,207 @@ class Atrium_Scraper(scrapy.Spider):
                 parse_consultees()
             else:
                 print('Unknown tab: ', tab_name)
+                assert 0 == 1
+        self.ending(app_df)
+
+
+
+    """ Norfolk # https://eplanning.norfolk.gov.uk/Planning/Display/FUL/2022/0067#undefined
+    Features: [Main Details], [Location], [Documents], [Constraints], [Consultations], [Appeals]
+        1. Encapsulated (3/3):
+        Tab Main Page: Framework {item: dt/label, value: dd}
+        
+        2. Encapsulated (2/2): [Constraints] (scrape_for_csv_single, empty table), 
+                               [Consultations] (scrape_for_csv, empty table)
+        
+        3. Encapsulated Doc system: Multi-tables. (no doc extensions as descriptions already contain doc extensions)
+            #Shared Columns
+            #Table1
+            #    Document items [date, type(with links), description].
+            #Table2
+            #    Document items [date, type(with links), description].
+    """
+    def parse_data_item_Norfolk(self, response):
+        app_df = response.meta['app_df']
+        driver = response.request.meta["driver"]
+        scraper_name = app_df.at['scraper_name']
+        print(f"parse_data_item_Norfolk, scraper name: {scraper_name}")
+
+        # self.get_doc_url(response, app_df)
+        # --- --- --- setup the app storage path. --- --- ---
+        folder_name = self.setup_storage_path(app_df)
+
+        try:
+            # --- --- --- Main Details --- --- ---
+            tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="main"]/div[1]/div/div[4]/div[1]/fieldset/dl')))
+            items = tab_panel.find_elements(By.XPATH, './dt')
+            item_values = tab_panel.find_elements(By.XPATH, './dd')
+            n_items = len(items)
+            print(f"\n1. Details Tab: {n_items}") if PRINT else None #print(f"Details Tab: {n_items}")
+            app_df = self.scrape_data_items(app_df, items, item_values)
+        except TimeoutException:
+            # Planning Application details not available . e.g. auth=123, year=[21:]
+            note = response.xpath('//*[@id="pageheading"]/h1/text()').get()
+            print('note: ', note)
+            # This application is no longer available for viewing. It may have been removed or restricted from public viewing.
+            if note is not None and 'details not available' in note:
+                print('*** *** *** This application is not available. *** *** ***')
+                return
+            else:
+                print('*** *** *** NEED TO RELOAD APP PAGE. *** *** ***')
+                # self.index -= 1
+                time.sleep(10)
+                # yield SeleniumRequest(url=app_df.at['url'], callback=self.re_parse_summary_item, meta={'app_df': app_df})
+                return
+                # print('--- --- test --- ---')
+
+        tabs = driver.find_elements(By.XPATH, '//*[@id="myTopnav"]/a')[:-1]
+        app_df = self.set_default_items(app_df)
+
+        for tab_index, tab in enumerate(tabs[1:]):
+            tab.click()
+            tab_name = tab.text.strip()
+            # --- --- --- Location --- --- ---
+            if 'Location' in tab_name:
+                tab_panel = driver.find_element(By.XPATH, f'//*[@id="main"]/div[1]/div/div[4]/div[{tab_index+2}]/fieldset/dl')
+                items = tab_panel.find_elements(By.XPATH, './dt')
+                item_values = tab_panel.find_elements(By.XPATH, './dd')
+                n_items = len(items)
+                print(f"\n{tab_index+2}. {tab_name} Tab: {n_items}") if PRINT else None
+                app_df = self.scrape_data_items(app_df, items, item_values)
+            # --- --- --- Documents --- --- ---
+            elif 'Documents' in tab_name:
+                def get_documents():
+                    try:
+                        document_table_list = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, f'//*[@id="main"]/div[1]/div/div[4]/div[{tab_index+2}]/fieldset/div[2]/div[2]/table')))
+                    except TimeoutException:
+                        app_df.at['other_fields.n_documents'] = 0
+                        print(f"\n{tab_index+2}. <NULL> Document Tab: {app_df.at['other_fields.n_documents']} items.") if PRINT else None
+                        return 0, [], []
+
+                    document_tables = document_table_list.find_elements(By.XPATH, './tbody')
+                    n_tables = len(document_tables)
+                    print(f"\n{tab_index+2}. Document Tab: {n_tables} tables") if PRINT else None
+
+                    columns = document_table_list.find_elements(By.XPATH, './thead/tr/th')
+                    [date_column, type_column, description_column] = self.get_column_indexes(columns, keywords=['date', 'type', 'document'])
+
+                    n_documents, file_urls, document_names = 0, [], []
+                    for table_index, document_table in enumerate(document_tables):
+                        document_table_name = document_table.find_element(By.XPATH, './tr[1]/th').text.strip()
+                        document_items = document_table.find_elements(By.XPATH, './tr')[1:]
+                        n_table_documents = len(document_items)
+                        print(f"Table {table_index+1}: {document_table_name}, including {n_table_documents} documents.") if PRINT else None
+                        for document_item in document_items:
+                            n_documents += 1
+                            file_url = document_item.find_element(By.XPATH, f'./td[{description_column}]/a').get_attribute('href')
+                            file_urls.append(file_url)
+
+                            #item_extension = file_url.split('.')[-1]
+                            #document_name = f"uid={n_documents}.{item_extension}"
+                            document_name = ''
+                            document_name = self.rename_document(document_item, document_name, description_column, type_column, date_column, path='td')
+                            temp_names = document_name.split('.')
+                            document_name = f"{temp_names[0]}&uid={n_documents}.{temp_names[1][:-1]}"
+
+                            # document_name = f"date={document_date}&type={document_type}&desc={document_description}&{item_identity}"
+                            print(f"    Document {n_documents}: {document_name}") if PRINT else None
+                            document_name = replace_invalid_characters(document_name)
+                            document_names.append(f"{self.data_upload_path}{folder_name}/{document_name}")
+                    app_df.at['other_fields.n_documents'] = n_documents
+                    print(f'Total documents: {n_documents}') if PRINT else None
+                    return n_documents, file_urls, document_names
+                n_documents, file_urls, document_names = get_documents()
+                if n_documents > 0:
+                    item = self.create_item(driver, folder_name, file_urls, document_names)
+                    yield item
+            # --- --- --- Constraints --- --- ---  # scrape_for_csv_single, empty table if no constraints.
+            elif 'Constraints' in tab_name:
+                constraint_table = driver.find_element(By.XPATH, f'//*[@id="main"]/div[1]/div/div[4]/div[{tab_index+2}]/fieldset/div/table/tbody')
+                table_items = constraint_table.find_elements(By.XPATH, './tr')
+                n_items = len(table_items)
+                print(f"\n{tab_index+2}. Constraints Tab: {n_items} items.") if PRINT else None
+                if n_items > 0:
+                    app_df.at['other_fields.n_constraints'] = n_items
+                    self.scrape_for_csv_single(csv_name='constraints', column_name='Constraints', table_items=table_items,
+                                               folder_name=folder_name, path='td')
+            # --- --- --- Consultations --- --- ---  # scrape_for_csv, empty table if no consultations.
+            elif 'Consultations' in tab_name:
+                consultation_table = driver.find_element(By.XPATH, f'//*[@id="main"]/div[1]/div/div[4]/div[{tab_index+2}]/fieldset/div/table')
+                table_items = consultation_table.find_elements(By.XPATH, './tbody/tr')
+                n_items = len(table_items)
+                print(f"\n{tab_index+2}. Consultations Tab: {n_items} items.") if PRINT else None
+                if n_items > 0:
+                    app_df.at['other_fields.n_comments_consultee_responded'] = n_items
+                    app_df.at['other_fields.n_comments'] = app_df.at['other_fields.n_comments_public_received'] + app_df.at[
+                        'other_fields.n_comments_consultee_responded']
+                    table_columns = consultation_table.find_elements(By.XPATH, './thead/tr/th')
+                    self.scrape_for_csv(csv_name='consultee comments', table_columns=table_columns, table_items=table_items,
+                                        folder_name=folder_name, path='td')
+            # --- --- --- Appeals --- --- ---
+            elif 'Appeals' in tab_name:
+                tab_panel = driver.find_element(By.XPATH, f'//*[@id="main"]/div[1]/div/div[4]/div[{tab_index+2}]/fieldset/dl')
+                items = tab_panel.find_elements(By.XPATH, './dt')
+                item_values = tab_panel.find_elements(By.XPATH, './dd')
+                n_items = len(items)
+                print(f"\n{tab_index+2}. {tab_name} Tab: {n_items}") if PRINT else None
+                app_df = self.scrape_data_items(app_df, items, item_values)
+            else:
+                print(f'Unknown tab: {tab_name}')
+                assert 0 == 1
+        self.ending(app_df)
+
+
+
+    """ NorthumberlandPark/SouthWestDevon*
+    Features: [Proposal and Location], [Applicant Details], [Consultation], [Decision], [Documents]
+        1. 
+    """
+    def parse_data_item_NorthumberlandPark(self, response):
+        app_df = response.meta['app_df']
+        driver = response.request.meta["driver"]
+        scraper_name = app_df.at['scraper_name']
+        print(f"parse_data_item_NorthumberlandPark, scraper name: {scraper_name}")
+
+        # self.get_doc_url(response, app_df)
+        # --- --- --- setup the app storage path. --- --- ---
+        folder_name = self.setup_storage_path(app_df)
+
+        try:
+            # --- --- --- Main Details --- --- ---
+            tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="main"]/div[1]/div/div[4]/div[1]/fieldset/dl')))
+            items = tab_panel.find_elements(By.XPATH, './dt')
+            item_values = tab_panel.find_elements(By.XPATH, './dd')
+            n_items = len(items)
+            print(f"\n1. Details Tab: {n_items}") if PRINT else None #print(f"Details Tab: {n_items}")
+            app_df = self.scrape_data_items(app_df, items, item_values)
+        except TimeoutException:
+            # Planning Application details not available . e.g. auth=123, year=[21:]
+            note = response.xpath('//*[@id="pageheading"]/h1/text()').get()
+            print('note: ', note)
+            # This application is no longer available for viewing. It may have been removed or restricted from public viewing.
+            if note is not None and 'details not available' in note:
+                print('*** *** *** This application is not available. *** *** ***')
+                return
+            else:
+                print('*** *** *** NEED TO RELOAD APP PAGE. *** *** ***')
+                # self.index -= 1
+                time.sleep(10)
+                # yield SeleniumRequest(url=app_df.at['url'], callback=self.re_parse_summary_item, meta={'app_df': app_df})
+                return
+                # print('--- --- test --- ---')
+
+        tabs = driver.find_elements(By.XPATH, '//*[@id="myTopnav"]/a')[:-1]
+        app_df = self.set_default_items(app_df)
+
+        for tab_index, tab in enumerate(tabs[1:]):
+            tab.click()
+            tab_name = tab.text.strip()
+            # --- --- --- Other Details --- --- ---
+            if 'Other Details' in tab_name:
+                pass
+            else:
+                print(f'Unknown tab: {tab_name}')
                 assert 0 == 1
         self.ending(app_df)
 
@@ -3370,3 +3592,224 @@ class Atrium_Scraper(scrapy.Spider):
                 assert 0 == 1
 
         self.ending(app_df)
+
+
+
+    """ Suffolk*
+    Features: (Details) | [Other Details], [Location]
+        1. 
+    """
+    def parse_data_item_Suffolk(self, response):
+        app_df = response.meta['app_df']
+        driver = response.request.meta["driver"]
+        scraper_name = app_df.at['scraper_name']
+        print(f"parse_data_item_Suffolk, scraper name: {scraper_name}")
+
+        # self.get_doc_url(response, app_df)
+        # --- --- --- setup the app storage path. --- --- ---
+        folder_name = self.setup_storage_path(app_df)
+
+        try:
+            # --- --- --- Main Details --- --- ---
+            tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="main"]/div[1]/div/div[4]/div[1]/fieldset/dl')))
+            items = tab_panel.find_elements(By.XPATH, './dt')
+            item_values = tab_panel.find_elements(By.XPATH, './dd')
+            n_items = len(items)
+            print(f"\n1. Details Tab: {n_items}") if PRINT else None #print(f"Details Tab: {n_items}")
+            app_df = self.scrape_data_items(app_df, items, item_values)
+        except TimeoutException:
+            # Planning Application details not available . e.g. auth=123, year=[21:]
+            note = response.xpath('//*[@id="pageheading"]/h1/text()').get()
+            print('note: ', note)
+            # This application is no longer available for viewing. It may have been removed or restricted from public viewing.
+            if note is not None and 'details not available' in note:
+                print('*** *** *** This application is not available. *** *** ***')
+                return
+            else:
+                print('*** *** *** NEED TO RELOAD APP PAGE. *** *** ***')
+                # self.index -= 1
+                time.sleep(10)
+                # yield SeleniumRequest(url=app_df.at['url'], callback=self.re_parse_summary_item, meta={'app_df': app_df})
+                return
+                # print('--- --- test --- ---')
+
+        tabs = driver.find_elements(By.XPATH, '//*[@id="myTopnav"]/a')[:-1]
+        app_df = self.set_default_items(app_df)
+
+        for tab_index, tab in enumerate(tabs[1:]):
+            tab.click()
+            tab_name = tab.text.strip()
+            # --- --- --- Other Details --- --- ---
+            if 'Other Details' in tab_name:
+                pass
+            else:
+                print(f'Unknown tab: {tab_name}')
+                assert 0 == 1
+        self.ending(app_df)
+
+
+
+    """ Surrey*
+    Features: [Main Details], [Applicant/Agent], [Consultation], [Decision], [Attachments]
+        1. 
+    """
+    def parse_data_item_Surrey(self, response):
+        app_df = response.meta['app_df']
+        driver = response.request.meta["driver"]
+        scraper_name = app_df.at['scraper_name']
+        print(f"parse_data_item_Surrey, scraper name: {scraper_name}")
+
+        # self.get_doc_url(response, app_df)
+        # --- --- --- setup the app storage path. --- --- ---
+        folder_name = self.setup_storage_path(app_df)
+
+        try:
+            # --- --- --- Main Details --- --- ---
+            tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="main"]/div[1]/div/div[4]/div[1]/fieldset/dl')))
+            items = tab_panel.find_elements(By.XPATH, './dt')
+            item_values = tab_panel.find_elements(By.XPATH, './dd')
+            n_items = len(items)
+            print(f"\n1. Details Tab: {n_items}") if PRINT else None #print(f"Details Tab: {n_items}")
+            app_df = self.scrape_data_items(app_df, items, item_values)
+        except TimeoutException:
+            # Planning Application details not available . e.g. auth=123, year=[21:]
+            note = response.xpath('//*[@id="pageheading"]/h1/text()').get()
+            print('note: ', note)
+            # This application is no longer available for viewing. It may have been removed or restricted from public viewing.
+            if note is not None and 'details not available' in note:
+                print('*** *** *** This application is not available. *** *** ***')
+                return
+            else:
+                print('*** *** *** NEED TO RELOAD APP PAGE. *** *** ***')
+                # self.index -= 1
+                time.sleep(10)
+                # yield SeleniumRequest(url=app_df.at['url'], callback=self.re_parse_summary_item, meta={'app_df': app_df})
+                return
+                # print('--- --- test --- ---')
+
+        tabs = driver.find_elements(By.XPATH, '//*[@id="myTopnav"]/a')[:-1]
+        app_df = self.set_default_items(app_df)
+
+        for tab_index, tab in enumerate(tabs[1:]):
+            tab.click()
+            tab_name = tab.text.strip()
+            # --- --- --- Other Details --- --- ---
+            if 'Other Details' in tab_name:
+                pass
+            else:
+                print(f'Unknown tab: {tab_name}')
+                assert 0 == 1
+        self.ending(app_df)
+
+
+
+    """ WelwynHatfield*
+    Features: [Main Details], [Constraints], [Location], [Decision], [Documents], [Consultees], [Neighbours], [History], [NMAs] 
+        1. 
+    """
+    def parse_data_item_WelwynHatfield(self, response):
+        app_df = response.meta['app_df']
+        driver = response.request.meta["driver"]
+        scraper_name = app_df.at['scraper_name']
+        print(f"parse_data_item_WelwynHatfield, scraper name: {scraper_name}")
+
+        # self.get_doc_url(response, app_df)
+        # --- --- --- setup the app storage path. --- --- ---
+        folder_name = self.setup_storage_path(app_df)
+
+        try:
+            # --- --- --- Main Details --- --- ---
+            tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="main"]/div[1]/div/div[4]/div[1]/fieldset/dl')))
+            items = tab_panel.find_elements(By.XPATH, './dt')
+            item_values = tab_panel.find_elements(By.XPATH, './dd')
+            n_items = len(items)
+            print(f"\n1. Details Tab: {n_items}") if PRINT else None #print(f"Details Tab: {n_items}")
+            app_df = self.scrape_data_items(app_df, items, item_values)
+        except TimeoutException:
+            # Planning Application details not available . e.g. auth=123, year=[21:]
+            note = response.xpath('//*[@id="pageheading"]/h1/text()').get()
+            print('note: ', note)
+            # This application is no longer available for viewing. It may have been removed or restricted from public viewing.
+            if note is not None and 'details not available' in note:
+                print('*** *** *** This application is not available. *** *** ***')
+                return
+            else:
+                print('*** *** *** NEED TO RELOAD APP PAGE. *** *** ***')
+                # self.index -= 1
+                time.sleep(10)
+                # yield SeleniumRequest(url=app_df.at['url'], callback=self.re_parse_summary_item, meta={'app_df': app_df})
+                return
+                # print('--- --- test --- ---')
+
+        tabs = driver.find_elements(By.XPATH, '//*[@id="myTopnav"]/a')[:-1]
+        app_df = self.set_default_items(app_df)
+
+        for tab_index, tab in enumerate(tabs[1:]):
+            tab.click()
+            tab_name = tab.text.strip()
+            # --- --- --- Other Details --- --- ---
+            if 'Other Details' in tab_name:
+                pass
+            else:
+                print(f'Unknown tab: {tab_name}')
+                assert 0 == 1
+        self.ending(app_df)
+
+
+
+    """ WestSussex*
+    Features: [Main Details], [Map], [Associated Documents]
+        1. 
+    """
+    def parse_data_item_WestSussex(self, response):
+        app_df = response.meta['app_df']
+        driver = response.request.meta["driver"]
+        scraper_name = app_df.at['scraper_name']
+        print(f"parse_data_item_WestSussex, scraper name: {scraper_name}")
+
+        # self.get_doc_url(response, app_df)
+        # --- --- --- setup the app storage path. --- --- ---
+        folder_name = self.setup_storage_path(app_df)
+
+        try:
+            # --- --- --- Main Details --- --- ---
+            tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="main"]/div[1]/div/div[4]/div[1]/fieldset/dl')))
+            items = tab_panel.find_elements(By.XPATH, './dt')
+            item_values = tab_panel.find_elements(By.XPATH, './dd')
+            n_items = len(items)
+            print(f"\n1. Details Tab: {n_items}") if PRINT else None #print(f"Details Tab: {n_items}")
+            app_df = self.scrape_data_items(app_df, items, item_values)
+        except TimeoutException:
+            # Planning Application details not available . e.g. auth=123, year=[21:]
+            note = response.xpath('//*[@id="pageheading"]/h1/text()').get()
+            print('note: ', note)
+            # This application is no longer available for viewing. It may have been removed or restricted from public viewing.
+            if note is not None and 'details not available' in note:
+                print('*** *** *** This application is not available. *** *** ***')
+                return
+            else:
+                print('*** *** *** NEED TO RELOAD APP PAGE. *** *** ***')
+                # self.index -= 1
+                time.sleep(10)
+                # yield SeleniumRequest(url=app_df.at['url'], callback=self.re_parse_summary_item, meta={'app_df': app_df})
+                return
+                # print('--- --- test --- ---')
+
+        tabs = driver.find_elements(By.XPATH, '//*[@id="myTopnav"]/a')[:-1]
+        app_df = self.set_default_items(app_df)
+
+        for tab_index, tab in enumerate(tabs[1:]):
+            tab.click()
+            tab_name = tab.text.strip()
+            # --- --- --- Other Details --- --- ---
+            if 'Other Details' in tab_name:
+                pass
+            else:
+                print(f'Unknown tab: {tab_name}')
+                assert 0 == 1
+        self.ending(app_df)
+
+
+
+
+
