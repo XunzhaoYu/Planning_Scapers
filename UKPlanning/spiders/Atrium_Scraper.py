@@ -91,7 +91,7 @@ class Atrium_Scraper(scrapy.Spider):
             print(auth_names)
 
             app_dfs = []
-            self.auth_index = 21  #1, 3, 13
+            self.auth_index = 23  #1, 3, 13
             """
             # A: 0[Bridgend]    # [Details], [Other Details], [Decision], [Consultees], [Documents], [Public Notices]
             # B: 1[Cherwell]    # [Main Details], [Applicant/Agents], [Publicity], [Supporting Docs], [Properties], [Site History]
@@ -114,6 +114,8 @@ class Atrium_Scraper(scrapy.Spider):
             #    25* [WestmorlandFurness] # https://planningregister.westmorlandandfurness.gov.uk/Planning/Display/5010005
             #    28 [Worcester]         # https://plan.worcester.gov.uk/Planning/Display/P01L0007
             #    29 [Wychavon]          # https://plan.wychavon.gov.uk/Planning/Display/W/01/00069/PN
+            #    21 [SouthWestDevon]    # https://westdevon.planning-register.co.uk/Planning/Display/4203/22/FUL
+            #                           # https://westdevon.planning-register.co.uk/Planning/Display/22/0030/10/DIS
             #       (Disclaimer | Agree)
             #       Planning Online Status | [Application Details(Summary/Important Dates/Further Information/ Condition Details//Information Notes)], [Documents], ([Consultations]), ([Map]), [Appeals]  #***#  Application Details + Appeals
             #
@@ -136,16 +138,14 @@ class Atrium_Scraper(scrapy.Spider):
             # L: 15 [Norfolk]  # https://eplanning.norfolk.gov.uk/Planning/Display/L/3/2001/3003  #***#  Main Details + Appeals
             #       [Main Details], [Location], [Documents], [Constraints], [Consultations], [Appeals]
             # 
-            """
             # M: 17 [NorthumberlandPark]  # https://nnpa.planning-register.co.uk/Planning/Display/02NP0007 #***#  没有main details, 注意与F区分
-            #    21 [SouthWestDevon]    # http://apps.westdevon.gov.uk/PlanningSearchMVC/Home/Details/021514
             #       [Proposal and Location], [Applicant Details], [Consultation], [Decision], [Documents]
             #
+            #"""
             # N: 22 [Suffolk]  # http://suffolk.planning-register.co.uk/Planning/Display?applicationNumber=SE%2F01%2F2648%2FP  # Information displayed in main page without tabs. (somehow similar to D)
             #       (PLANNING ONLINE REGISTER – COPYRIGHT AND DISCLAIMER | Agree)
             #       (Details) | [Other Details], [Location]
             #
-
             # O: 23 [Surrey]  # https://planning.surreycc.gov.uk/Planning/Display/PL1914  #***#  Applicant/Agent + Attachments
             #       accept
             #       [Main Details], [Applicant/Agent], [Consultation], [Decision], [Attachments]
@@ -174,7 +174,7 @@ class Atrium_Scraper(scrapy.Spider):
                 #    file_path = f"{get_list_storage_path()}{auth}/{auth}{year}.csv"
                 filenames = get_filenames(f"{get_list_storage_path()}{auth}/")
                 print(f"{auth}. number of files: {len(filenames)}")
-                for filename in filenames[2:]:
+                for filename in filenames[12:]:
                     file_path = f"{get_list_storage_path()}{auth}/{filename}"
                     df = pd.read_csv(file_path)  # , index_col=0)  # <class 'pandas.core.frame.DataFrame'>
                     print(filename, df.shape[0])
@@ -253,7 +253,7 @@ class Atrium_Scraper(scrapy.Spider):
             self.parse_func = self.parse_data_item_Cumbria  # Main page with two tabs: [Application Documents], [Decision]
         elif auth_names[self.auth_index] in ['Essex']:  # https://planning.essex.gov.uk/Planning/Display/CC/COL/07/01
             self.parse_func = self.parse_data_item_Essex
-        elif auth_names[self.auth_index] in ['Fylde', 'MalvernHills', 'NorthDevon', 'WestmorlandFurness', 'Worcester', 'Wychavon']:
+        elif auth_names[self.auth_index] in ['Fylde', 'MalvernHills', 'NorthDevon', 'WestmorlandFurness', 'Worcester', 'Wychavon', 'SouthWestDevon']:
             self.parse_func = self.parse_data_item_Fylde
         elif auth_names[self.auth_index] in ['Glamorgan']:
             self.parse_func = self.parse_data_item_Glamorgan
@@ -269,7 +269,7 @@ class Atrium_Scraper(scrapy.Spider):
             self.parse_func = self.parse_data_item_Lincolnshire
         elif auth_names[self.auth_index] in ['Norfolk']:
             self.parse_func = self.parse_data_item_Norfolk
-        elif auth_names[self.auth_index] in ['NorthumberlandPark', 'SouthWestDevon']:
+        elif auth_names[self.auth_index] in ['NorthumberlandPark']:
             self.parse_func = self.parse_data_item_NorthumberlandPark
         elif auth_names[self.auth_index] in ['Redcar']:
             self.parse_func = self.parse_data_item_Redcar
@@ -349,6 +349,9 @@ class Atrium_Scraper(scrapy.Spider):
                 url = app_df.at['url']
                 print(f"\n{app_df.name}, start url: {url}")
             print(app_df) if PRINT else None
+            if app_df.at['scraper_name'] == 'SouthWestDevon' and (url.startswith('https://apps') or url.startswith('http://apps')):
+                url = 'https://westdevon.planning-register.co.uk/Planning/Display/'+app_df.at['uid']
+                print(f'url bug fixed, new url: {url}')
             #yield SeleniumRequest(url=url, callback=self.parse_data_item, meta={'app_df': app_df})
             yield SeleniumRequest(url=url, callback=self.parse_func, meta={'app_df': app_df})
         except IndexError:
@@ -525,6 +528,7 @@ class Atrium_Scraper(scrapy.Spider):
                     'Public Consultation Expiry':   'other_fields.public_consultation_end_date',  # Cumbria
                     'Public Consultation End Date': 'other_fields.public_consultation_end_date',  # Redcar
                     'End of Public Consultation':   'other_fields.public_consultation_end_date',  # Leicestershire
+                    'Public Consultation End':      'other_fields.public_consultation_end_date',  # SouthWestDevon
 
                     # Determination
 
@@ -822,7 +826,7 @@ class Atrium_Scraper(scrapy.Spider):
 
     ### Case 1 ### Multiple Tables
     # [date, description]: For Glamorgan, Essex, Lancashire, Somerset, Lincolnshire(only file), NorthumberlandPark
-    # [date, type, description]: For Cherwell/WestNorthamptonshire, Leicester, Norfolk
+    # [date, type, description]: For Cherwell/WestNorthamptonshire, Fylde etc, Leicester, Norfolk
     def get_column_indexes(self, columns, keywords):
         n_columns = len(columns)
         n_keywords = len(keywords)
@@ -860,7 +864,7 @@ class Atrium_Scraper(scrapy.Spider):
         return document_name
     # document_name = self.rename_document_date_desc(document_item, document_name, document_type=document_table_name, description_column=description_column, date_column=date_column, path='td'))
 
-    # For Cherwell/WestNorthamptonshire, Norfolk
+    # For Cherwell/WestNorthamptonshire, Fylde etc, Norfolk
     def rename_document(self, document_item, document_name, description_column=2, type_column=1, date_column=3, path='td'):
         try:
             document_description = document_item.find_element(By.XPATH, f'./{path}[{description_column}]').text.strip()
@@ -875,7 +879,7 @@ class Atrium_Scraper(scrapy.Spider):
         except NoSuchElementException:
             pass
         return document_name
-    # document_name = self.rename_document(document_item, document_name, description_column, type_column, date_column, path='td')
+    # document_name = self.rename_document(document_item, document_name, description_column=description_column, type_column=type_column, date_column=date_column, path='td')
 
     ### Case 2 ### Single Table with headers and document items mixed.
     # For Crawley (table_path = '//*[@id="documents"]/div/div[2]/table/tbody'),
@@ -2276,19 +2280,40 @@ class Atrium_Scraper(scrapy.Spider):
     Features: Planning Online Status | [Application Details(Summary/Important Dates/Further Information/ Condition Details//Information Notes)], 
                                         [Documents], ([Consultations]), ([Map]), [Appeals]  #***#  Application Details + Appeals
         Tab Main Details: Framework {item: dd[1], value: dd[2]}
+        
+        2. SouthWestDevon: [Map], [Appeals].
+        
+        3. Encapsulated Doc system: Multi-tables. (old doc id except SouthWestDevon)
+            #Shared Columns
+            #Table1
+            #    Document items [date, type(with links), description].
+            #Table2
+            #    Document items [date, type(with links), description].
     """
     def parse_data_item_Fylde(self, response):
         app_df = response.meta['app_df']
         driver = response.request.meta["driver"]
-        ### Ensure the page content is loaded.
-        try:
-            if 'Disclaimer' in response.xpath('//*[@id="pe-maincontent"]/article/div/h2/text()').get():
-                print('Click: Agree the disclaimer.')
-                driver.find_element(By.XPATH, '//*[@id="pe-maincontent"]/article/div/form/div/input').click()
-        except TypeError:
-            pass
-
         scraper_name = app_df.at['scraper_name']
+        ### Ensure the page content is loaded.
+        if scraper_name == 'SouthWestDevon':
+            try:
+                driver.find_element(By.XPATH, '//*[@id="cookie-alert"]/span/button').click()
+            except (NoSuchElementException, ElementNotInteractableException):
+                pass
+            try:
+                if 'Disclaimer' in response.xpath('//*[@id="block-localgov-westdevon-localgov-page-header-block-base"]/div/h2').get():
+                    print('Click checkbox and Agree the disclaimer.')
+                    WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CLASS_NAME, 'disclaimer-agreement'))).click()
+                    driver.find_element(By.XPATH, '//*[@id="block-localgov-westdevon-localgov-page-header-block-base"]/div/form/div[1]/input').click()
+            except TypeError:
+                pass
+        else:
+            try:
+                if 'Disclaimer' in response.xpath('//*[@id="pe-maincontent"]/article/div/h2/text()').get():
+                    print('Click: Agree the disclaimer.')
+                    driver.find_element(By.XPATH, '//*[@id="pe-maincontent"]/article/div/form/div/input').click()
+            except TypeError:
+                pass
         print(f"parse_data_item_Fylde, scraper name: {scraper_name}")
         # self.get_doc_url(response, app_df)
         # --- --- --- setup the app storage path. --- --- ---
@@ -2298,7 +2323,7 @@ class Atrium_Scraper(scrapy.Spider):
             # --- --- --- Application Details (Summary, Important Dates, Further Information, Condition Details / Information Notes) --- --- ---
             if scraper_name == 'WestmorlandFurness':
                 tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="Main Details"]')))
-            else:  # Fylde, MalvernHills, NorthDevon, Worcester, Wychavon
+            else:  # Fylde, MalvernHills, NorthDevon, Worcester, Wychavon, SouthWestDevon
                 tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="MainDetails"]')))
             tables = tab_panel.find_elements(By.XPATH, './table')
             n_tables = len(tables)
@@ -2373,8 +2398,10 @@ class Atrium_Scraper(scrapy.Spider):
             #tabs = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="myTopnav"]/a')))
             # //*[@id="myTopnav"]/a[5]
             tab_operation = tab_operations_for_WestmorlandFurness
+        elif scraper_name == 'SouthWestDevon':
+            tabs = driver.find_elements(By.XPATH, '//*[@id="block-localgov-westdevon-localgov-page-header-block-base"]/div/div[3]/ul[1]/li')
         else:
-            tabs = driver.find_elements(By.XPATH, '//*[@id="pe-maincontent"]/article/div/div[3]/div/div')
+            pass
 
         app_df = self.set_default_items(app_df)
         for tab_index, tab in enumerate(tabs[1:]):
@@ -2397,25 +2424,7 @@ class Atrium_Scraper(scrapy.Spider):
                     print(f"\n{tab_index+2}. Document Tab: {n_tables} tables") if PRINT else None
 
                     columns = document_table_list.find_elements(By.XPATH, './thead/tr/th')
-                    def get_document_info_columns(columns):
-                        n_columns = len(columns)
-                        date_column, type_column, description_column = n_columns, n_columns, n_columns
-                        for i, column in enumerate(columns):
-                            try:
-                                if 'date' in str.lower(column.text.strip()):
-                                    date_column = i + 1
-                                    continue
-                                if 'type' in str.lower(column.text.strip()):
-                                    type_column = i + 1
-                                    continue
-                                if 'description' in str.lower(column.text.strip()):
-                                    description_column = i + 1
-                                    continue
-                            except TypeError:
-                                continue
-                        print(f"    Columns: date column {date_column}/{n_columns}, type column {type_column}/{n_columns}, description column {description_column}/{n_columns}") if PRINT else None
-                        return date_column, type_column, description_column
-                    date_column, type_column, description_column = get_document_info_columns(columns)
+                    [date_column, type_column, description_column] = self.get_column_indexes(columns, keywords=['date', 'type', 'description'])
 
                     n_documents, file_urls, document_names = 0, [], []
                     driver.find_element(By.CLASS_NAME, 'copyright-agreement').click()
@@ -2424,36 +2433,31 @@ class Atrium_Scraper(scrapy.Spider):
                         document_items = document_table.find_elements(By.XPATH, './tr')[1:]
                         n_table_documents = len(document_items)
                         print(f"Table {table_index+1}: {document_table_name}, including {n_table_documents} documents.") if PRINT else None
-                        for document_index, document_item in enumerate(document_items):
+                        for document_item in document_items:
+                            n_documents += 1
                             file_url = document_item.find_element(By.XPATH, f'./td[{type_column}]/a').get_attribute('href')
                             file_urls.append(file_url)
 
-                            item_identity = file_url.split('=')[-1]  # includes extension such as .pdf
-                            if len(item_identity) > 24:
-                                print(f"--- --- --- too long item identity: {item_identity} --- --- ---") if PRINT else None
-                                extension = item_identity.split('.')[-1]
-                                len_extension = len(extension) + 1  #  add the length of 'dot'.
-                                shorten_identity = ''.join(re.findall(r'\d', item_identity[:-len_extension]))
-                                item_identity = f"{shorten_identity}.{extension}"
-                                print(f"--- --- --- short item identity: {item_identity} --- --- ---") if PRINT else None
-                            document_name = f"uid={item_identity}"
-                            try:
-                                document_description = document_item.find_element(By.XPATH, f'./td[{description_column}]').text.strip()
-                                document_name = f"desc={document_description}&{document_name}"
-                            except NoSuchElementException:
-                                pass
-                            document_type = document_item.find_element(By.XPATH, f'./td[{type_column}]').text.strip()
-                            document_name = f"type={document_type}&{document_name}"
-                            try:
-                                document_date = document_item.find_element(By.XPATH, f'./td[{date_column}]').text.strip()
-                                document_name = f"date={document_date}&{document_name}"
-                            except NoSuchElementException:
-                                pass
+                            if scraper_name == 'SouthWestDevon':
+                                item_extension = file_url.split('.')[-1]
+                                document_name = f"uid={n_documents}.{item_extension}"
+                            else:
+                                item_identity = file_url.split('=')[-1]  # includes extension such as .pdf
+                                if len(item_identity) > 24:
+                                    print(f"--- --- --- too long item identity: {item_identity} --- --- ---") if PRINT else None
+                                    extension = item_identity.split('.')[-1]
+                                    len_extension = len(extension) + 1  #  add the length of 'dot'.
+                                    shorten_identity = ''.join(re.findall(r'\d', item_identity[:-len_extension]))
+                                    item_identity = f"{shorten_identity}.{extension}"
+                                    print(f"--- --- --- short item identity: {item_identity} --- --- ---") if PRINT else None
+                                document_name = f"uid={item_identity}"
+
+                            document_name = self.rename_document(document_item, document_name, description_column=description_column, type_column=type_column, date_column=date_column, path='td')
                             # document_name = f"date={document_date}&type={document_type}&desc={document_description}&{item_identity}"
-                            print(f"    Document {document_index+1}: {document_name}") if PRINT else None
+                            print(f"    Document {n_documents}: {document_name}") if PRINT else None
                             document_name = replace_invalid_characters(document_name)
                             document_names.append(f"{self.data_upload_path}{folder_name}/{document_name}")
-                        n_documents += n_table_documents
+                        #n_documents += n_table_documents
                     app_df.at['other_fields.n_documents'] = n_documents
                     print(f'Total documents: {n_documents}') if PRINT else None
                     return n_documents, file_urls, document_names
@@ -2557,11 +2561,10 @@ class Atrium_Scraper(scrapy.Spider):
             elif 'Appeals' in tab_name:  #***** Did not find any application with associated appeals.
                 def parse_appeals():
                     tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="Appeals"]')))
-                    if scraper_name in ['MalvernHills', 'NorthDevon', 'Worcester', 'Wychavon']:
-                        no_appeals = tab_panel.find_element(By.XPATH, '//*[@id="Appeals"]/div/table/tbody/tr/td').text.strip()
+                    if scraper_name in ['MalvernHills', 'NorthDevon', 'Worcester', 'Wychavon', 'SouthWestDevon']:
+                        no_appeals = tab_panel.find_element(By.XPATH, './div/table/tbody/tr/td').text.strip()
                     else: # 'Fylde'
                         no_appeals = tab_panel.find_element(By.XPATH, './h2').text.strip()
-
                     print(no_appeals) if PRINT else None
 
                 parse_appeals()
@@ -3126,6 +3129,7 @@ class Atrium_Scraper(scrapy.Spider):
     def parse_data_item_Lincolnshire(self, response):
         app_df = response.meta['app_df']
         driver = response.request.meta["driver"]
+        scraper_name = app_df.at['scraper_name']
         ### Ensure the page content is loaded.
         try:
             if 'Disclaimer' in response.xpath('/html/body/div/div/h1/text()').get():
@@ -3133,7 +3137,7 @@ class Atrium_Scraper(scrapy.Spider):
                 driver.find_element(By.XPATH, '/html/body/div/div/form/div/input').click()
         except TypeError:
             pass
-        print("parse_data_item_Lincolnshire")
+        print(f"parse_data_item_Lincolnshire, scraper name: {scraper_name}")
 
         # self.get_doc_url(response, app_df)
         # --- --- --- setup the app storage path. --- --- ---
@@ -3383,8 +3387,7 @@ class Atrium_Scraper(scrapy.Spider):
 
 
 
-    """ NorthumberlandPark # https://nnpa.planning-register.co.uk/Planning/Display/19NP0006#undefined
-        SouthWestDevon #
+    """ NorthumberlandPark # https://nnpa.planning-register.co.uk/Planning/Display/19NP0006#undefined 
     Features: [Proposal and Location], [Applicant Details], [Consultation], [Decision], [Documents]
         1. Encapsulated (3/3):
         Tab Main Page: Framework {item: dt/label, value: dd}
@@ -3713,25 +3716,37 @@ class Atrium_Scraper(scrapy.Spider):
 
 
 
-    """ Suffolk*
+    """ Suffolk # https://suffolk.planning-register.co.uk/Planning/Display?applicationNumber=SE%2F01%2F2648%2FP#undefined
     Features: (Details) | [Other Details], [Location]
         1. 
+        Tab Main Page: Framework {item: div/label, value: div/div}
+        
+         
     """
     def parse_data_item_Suffolk(self, response):
         app_df = response.meta['app_df']
         driver = response.request.meta["driver"]
         scraper_name = app_df.at['scraper_name']
         print(f"parse_data_item_Suffolk, scraper name: {scraper_name}")
-
+        try:
+            if 'Disclaimer' in response.xpath('/html/body/div[3]/div[2]/div/div/h2[1]/text()').get():
+                print('Click: Agree.')
+                driver.find_element(By.XPATH, '/html/body/div[3]/div[2]/div/div/form/div/input').click()
+        except TypeError:
+            pass
         # self.get_doc_url(response, app_df)
         # --- --- --- setup the app storage path. --- --- ---
         folder_name = self.setup_storage_path(app_df)
 
         try:
             # --- --- --- Main Details --- --- ---
-            tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="main"]/div[1]/div/div[4]/div[1]/fieldset/dl')))
-            items = tab_panel.find_elements(By.XPATH, './dt')
-            item_values = tab_panel.find_elements(By.XPATH, './dd')
+            tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '/html/body/div[3]/div[2]/div/div')))
+            #item_list = tab_panel.find_elements(By.CLASS_NAME, 'field col-xs-12 no-padding')
+            item_list = tab_panel.find_elements(By.XPATH, './div')[:-3]
+            print(tab_panel)
+            print(len(item_list))
+            items = [item.find_element(By.XPATH, './label') for item in item_list]
+            item_values = [item.find_element(By.XPATH, './div') for item in item_list]
             n_items = len(items)
             print(f"\n1. Details Tab: {n_items}") if PRINT else None #print(f"Details Tab: {n_items}")
             app_df = self.scrape_data_items(app_df, items, item_values)
@@ -3751,7 +3766,7 @@ class Atrium_Scraper(scrapy.Spider):
                 return
                 # print('--- --- test --- ---')
 
-        tabs = driver.find_elements(By.XPATH, '//*[@id="myTopnav"]/a')[:-1]
+        tabs = driver.find_elements(By.XPATH, '//*[@id="myTopnav"]/a')
         app_df = self.set_default_items(app_df)
 
         for tab_index, tab in enumerate(tabs[1:]):
@@ -3759,7 +3774,20 @@ class Atrium_Scraper(scrapy.Spider):
             tab_name = tab.text.strip()
             # --- --- --- Other Details --- --- ---
             if 'Other Details' in tab_name:
-                pass
+                item_list = tab_panel.find_elements(By.CLASS_NAME, 'field col-xs-12 col-md-6')
+                items = [item.find_element(By.XPATH, './label') for item in item_list]
+                item_values = [item.find_element(By.XPATH, './div') for item in item_list]
+                n_items = len(items)
+                print(f"\n{tab_index+2}. {tab_name} Tab: {n_items}") if PRINT else None  # print(f"Details Tab: {n_items}")
+                app_df = self.scrape_data_items(app_df, items, item_values)
+            # --- --- --- Location --- --- ---
+            elif 'Location' in tab_name:
+                item_list = tab_panel.find_elements(By.CLASS_NAME, 'field col-xs-12 col-md-6')
+                items = [item.find_element(By.XPATH, './label') for item in item_list]
+                item_values = [item.find_element(By.XPATH, './div') for item in item_list]
+                n_items = len(items)
+                print(f"\n{tab_index+2}. {tab_name} Tab: {n_items}") if PRINT else None  # print(f"Details Tab: {n_items}")
+                app_df = self.scrape_data_items(app_df, items, item_values)
             else:
                 print(f'Unknown tab: {tab_name}')
                 assert 0 == 1
@@ -3767,7 +3795,7 @@ class Atrium_Scraper(scrapy.Spider):
 
 
 
-    """ Surrey*
+    """ Surrey # https://planning.surreycc.gov.uk/planappdisp.aspx?AppNo=SCC%20Ref%202014/0018
     Features: [Main Details], [Applicant/Agent], [Consultation], [Decision], [Attachments]
         1. 
     """
@@ -3776,14 +3804,19 @@ class Atrium_Scraper(scrapy.Spider):
         driver = response.request.meta["driver"]
         scraper_name = app_df.at['scraper_name']
         print(f"parse_data_item_Surrey, scraper name: {scraper_name}")
-
+        try:
+            if 'Copyright' in response.xpath('//*[@id="content"]/div/div/div[1]/h2[1]/text()').get():
+                print('Click: Accept.')
+                driver.find_element(By.XPATH, '//*[@id="content"]/div/div/div[1]/form/input').click()
+        except TypeError:
+            pass
         # self.get_doc_url(response, app_df)
         # --- --- --- setup the app storage path. --- --- ---
         folder_name = self.setup_storage_path(app_df)
 
         try:
             # --- --- --- Main Details --- --- ---
-            tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="main"]/div[1]/div/div[4]/div[1]/fieldset/dl')))
+            tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="content"]/div/div/div[1]/div[3]/div')))
             items = tab_panel.find_elements(By.XPATH, './dt')
             item_values = tab_panel.find_elements(By.XPATH, './dd')
             n_items = len(items)
