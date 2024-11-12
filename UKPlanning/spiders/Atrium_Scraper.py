@@ -91,7 +91,7 @@ class Atrium_Scraper(scrapy.Spider):
             print(auth_names)
 
             app_dfs = []
-            self.auth_index = 17  #1, 3, 13
+            self.auth_index = 21  #1, 3, 13
             """
             # A: 0[Bridgend]    # [Details], [Other Details], [Decision], [Consultees], [Documents], [Public Notices]
             # B: 1[Cherwell]    # [Main Details], [Applicant/Agents], [Publicity], [Supporting Docs], [Properties], [Site History]
@@ -539,7 +539,9 @@ class Atrium_Scraper(scrapy.Spider):
                     'Weekly List date': 'other_fields.weekly_list_date',  # Redcar
                     'Subject To Legal Agreements':              'other_fields.subject_to_legal_agreements',  # Essex
                     'Application subject to Legal Agreement':   'other_fields.subject_to_legal_agreements',  # Lancashire
+                    'Application Subject\nto Legal Agreement':  'other_fields.subject_to_legal_agreements',  # NorthumberlandPark
                     'Completion of Legal Agreement':            'other_fields.completion_of_legal_agreements',  # Lancashire
+                    'Completion of\nLegal Agreement':           'other_fields.completion_of_legal_agreements',  # NorthumberlandPark
                     'Local Member(s)':             'other_fields.local_member', # Essex
                     'PPRN': 'other_fields.pprn',  # Leicester
                     'Conservation Area': 'other_fields.conservation_area',  # WestmorlandFurness
@@ -552,7 +554,8 @@ class Atrium_Scraper(scrapy.Spider):
                     'Contact Telephone Number':         'Phone',  # Lancashire
                     'Case Officer Telephone':          'Phone',  # Leicestershire
                     'Email':                    'Email',  # Crawley
-                    'Contact Email Address':    'Email'  # Lancashire
+                    'Contact Email Address':    'Email',  # Lancashire
+                    'Contact Email\nAddress':    'Email',  # NorthumberlandPark
                     }
 
             # 61 ['other_fields.applicant_company', 'other_fields.id_type',
@@ -624,7 +627,7 @@ class Atrium_Scraper(scrapy.Spider):
     """
     data items
     """
-    # For Bridgend x1, Glamorgan x2, Crawley x1, Cumbria x1, Essex x2, Kent x1, Lancashire x2, Lincolnshire x1, Norfolk x2, Somerset x1
+    # For Bridgend x1, Glamorgan x2, Crawley x1, Cumbria x1, Essex x2, Kent x1, Lancashire x2, Lincolnshire x1, Norfolk x3, NorthumberlandPark x2(3), Somerset x1
     def scrape_data_items(self, app_df, items, item_values):
         for item, value in zip(items, item_values):
             item_name = item.text.strip()
@@ -668,7 +671,7 @@ class Atrium_Scraper(scrapy.Spider):
         return app_df
     # app_df = self.scrape_data_items_including_contacts(app_df, items, item_values, folder_name)
 
-    # For Bridgend x1, Lancashire x1
+    # For Bridgend x1, Lancashire x1, NorthumberlandPark x1
     def scrape_data_items_including_contacts_and_checkbox(self, app_df, items, item_values,
                                                           folder_name, contact_items=['Phone', 'Email'], checkbox_items=[]):
         contact_dict = {}
@@ -715,7 +718,7 @@ class Atrium_Scraper(scrapy.Spider):
 
     ### Case 1 ### Try the only table in a tab, catch NoSuchElement.
     # Multi-columns #
-    # td: For Glamorgan x5, Essex x1, Lincolnshire x1, Norfolk x1.
+    # td: For Glamorgan x5, Essex x1, Lincolnshire x1, Norfolk x1, NorthumberlandPark x1.
     # trtd: For Bridgend x3
     # div : For Redcar x3
     def scrape_for_csv(self, csv_name, table_columns, table_items, folder_name, path='td'):
@@ -735,6 +738,7 @@ class Atrium_Scraper(scrapy.Spider):
     # Single column #
     # div[2]: For Redcar x1
     # td: For Cherwell/WestNorthamptonshire x1, Norfolk x1
+    # * Lancashire x1 and NorthumberlandPark x2 have neighbour lists/constraint for single csv, for not encapsulated due to their paths are empty.
     def scrape_for_csv_single(self, csv_name, column_name, table_items, folder_name, path='td'):
         content_dict = {column_name: [table_item.find_element(By.XPATH, f'./{path}').text.strip() for table_item in table_items]}
         content_df = pd.DataFrame(content_dict)
@@ -817,7 +821,7 @@ class Atrium_Scraper(scrapy.Spider):
         return item
 
     ### Case 1 ### Multiple Tables
-    # [date, description]: For Glamorgan, Essex, Lancashire, Somerset, Lincolnshire(file)
+    # [date, description]: For Glamorgan, Essex, Lancashire, Somerset, Lincolnshire(only file), NorthumberlandPark
     # [date, type, description]: For Cherwell/WestNorthamptonshire, Leicester, Norfolk
     def get_column_indexes(self, columns, keywords):
         n_columns = len(columns)
@@ -836,7 +840,7 @@ class Atrium_Scraper(scrapy.Spider):
         return column_indexes
     # [date_column, description_column] = self.get_column_indexes(columns, keywords=['date', 'file name'])
 
-    # For Glamorgan, Essex, Lancashire, Somerset, Lincolnshire(file)
+    # For Glamorgan, Essex, Lancashire, Somerset, Lincolnshire(only file), NorthumberlandPark
     # (Multi tabs without column names) For Cumbria, Leicestershire
     def rename_document_date_desc(self, document_item, document_name, document_type='-', description_column=2, date_column=3, path='td'):
         #item_extension = file_url.split('.')[-1]
@@ -2653,7 +2657,7 @@ class Atrium_Scraper(scrapy.Spider):
         
         1. Encapsulated(3/3)
         Tab Main Details: Framework {item: div/div/div[1]/label, value: div/div/div[2]/span}
-        Tab Applicants: A neighbour list.
+        Tab Applicants: A neighbour list. *bug of n_comments_public_received fixed on 24-11-11
         
         Tab Committee: Has phone and email contacts.
         3. Encapsulated Doc system: Multi-tables with types as sub table names. [similar to Essex, Glamorgan] 
@@ -2728,6 +2732,8 @@ class Atrium_Scraper(scrapy.Spider):
                 assert items[-1].text.strip() == 'Neighbour List'
                 item_values = item_values[n_items-1:]
                 if len(item_values) > 1 or item_values[0].text.strip() != 'No Neighbour':
+                    app_df.at['other_fields.n_comments_public_received'] = len(item_values)
+                    app_df.at['other_fields.n_comments'] = app_df.at['other_fields.n_comments_public_received'] + app_df.at['other_fields.n_comments_consultee_responded']
                     content_dict = {'Neighbour List': [neighbour.text.strip() for neighbour in item_values]}
                     content_df = pd.DataFrame(content_dict)
                     content_df.to_csv(f"{self.data_storage_path}{folder_name}/neighbour list.csv", index=False)
@@ -3164,7 +3170,7 @@ class Atrium_Scraper(scrapy.Spider):
             # print(f"tab {tab_index + 1}: {tab_name}")
             # --- --- --- Associate Documents --- --- ---
             if 'Documents' in tab_name:  # Adaptive columns, link with doc type, multiple tables in a tbody.
-                def get_supporting_documents():
+                def get_documents():
                     try:
                         document_table_list = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, f'//*[@id="tab-content"]/div[{tab_index+2}]/div/table')))
                     except TimeoutException:
@@ -3200,10 +3206,11 @@ class Atrium_Scraper(scrapy.Spider):
                     app_df.at['other_fields.n_documents'] = n_documents
                     print(f'Total documents: {n_documents}') if PRINT else None
                     return n_documents, file_urls, document_names
-                n_documents, file_urls, document_names = get_supporting_documents()
+                n_documents, file_urls, document_names = get_documents()
                 if n_documents > 0:
                     item = self.create_item(driver, folder_name, file_urls, document_names)
                     yield item
+            # --- --- --- Consultee --- --- ---  # scrape_for_csv
             elif 'Consultee' in tab_name:
                 def parse_consultees():
                     try:
@@ -3236,7 +3243,7 @@ class Atrium_Scraper(scrapy.Spider):
         2. Encapsulated (2/2): [Constraints] (scrape_for_csv_single, empty table), 
                                [Consultations] (scrape_for_csv, empty table)
         
-        3. Encapsulated Doc system: Multi-tables. (no doc extensions as descriptions already contain doc extensions)
+        3. Encapsulated Doc system: Multi-tables. (dynamic doc extensions as descriptions always contain doc extensions)
             #Shared Columns
             #Table1
             #    Document items [date, type(with links), description].
@@ -3319,13 +3326,14 @@ class Atrium_Scraper(scrapy.Spider):
                             file_url = document_item.find_element(By.XPATH, f'./td[{description_column}]/a').get_attribute('href')
                             file_urls.append(file_url)
 
-                            #item_extension = file_url.split('.')[-1]
-                            #document_name = f"uid={n_documents}.{item_extension}"
-                            document_name = ''
-                            document_name = self.rename_document(document_item, document_name, description_column, type_column, date_column, path='td')
+                            document_name = self.rename_document(document_item, document_name='', description_column=description_column,
+                                                                 type_column=type_column, date_column=date_column, path='td')
                             temp_names = document_name.split('.')
-                            document_name = f"{temp_names[0]}&uid={n_documents}.{temp_names[1][:-1]}"
-
+                            try:
+                                document_name = f"{temp_names[0]}&uid={n_documents}.{temp_names[1][:-1]}"
+                            except IndexError:
+                                item_extension = file_url.split('.')[-1]
+                                document_name = f"{document_name}uid={n_documents}.{item_extension}"
                             # document_name = f"date={document_date}&type={document_type}&desc={document_description}&{item_identity}"
                             print(f"    Document {n_documents}: {document_name}") if PRINT else None
                             document_name = replace_invalid_characters(document_name)
@@ -3375,9 +3383,22 @@ class Atrium_Scraper(scrapy.Spider):
 
 
 
-    """ NorthumberlandPark/SouthWestDevon*
+    """ NorthumberlandPark # https://nnpa.planning-register.co.uk/Planning/Display/19NP0006#undefined
+        SouthWestDevon #
     Features: [Proposal and Location], [Applicant Details], [Consultation], [Decision], [Documents]
-        1. 
+        1. Encapsulated (3/3):
+        Tab Main Page: Framework {item: dt/label, value: dd}
+        Tab Application Details: A neighbour list. 
+
+        2. Encapsulated (1/1): [Consultation] (scrape_for_csv, empty table)
+                               [Constraint] (empty list)
+        
+        3. Encapsulated Doc system: Multi-tables with types as sub table names. (dynamic doc extensions as descriptions always contain doc extensions)
+            #Shared Columns
+            #Type1
+            #    Document items [file(with links), date].
+            #Type2
+            #    Document items [file(with links), date].  
     """
     def parse_data_item_NorthumberlandPark(self, response):
         app_df = response.meta['app_df']
@@ -3391,11 +3412,11 @@ class Atrium_Scraper(scrapy.Spider):
 
         try:
             # --- --- --- Main Details --- --- ---
-            tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="main"]/div[1]/div/div[4]/div[1]/fieldset/dl')))
+            tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="TabbedContent"]/div[1]/dl')))
             items = tab_panel.find_elements(By.XPATH, './dt')
             item_values = tab_panel.find_elements(By.XPATH, './dd')
             n_items = len(items)
-            print(f"\n1. Details Tab: {n_items}") if PRINT else None #print(f"Details Tab: {n_items}")
+            print(f"\n1. Proposal and Location Tab: {n_items}") if PRINT else None #print(f"Details Tab: {n_items}")
             app_df = self.scrape_data_items(app_df, items, item_values)
         except TimeoutException:
             # Planning Application details not available . e.g. auth=123, year=[21:]
@@ -3419,9 +3440,106 @@ class Atrium_Scraper(scrapy.Spider):
         for tab_index, tab in enumerate(tabs[1:]):
             tab.click()
             tab_name = tab.text.strip()
-            # --- --- --- Other Details --- --- ---
-            if 'Other Details' in tab_name:
-                pass
+            # --- --- --- Applicant Details --- --- ---
+            if 'Applicant Details' in tab_name:
+                tab_panel = driver.find_element(By.XPATH, f'//*[@id="TabbedContent"]/div[{tab_index+2}]/dl')
+                items = tab_panel.find_elements(By.XPATH, './dt')
+                item_values = tab_panel.find_elements(By.XPATH, './dd')
+                n_items = len(items)
+                print(f"\n{tab_index+2}. {tab_name} Tab: {n_items}") if PRINT else None
+                app_df = self.scrape_data_items(app_df, items[:-3], item_values[:-3])
+
+                item_name = items[-3].text.strip()
+                assert item_name == 'Neighbour List'  # \dd\ol\lis
+                neighbour_items = item_values[-3].find_elements(By.XPATH, './ol/li')
+                n_neighbours = len(neighbour_items)
+                print(f"    <{item_name}> scraped: {n_neighbours} items.") if PRINT else None
+                if n_neighbours > 0:
+                    app_df.at['other_fields.n_comments_public_received'] = n_neighbours
+                    app_df.at['other_fields.n_comments'] = app_df.at['other_fields.n_comments_public_received'] + app_df.at['other_fields.n_comments_consultee_responded']
+                    content_dict = {'Neighbour List': [item.text.strip() for item in neighbour_items]}
+                    content_df = pd.DataFrame(content_dict)
+                    content_df.to_csv(f"{self.data_storage_path}{folder_name}/neighbour list.csv", index=False)
+                #self.scrape_for_csv_single(csv_name='neighbour list', column_name='Neighbour List', table_items=neighbour_list, folder_name=folder_name, path='')
+
+                app_df = self.scrape_data_items(app_df, items[-2:], item_values[-2:])
+            # --- --- --- Consultation --- --- --- # scrape_for_csv, empty table if no consultations.
+            elif 'Consultation' in tab_name:
+                tab_panel = driver.find_element(By.XPATH, f'//*[@id="TabbedContent"]/div[{tab_index+2}]')
+                consultation_table = tab_panel.find_element(By.XPATH, './table')
+                table_items = consultation_table.find_elements(By.XPATH, './tbody/tr')
+                n_items = len(table_items)
+                print(f"\n{tab_index+2}. {tab_name} Tab: {n_items} consultee items.") if PRINT else None
+                if n_items > 0:
+                    app_df.at['other_fields.n_comments_consultee_responded'] = n_items
+                    app_df.at['other_fields.n_comments'] = app_df.at['other_fields.n_comments_public_received'] + app_df.at['other_fields.n_comments_consultee_responded']
+                    table_columns = consultation_table.find_elements(By.XPATH, './thead/tr/th')
+                    self.scrape_for_csv(csv_name='consultee comments', table_columns=table_columns, table_items=table_items, folder_name=folder_name, path='td')
+
+                constraint_table = tab_panel.find_element(By.XPATH, f'./ol')
+                table_items = constraint_table.find_elements(By.XPATH, './li')
+                n_items = len(table_items)
+                print(f"{tab_index+2}. {tab_name} Tab: {n_items} constraint items.") if PRINT else None
+                if n_items > 0:
+                    app_df.at['other_fields.n_constraints'] = n_items
+                    content_dict = {'Constraints': [item.text.strip() for item in table_items]}
+                    content_df = pd.DataFrame(content_dict)
+                    content_df.to_csv(f"{self.data_storage_path}{folder_name}/constraints.csv", index=False)
+            # --- --- --- Decision --- --- ---
+            elif 'Decision' in tab_name:
+                tab_panel = driver.find_element(By.XPATH, f'//*[@id="TabbedContent"]/div[{tab_index+2}]/dl')
+                items = tab_panel.find_elements(By.XPATH, './dt')
+                item_values = tab_panel.find_elements(By.XPATH, './dd')
+                n_items = len(items)
+                print(f"\n{tab_index+2}.{tab_name} Tab: {n_items}") if PRINT else None
+                app_df = self.scrape_data_items_including_contacts_and_checkbox(app_df, items, item_values, folder_name, contact_items=['Email'], checkbox_items=['Application Subject\nto Legal Agreement'])
+            # --- --- --- Documents --- --- ---
+            elif 'Documents' in tab_name:
+                def get_documents():
+                    try:
+                        document_table_list = driver.find_element(By.XPATH, f'//*[@id="TabbedContent"]/div[{tab_index+2}]/div/table')
+                    except NoSuchElementException:  # No Attachments found for this Application
+                        app_df.at['other_fields.n_documents'] = 0
+                        print(f"\n{tab_index+2}. <NULL> Document Tab: {app_df.at['other_fields.n_documents']} items.") if PRINT else None
+                        return 0, [], []
+
+                    document_tables = document_table_list.find_elements(By.XPATH, './tbody')
+                    n_tables = len(document_tables)
+                    print(f"\n{tab_index+2}. Document Tab: {n_tables} tables") if PRINT else None
+
+                    columns = document_table_list.find_elements(By.XPATH, './thead/tr/th')
+                    [date_column, description_column] = self.get_column_indexes(columns, keywords=['date', 'file'])
+
+                    n_documents, file_urls, document_names = 0, [], []
+                    for table_index, document_table in enumerate(document_tables):
+                        document_table_name = document_table.find_element(By.XPATH, './tr[1]/th').text.strip()
+                        document_items = document_table.find_elements(By.XPATH, './tr')[1:]
+                        n_table_documents = len(document_items)
+                        print(f"Table {table_index+1}: {document_table_name}, including {n_table_documents} documents.") if PRINT else None
+                        for document_item in document_items:
+                            n_documents += 1
+                            file_url = document_item.find_element(By.XPATH, f'./td[{description_column}]/a').get_attribute('href')
+                            file_urls.append(file_url)
+
+                            document_name = self.rename_document_date_desc(document_item, document_name='', document_type=document_table_name,
+                                                                           description_column=description_column, date_column=date_column, path='td')
+                            temp_names = document_name.split('.')
+                            try:
+                                document_name = f"{temp_names[0]}&uid={n_documents}.{temp_names[1][:-1]}"
+                            except IndexError:
+                                item_extension = file_url.split('.')[-1]
+                                document_name = f"{document_name}uid={n_documents}.{item_extension}"
+                            # document_name = f"date={document_date}&type={document_type}&desc={document_description}&{item_extension}"
+                            print(f"    Document {n_documents}: {document_name}") if PRINT else None
+                            document_name = replace_invalid_characters(document_name)
+                            document_names.append(f"{self.data_upload_path}{folder_name}/{document_name}")
+                    app_df.at['other_fields.n_documents'] = n_documents
+                    print(f'Total documents: {n_documents}') if PRINT else None
+                    return n_documents, file_urls, document_names
+                n_documents, file_urls, document_names = get_documents()
+                if n_documents > 0:
+                    item = self.create_item(driver, folder_name, file_urls, document_names)
+                    yield item
             else:
                 print(f'Unknown tab: {tab_name}')
                 assert 0 == 1
