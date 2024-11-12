@@ -91,7 +91,7 @@ class Atrium_Scraper(scrapy.Spider):
             print(auth_names)
 
             app_dfs = []
-            self.auth_index = 23  #1, 3, 13
+            self.auth_index = 24  #1, 3, 13
             """
             # A: 0[Bridgend]    # [Details], [Other Details], [Decision], [Consultees], [Documents], [Public Notices]
             # B: 1[Cherwell]    # [Main Details], [Applicant/Agents], [Publicity], [Supporting Docs], [Properties], [Site History]
@@ -174,7 +174,7 @@ class Atrium_Scraper(scrapy.Spider):
                 #    file_path = f"{get_list_storage_path()}{auth}/{auth}{year}.csv"
                 filenames = get_filenames(f"{get_list_storage_path()}{auth}/")
                 print(f"{auth}. number of files: {len(filenames)}")
-                for filename in filenames[12:]:
+                for filename in filenames[3:]:
                     file_path = f"{get_list_storage_path()}{auth}/{filename}"
                     df = pd.read_csv(file_path)  # , index_col=0)  # <class 'pandas.core.frame.DataFrame'>
                     print(filename, df.shape[0])
@@ -416,6 +416,7 @@ class Atrium_Scraper(scrapy.Spider):
                     'Application Location': 'address',  # A
                     'Location':             'address',  # Cherwell & Crawley
                     'Location Address':     'address',  # Fylde
+                    'Site Address':         'address',  # Surrey
                     'Easting':  'other_fields.easting',  # A
                     'Northing': 'other_fields.northing',  # A
 
@@ -429,6 +430,7 @@ class Atrium_Scraper(scrapy.Spider):
                     'District':             'other_fields.district',  # Cumbria
                     'District(s)':          'other_fields.district',  # Essex
                     'District Reference':   'other_fields.district',  # Leicestershire
+                    'District/Borough':     'other_fields.district',  # Surrey
                     #'Local Review Body Status':    'other_fields.local_review_body_status',  # New*
                     #'Local Review Body Decision':  'other_fields.local_review_body_decision'  # New*
                     'Building Control Application': 'other_fields.building_control_application',  # A . New
@@ -447,7 +449,9 @@ class Atrium_Scraper(scrapy.Spider):
                     'Committee / Delegated Decision':                   'other_fields.expected_decision_level',  # Essex
                     'Expected Decision Level':                          'other_fields.expected_decision_level',  # Fylde
                     'Committee Decision / Delegated to Chief Officer':  'other_fields.expected_decision_level',  # Lancashire
+                    'Application to be determined by':                  'other_fields.expected_decision_level',  # Surrey
                     'Committee/Delegated Decision':                     'other_fields.expected_decision_level',  # Lincolnshire
+                    'Delegated Date':                                   'other_fields.delegated_date',  # Surrey
                     # --- --- --- Applicant/Agent/Officer Info --- --- ---
                     'Applicant Name':       'other_fields.applicant_name',  # NorthDevon
                     'Applicants Name':      'other_fields.applicant_name',  # A
@@ -485,7 +489,8 @@ class Atrium_Scraper(scrapy.Spider):
                     'Expiry Date':  'other_fields.application_expires_date',  # NorthDevon
 
                     # Advertisement
-                    'Advert Expiry': 'other_fields.latest_advertisement_expiry_date',  # Fylde
+                    'Advert Expiry':        'other_fields.latest_advertisement_expiry_date',  # Fylde
+                    'Advert Expiry Date':   'other_fields.latest_advertisement_expiry_date',  # WelwynHatfield
 
                     # Appeals
                     'Appeal Reference': 'other_fields.appeal_reference', # Norfolk
@@ -510,6 +515,7 @@ class Atrium_Scraper(scrapy.Spider):
                     'Committee Date (if applicable)':   'other_fields.meeting_date',  # Fylde
                     'Committee Date (If applicable)':   'other_fields.meeting_date',  # Leicester
                     'Committee Date\n(if applicable)':  'other_fields.meeting_date', # WestmorlandFurness
+                    'Committee date':                   'other_fields.meeting_date', # Surrey
                     #'Actual Committee Date': 'other_fields.meeting_date',
                     #'Actual Committee or Panel Date': 'other_fields.meeting_date',  # New Duplicate [Gedling]
                     #'Date of Committee Meeting': 'other_fields.meeting_date',  # New Duplicate [IOW]
@@ -527,6 +533,7 @@ class Atrium_Scraper(scrapy.Spider):
                     'Start of Public Consultation':  'other_fields.public_consultation_start_date',  # Leicestershire
                     'Public Consultation Expiry':   'other_fields.public_consultation_end_date',  # Cumbria
                     'Public Consultation End Date': 'other_fields.public_consultation_end_date',  # Redcar
+                    'Public consultation end date': 'other_fields.public_consultation_end_date',  # Surrey
                     'End of Public Consultation':   'other_fields.public_consultation_end_date',  # Leicestershire
                     'Public Consultation End':      'other_fields.public_consultation_end_date',  # SouthWestDevon
 
@@ -535,6 +542,7 @@ class Atrium_Scraper(scrapy.Spider):
                     # Site Notice
                     'Site Notice Date':                 'other_fields.site_notice_start_date',  # Fylde
                     'Site Visited / Site Notice Date':  'other_fields.site_notice_start_date',  # MalvernHills
+                    'Site Notice Expiry Date':          'other_fields.site_notice_end_date',    # WelwynHatfield
                     # Target Date
                     'Target Decision Date': 'other_fields.target_decision_date',  # Cherwell & Crawley
 
@@ -544,10 +552,13 @@ class Atrium_Scraper(scrapy.Spider):
                     'Subject To Legal Agreements':              'other_fields.subject_to_legal_agreements',  # Essex
                     'Application subject to Legal Agreement':   'other_fields.subject_to_legal_agreements',  # Lancashire
                     'Application Subject\nto Legal Agreement':  'other_fields.subject_to_legal_agreements',  # NorthumberlandPark
+                    'Subject to Agreement':                     'other_fields.subject_to_legal_agreements',  # Surrey
                     'Completion of Legal Agreement':            'other_fields.completion_of_legal_agreements',  # Lancashire
                     'Completion of\nLegal Agreement':           'other_fields.completion_of_legal_agreements',  # NorthumberlandPark
+                    'Agreement Complete':                       'other_fields.completion_of_legal_agreements',  # Surrey
                     'Local Member(s)':             'other_fields.local_member', # Essex
                     'PPRN': 'other_fields.pprn',  # Leicester
+                    'UPRN': 'other_fields.uprn',  # WelwynHatfield
                     'Conservation Area': 'other_fields.conservation_area',  # WestmorlandFurness
                     'Listed Building Grade': 'other_fields.listed_building_grade',  # WestmorlandFurness
                     'Site Reference':   'other_fields.site_reference',  # Leicestershire
@@ -557,9 +568,12 @@ class Atrium_Scraper(scrapy.Spider):
                     'Case Officer Telephone Number':    'Phone',  # Leicester
                     'Contact Telephone Number':         'Phone',  # Lancashire
                     'Case Officer Telephone':          'Phone',  # Leicestershire
+                    'Telephone':                        'Phone',  # Surrey
                     'Email':                    'Email',  # Crawley
                     'Contact Email Address':    'Email',  # Lancashire
                     'Contact Email\nAddress':    'Email',  # NorthumberlandPark
+                    'Case Officer Email':       'Email',    # WelwynHatfield
+                    'Ward Members':             'Ward Members' # WelwynHatfield
                     }
 
             # 61 ['other_fields.applicant_company', 'other_fields.id_type',
@@ -631,7 +645,7 @@ class Atrium_Scraper(scrapy.Spider):
     """
     data items
     """
-    # For Bridgend x1, Glamorgan x2, Crawley x1, Cumbria x1, Essex x2, Kent x1, Lancashire x2, Lincolnshire x1, Norfolk x3, NorthumberlandPark x2(3), Somerset x1
+    # For Bridgend x1, Glamorgan x2, Crawley x1, Cumbria x1, Essex x2, Kent x1, Lancashire x2, Lincolnshire x1, Norfolk x3, NorthumberlandPark x2(3), Somerset x1, Surrey x1, WelwynHatfield x1.
     def scrape_data_items(self, app_df, items, item_values):
         for item, value in zip(items, item_values):
             item_name = item.text.strip()
@@ -722,7 +736,7 @@ class Atrium_Scraper(scrapy.Spider):
 
     ### Case 1 ### Try the only table in a tab, catch NoSuchElement.
     # Multi-columns #
-    # td: For Glamorgan x5, Essex x1, Lincolnshire x1, Norfolk x1, NorthumberlandPark x1.
+    # td: For Glamorgan x5, Essex x1, Lincolnshire x1, Norfolk x1, NorthumberlandPark x1, WelwynHatfield x5.
     # trtd: For Bridgend x3
     # div : For Redcar x3
     def scrape_for_csv(self, csv_name, table_columns, table_items, folder_name, path='td'):
@@ -741,7 +755,7 @@ class Atrium_Scraper(scrapy.Spider):
 
     # Single column #
     # div[2]: For Redcar x1
-    # td: For Cherwell/WestNorthamptonshire x1, Norfolk x1
+    # td: For Cherwell/WestNorthamptonshire x1, Norfolk x1, Surrey x1.
     # * Lancashire x1 and NorthumberlandPark x2 have neighbour lists/constraint for single csv, for not encapsulated due to their paths are empty.
     def scrape_for_csv_single(self, csv_name, column_name, table_items, folder_name, path='td'):
         content_dict = {column_name: [table_item.find_element(By.XPATH, f'./{path}').text.strip() for table_item in table_items]}
@@ -825,7 +839,7 @@ class Atrium_Scraper(scrapy.Spider):
         return item
 
     ### Case 1 ### Multiple Tables
-    # [date, description]: For Glamorgan, Essex, Lancashire, Somerset, Lincolnshire(only file), NorthumberlandPark
+    # [date, description]: For Glamorgan, Essex, Lancashire, Somerset, Lincolnshire(only file), NorthumberlandPark, Surrey, WelwynHatfield
     # [date, type, description]: For Cherwell/WestNorthamptonshire, Fylde etc, Leicester, Norfolk
     def get_column_indexes(self, columns, keywords):
         n_columns = len(columns)
@@ -844,7 +858,7 @@ class Atrium_Scraper(scrapy.Spider):
         return column_indexes
     # [date_column, description_column] = self.get_column_indexes(columns, keywords=['date', 'file name'])
 
-    # For Glamorgan, Essex, Lancashire, Somerset, Lincolnshire(only file), NorthumberlandPark
+    # For Glamorgan, Essex, Lancashire, Somerset, Lincolnshire(only file), NorthumberlandPark, Surrey, WelwynHatfield
     # (Multi tabs without column names) For Cumbria, Leicestershire
     def rename_document_date_desc(self, document_item, document_name, document_type='-', description_column=2, date_column=3, path='td'):
         #item_extension = file_url.split('.')[-1]
@@ -3797,7 +3811,20 @@ class Atrium_Scraper(scrapy.Spider):
 
     """ Surrey # https://planning.surreycc.gov.uk/planappdisp.aspx?AppNo=SCC%20Ref%202014/0018
     Features: [Main Details], [Applicant/Agent], [Consultation], [Decision], [Attachments]
-        1. 
+        1. Encapsulated(1/3): [Applicant/Agent]
+        Tab Main Page: Framework {item: div/div/div[1] or div/div[1], value: div/div/div[2] or div/div[2]} 
+        [Main Details]: Site Address contain redundant words: View Map. So need customize 'scrape_data_items_including_contacts'
+        [Decision]: Have two checkboxes but no contacts.
+        
+        2. Encapsulated (1/1): [Consultation] (scrape_for_csv_single, empty table)
+            Consultation tab contains 3 data items.
+        
+        3. Encapsulated Doc system: Multi-tables with types as sub table names. 
+            #Shared Columns
+            #Type1
+            #    Document items [date, description(with links)].
+            #Type2
+            #    Document items [date, description(with links)].
     """
     def parse_data_item_Surrey(self, response):
         app_df = response.meta['app_df']
@@ -3816,12 +3843,41 @@ class Atrium_Scraper(scrapy.Spider):
 
         try:
             # --- --- --- Main Details --- --- ---
-            tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="content"]/div/div/div[1]/div[3]/div')))
-            items = tab_panel.find_elements(By.XPATH, './dt')
-            item_values = tab_panel.find_elements(By.XPATH, './dd')
+            tab_content = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="content"]/div/div/div[1]/div[3]')))
+            item_lists = tab_content.find_elements(By.XPATH, './div[1]/div')
+            total_items = item_lists[0].find_elements(By.XPATH, './div/div')
+            #print(len(total_items))
+            for item_list in item_lists[1:]:
+                new_items = item_list.find_elements(By.XPATH, './div')
+                #print('new items: ', len(new_items))
+                total_items.extend(new_items)
+            print('total items', len(total_items))
+            items = total_items[0::2]
+            item_values = total_items[1::2]
             n_items = len(items)
             print(f"\n1. Details Tab: {n_items}") if PRINT else None #print(f"Details Tab: {n_items}")
-            app_df = self.scrape_data_items(app_df, items, item_values)
+            #app_df = self.scrape_data_items_including_contacts(app_df, items[1:], item_values[1:], folder_name, contact_items=['Phone', 'Email'])
+            contact_dict = {}
+            for item, value in zip(items[1:], item_values[1:]):
+                item_name = item.text.strip()
+                data_name = self.details_dict[item_name]
+                item_value = value.text.strip()
+                try:
+                    if data_name in ['Phone', 'Email'] and len(item_value) > 0:
+                        contact_dict[data_name] = [item_value]
+                        print(f"    <{item_name}> scraped (contact): {item_value}") if PRINT else None
+                    else:
+                        if item_name == 'Site Address':
+                            item_value = item_value.split('View')[0].strip()
+                        app_df.at[data_name] = item_value
+                        print(f"    <{item_name}> scraped: {app_df.at[data_name]}") if PRINT else None
+                # New
+                except KeyError:
+                    app_df[data_name] = item_value
+                    print(f"    <{item_name}> scraped (new): {app_df.at[data_name]}") if PRINT else None
+            if len(contact_dict) > 0:
+                contact_df = pd.DataFrame(contact_dict)
+                contact_df.to_csv(f"{self.data_storage_path}{folder_name}/contact.csv", index=False)
         except TimeoutException:
             # Planning Application details not available . e.g. auth=123, year=[21:]
             note = response.xpath('//*[@id="pageheading"]/h1/text()').get()
@@ -3844,9 +3900,110 @@ class Atrium_Scraper(scrapy.Spider):
         for tab_index, tab in enumerate(tabs[1:]):
             tab.click()
             tab_name = tab.text.strip()
-            # --- --- --- Other Details --- --- ---
-            if 'Other Details' in tab_name:
-                pass
+            # --- --- --- Applicant/Agent --- --- ---  scrape_data_items
+            if 'Applicant/Agent' in tab_name:
+                item_lists = tab_content.find_elements(By.XPATH, f'./div[{tab_index+2}]/div')
+                n_items = len(item_lists)
+                print(f"\n{tab_index+2}. {tab_name} Tab: {n_items}") if PRINT else None
+                items = [item_list.find_element(By.XPATH, './div[1]') for item_list in item_lists]
+                item_values = [item_list.find_element(By.XPATH, './div[2]') for item_list in item_lists]
+                app_df = self.scrape_data_items(app_df, items, item_values)
+            # --- --- --- Consultation --- --- ---
+            elif 'Consultation' in tab_name:
+                tab_panel = tab_content.find_element(By.XPATH, f'./div[{tab_index+2}]')
+                consultation_tables = tab_panel.find_elements(By.XPATH, './div/table')
+                n_tables = len(consultation_tables)
+                print(f"\n{tab_index+2}. {tab_name} Tab: {n_tables} tables.") if PRINT else None
+                assert n_tables == 1
+                table_items = consultation_tables[0].find_elements(By.XPATH, './tbody/tr')
+                n_items = len(table_items)
+                print(f"{tab_index+2}. {tab_name} Tab: {n_items} items.") if PRINT else None
+                if n_items > 0:
+                    app_df.at['other_fields.n_comments_consultee_responded'] = n_items
+                    app_df.at['other_fields.n_comments'] = app_df.at['other_fields.n_comments_public_received'] + app_df.at[
+                        'other_fields.n_comments_consultee_responded']
+                    self.scrape_for_csv_single(csv_name='consultee list', column_name='Consultee List', table_items=table_items, folder_name=folder_name, path='td')
+
+                item_list = tab_panel.find_elements(By.XPATH, './div')
+                for item in item_list:
+                    try:
+                        item_name = item.find_element(By.XPATH, './div[1]/label').text.strip()
+                        data_name = self.details_dict[item_name]
+                        item_value = item.find_element(By.XPATH, './div[2]').text.strip()
+                        try:
+                            app_df.at[data_name] = item_value
+                            print(f"    <{item_name}> scraped: {app_df.at[data_name]}") if PRINT else None
+                        # New
+                        except KeyError:
+                            app_df[data_name] = item_value
+                            print(f"    <{item_name}> scraped (new): {app_df.at[data_name]}") if PRINT else None
+                    except NoSuchElementException:
+                        continue
+            # --- --- --- Decision --- --- --- checkboxes
+            elif 'Decision' in tab_name:
+                item_lists = tab_content.find_elements(By.XPATH, f'./div[{tab_index+2}]/div')
+                n_items = len(item_lists)
+                print(f"\n{tab_index+2}. {tab_name} Tab: {n_items}") if PRINT else None
+                items = [item_list.find_element(By.XPATH, './div[1]') for item_list in item_lists]
+                item_values = [item_list.find_element(By.XPATH, './div[2]') for item_list in item_lists]
+
+                for item, value in zip(items, item_values):
+                    item_name = item.text.strip()
+                    data_name = self.details_dict[item_name]
+                    item_value = value.text.strip()
+                    try:
+                        if item_name in ['Subject to Agreement', 'Agreement Complete']:
+                            app_df[data_name] = value.find_element(By.XPATH, './input').is_selected()
+                            print(f"    <{item_name}> scraped (checkbox): {app_df.at[data_name]}") if PRINT else None
+                        else:
+                            app_df.at[data_name] = item_value
+                            print(f"    <{item_name}> scraped: {app_df.at[data_name]}") if PRINT else None
+                    # New
+                    except KeyError:
+                        app_df[data_name] = item_value
+                        print(f"    <{item_name}> scraped (new): {app_df.at[data_name]}") if PRINT else None
+            # --- --- --- Attachments --- --- ---
+            elif 'Attachments' in tab_name:
+                def get_documents(tab_index):
+                    try:
+                        document_table_list = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, f'//*[@id="content"]/div/div/div[1]/div[3]/div[{tab_index+2}]/div/table')))
+                    except TimeoutException:
+                        app_df.at['other_fields.n_documents'] = 0
+                        print(f"\n{tab_index+2}. <NULL> Document Tab: {app_df.at['other_fields.n_documents']} items.") if PRINT else None
+                        return 0, [], []
+
+                    document_tables = document_table_list.find_elements(By.XPATH, './tbody')
+                    n_tables = len(document_tables)
+                    print(f"\n{tab_index+2}. Document Tab: {n_tables} tables") if PRINT else None
+
+                    columns = document_table_list.find_elements(By.XPATH, './thead/tr/th')
+                    [date_column, description_column] = self.get_column_indexes(columns, keywords=['date', 'description'])
+
+                    n_documents, file_urls, document_names = 0, [], []
+                    for table_index, document_table in enumerate(document_tables):
+                        document_table_name = document_table.find_element(By.XPATH, './tr[1]/th').text.strip()
+                        document_items = document_table.find_elements(By.XPATH, './tr')[1:]
+                        n_table_documents = len(document_items)
+                        print(f"Table {table_index+1}: {document_table_name}, including {n_table_documents} documents.") if PRINT else None
+                        for document_item in document_items:
+                            n_documents += 1
+                            file_url = document_item.find_element(By.XPATH, f'./td[{description_column}]/a').get_attribute('href')
+                            file_urls.append(file_url)
+
+                            item_extension = file_url.split('.')[-1]
+                            document_name = f"uid={n_documents}.{item_extension}"
+                            document_name = self.rename_document_date_desc(document_item, document_name, document_type=document_table_name, description_column=description_column, date_column=date_column, path='td')
+                            # document_name = f"date={document_date}&type={document_type}&desc={document_description}&{item_extension}"
+                            print(f"    Document {n_documents}: {document_name}") if PRINT else None
+                            document_name = replace_invalid_characters(document_name)
+                            document_names.append(f"{self.data_upload_path}{folder_name}/{document_name}")
+                    app_df.at['other_fields.n_documents'] = n_documents
+                    print(f'Total documents: {n_documents}') if PRINT else None
+                    return n_documents, file_urls, document_names
+                n_documents, file_urls, document_names = get_documents(tab_index)
+                if n_documents > 0:
+                    item = self.create_item(driver, folder_name, file_urls, document_names)
+                    yield item
             else:
                 print(f'Unknown tab: {tab_name}')
                 assert 0 == 1
@@ -3854,9 +4011,21 @@ class Atrium_Scraper(scrapy.Spider):
 
 
 
-    """ WelwynHatfield*
-    Features: [Main Details], [Constraints], [Location], [Decision], [Documents], [Consultees], [Neighbours], [History], [NMAs] 
-        1. 
+    """ WelwynHatfield # https://planning.welhat.gov.uk/Planning/Display/6/2016/0003/ADV
+    Features: [Main Details], [Constraints], [Location], [Decision], [Documents], [Consultees], [Neighbours], [History], [NMAs]. 
+        1. Encapsulated(1/2): [Decision]
+        Tab Main Page: Framework {item: /label or div/label, value: div/span or div/div/span or ...} 
+        [Main Details]: Need to save Ward Members into a csv file.
+        
+        2. Encapsulated (5/5): [Constraints], [Consultees], [Neighbours], [History], [NMAs]
+            Similar to Glamorgan.
+        
+        3.Encapsulated Doc system: Multi-tables with types as sub table names. 
+            #Shared Columns
+            #Type1
+            #    Document items [date, description, file(with links)].
+            #Type2
+            #    Document items [date, description, file(with links)].
     """
     def parse_data_item_WelwynHatfield(self, response):
         app_df = response.meta['app_df']
@@ -3868,14 +4037,58 @@ class Atrium_Scraper(scrapy.Spider):
         # --- --- --- setup the app storage path. --- --- ---
         folder_name = self.setup_storage_path(app_df)
 
+        def collect_items(item_path):
+            total_items = tab_panel.find_elements(By.XPATH, item_path)
+            items, item_values = [], []
+            for item in total_items:
+                try:
+                    # print(item.find_element(By.XPATH, './label').text.strip())
+                    items.append(item.find_element(By.XPATH, './label'))
+                    item_values.append(item.find_element(By.XPATH, './div'))
+                except NoSuchElementException:
+                    # print(item.find_element(By.XPATH, './div/label').text.strip())
+                    items.append(item.find_element(By.XPATH, './div/label'))
+                    item_values.append(item.find_element(By.XPATH, './div/div'))
+            return items, item_values
         try:
             # --- --- --- Main Details --- --- ---
-            tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="main"]/div[1]/div/div[4]/div[1]/fieldset/dl')))
-            items = tab_panel.find_elements(By.XPATH, './dt')
-            item_values = tab_panel.find_elements(By.XPATH, './dd')
+            tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="tab-content"]')))
+            items, item_values = collect_items('./div[1]/div/table/tbody/tr/td')
             n_items = len(items)
-            print(f"\n1. Details Tab: {n_items}") if PRINT else None #print(f"Details Tab: {n_items}")
-            app_df = self.scrape_data_items(app_df, items, item_values)
+            print(f"\n1. Details Tab: {n_items}") if PRINT else None
+            #app_df = self.scrape_data_items_including_contacts(app_df, items, item_values, folder_name, contact_items=['Email'])
+            contact_dict = {}
+            ward_members = {}
+            officer = ''
+            for item, value in zip(items, item_values):
+                item_name = item.text.strip()
+                data_name = self.details_dict[item_name]
+                item_value = value.text.strip()
+                # print(i, item_name, item_value, type(item_name))
+                # if data_name in self.app_dfs.columns:
+                try:
+                    if data_name in ['Email'] and len(item_value) > 0:
+                        contact_dict['Case Officer'] = [officer]
+                        contact_dict[data_name] = [item_value]
+                        print(f"    <{item_name}> scraped (contact): {item_value}") if PRINT else None
+                    elif item_name in ['Ward Members'] and len(item_value) > 0:
+                        ward_members[item_name] = item_value.split('\n')
+                        print(f"    <{item_name}> scraped (contact): {item_value}") if PRINT else None
+                    else:
+                        if item_name == 'Case Officer':
+                            officer = item_value
+                        app_df.at[data_name] = item_value
+                        print(f"    <{item_name}> scraped: {app_df.at[data_name]}") if PRINT else None
+                # New
+                except KeyError:
+                    app_df[data_name] = item_value
+                    print(f"    <{item_name}> scraped (new): {app_df.at[data_name]}") if PRINT else None
+            if len(contact_dict) > 0:
+                contact_df = pd.DataFrame(contact_dict)
+                contact_df.to_csv(f"{self.data_storage_path}{folder_name}/contact.csv", index=False)
+            if len(ward_members) > 0:
+                ward_df = pd.DataFrame(ward_members)
+                ward_df.to_csv(f"{self.data_storage_path}{folder_name}/ward members.csv", index=False)
         except TimeoutException:
             # Planning Application details not available . e.g. auth=123, year=[21:]
             note = response.xpath('//*[@id="pageheading"]/h1/text()').get()
@@ -3898,9 +4111,142 @@ class Atrium_Scraper(scrapy.Spider):
         for tab_index, tab in enumerate(tabs[1:]):
             tab.click()
             tab_name = tab.text.strip()
-            # --- --- --- Other Details --- --- ---
-            if 'Other Details' in tab_name:
+            # --- --- --- Constraints --- --- ---
+            if 'Constraints' in tab_name:
+                def parse_constraint():
+                    try:
+                        constraint_table = tab_panel.find_element(By.XPATH, f'./div[{tab_index+2}]/div/table')
+                        table_items = constraint_table.find_elements(By.XPATH, './tbody/tr')
+                        n_items = len(table_items)
+                        print(f"\n{tab_index+2}. {tab_name} Tab: {n_items}") if PRINT else None
+                        if n_items > 0:
+                            app_df.at['other_fields.n_constraints'] = n_items
+                            table_columns = constraint_table.find_elements(By.XPATH, './thead/tr/th')
+                            self.scrape_for_csv(csv_name='constraints', table_columns=table_columns, table_items=table_items,
+                                                folder_name=folder_name, path='td')
+                    except NoSuchElementException:  # No Constraints found for this Application
+                        print(f"\n{tab_index+2}. " + tab_panel.find_element(By.XPATH, f'./div[{tab_index+2}]/div/p').text.strip())
+                parse_constraint()
+            # --- --- --- Location --- --- ---
+            elif 'Location' in tab_name:
                 pass
+            # --- --- --- Decision --- --- ---
+            elif 'Decision' in tab_name:
+                items, item_values = collect_items(f'./div[{tab_index+2}]/div/table/tbody/tr/td')
+                n_items = len(items)
+                print(f"\n{tab_index+2}. {tab_name} Tab: {n_items}") if PRINT else None
+                app_df = self.scrape_data_items(app_df, items, item_values)
+            # --- --- --- Documents --- --- ---
+            elif 'Documents' in tab_name:
+                def get_documents():
+                    try:
+                        document_table_list = tab_panel.find_element(By.XPATH, f'./div[{tab_index+2}]/div/table')
+                    except NoSuchElementException:  # No Documents found for this Application
+                        app_df.at['other_fields.n_documents'] = 0
+                        print(f"\n{tab_index+2}. <NULL> Document Tab: {app_df.at['other_fields.n_documents']} items.") if PRINT else None
+                        return 0, [], []
+
+                    document_tables = document_table_list.find_elements(By.XPATH, './tbody')
+                    n_tables = len(document_tables)
+                    print(f"\n{tab_index+2}. Document Tab: {n_tables} tables") if PRINT else None
+
+                    columns = document_table_list.find_elements(By.XPATH, './thead/tr/th')
+                    [date_column, description_column] = self.get_column_indexes(columns, keywords=['date', 'description'])
+
+                    n_documents, file_urls, document_names = 0, [], []
+                    for table_index, document_table in enumerate(document_tables):
+                        document_table_name = document_table.find_element(By.XPATH, './tr[1]/th').text.strip()
+                        document_items = document_table.find_elements(By.XPATH, './tr')[1:]
+                        n_table_documents = len(document_items)
+                        print(f"Table {table_index+1}: {document_table_name}, including {n_table_documents} documents.") if PRINT else None
+                        for document_item in document_items:
+                            n_documents += 1
+                            file_url = document_item.find_element(By.XPATH, f'./td[2]/a').get_attribute('href')
+                            file_urls.append(file_url)
+
+                            item_extension = file_url.split('.')[-1]
+                            document_name = f"uid={n_documents}.{item_extension}"
+                            document_name = self.rename_document_date_desc(document_item, document_name, document_type=document_table_name,
+                                                                           description_column=description_column, date_column=date_column, path='td')
+                            # document_name = f"date={document_date}&type={document_type}&desc={document_description}&{item_extension}"
+                            print(f"    Document {n_documents}: {document_name}") if PRINT else None
+                            document_name = replace_invalid_characters(document_name)
+                            document_names.append(f"{self.data_upload_path}{folder_name}/{document_name}")
+                    app_df.at['other_fields.n_documents'] = n_documents
+                    print(f'Total documents: {n_documents}') if PRINT else None
+                    return n_documents, file_urls, document_names
+                n_documents, file_urls, document_names = get_documents()
+                if n_documents > 0:
+                    item = self.create_item(driver, folder_name, file_urls, document_names)
+                    yield item
+            # --- --- --- Consultees --- --- ---
+            elif 'Consultees' in tab_name:
+                def parse_consultees():
+                    try:
+                        consultees_table = tab_panel.find_element(By.XPATH, f'./div[{tab_index+2}]/div/table')
+                        table_items = consultees_table.find_elements(By.XPATH, './tbody/tr')
+                        n_items = len(table_items)
+                        print(f"\n{tab_index+2}. {tab_name} Tab: {n_items}") if PRINT else None
+                        if n_items > 0:
+                            app_df.at['other_fields.n_comments_consultee_responded'] = n_items
+                            app_df.at['other_fields.n_comments'] = app_df.at['other_fields.n_comments_public_received'] + app_df.at[
+                                'other_fields.n_comments_consultee_responded']
+                            table_columns = consultees_table.find_elements(By.XPATH, './thead/tr/th')
+                            self.scrape_for_csv(csv_name='consultee comments', table_columns=table_columns, table_items=table_items,
+                                                folder_name=folder_name, path='td')
+                    except NoSuchElementException: # No Consultations found for this Application
+                        print(f"\n{tab_index+2}. " + tab_panel.find_element(By.XPATH, f'./div[{tab_index+2}]/div/p').text.strip())
+                parse_consultees()
+            # --- --- --- Neighbours --- --- ---
+            elif 'Neighbours' in tab_name:
+                def parse_neighbour():
+                    try:
+                        neighbours_table = tab_panel.find_element(By.XPATH, f'./div[{tab_index+2}]/div/table')
+                        table_items = neighbours_table.find_elements(By.XPATH, './tbody/tr')
+                        n_items = len(table_items)
+                        print(f"\n{tab_index+2}. {tab_name} Tab: {n_items}") if PRINT else None
+                        if n_items > 0:
+                            app_df.at['other_fields.n_comments_public_received'] = n_items
+                            app_df.at['other_fields.n_comments'] = app_df.at['other_fields.n_comments_public_received'] + app_df.at[
+                                'other_fields.n_comments_consultee_responded']
+                            table_columns = neighbours_table.find_elements(By.XPATH, './thead/tr/th')
+                            self.scrape_for_csv(csv_name='neighbour comments', table_columns=table_columns, table_items=table_items,
+                                                folder_name=folder_name, path='td')
+                    except NoSuchElementException:   # No Neighbours responses found for this Application
+                        print(f"\n{tab_index+2}. " + tab_panel.find_element(By.XPATH, f'./div[{tab_index+2}]/div/p').text.strip())
+                parse_neighbour()
+            # --- --- --- History --- --- ---
+            elif 'History' in tab_name:
+                def parse_history():
+                    try:
+                        history_table = tab_panel.find_element(By.XPATH, f'./div[{tab_index+2}]/div/table')
+                        table_items = history_table.find_elements(By.XPATH, './tbody/tr')
+                        n_items = len(table_items)
+                        print(f"\n{tab_index+2}. {tab_name} Tab: {n_items}") if PRINT else None
+                        if n_items > 0:
+                            #app_df.at['other_fields.n_histories'] = n_items
+                            table_columns = history_table.find_elements(By.XPATH, './thead/tr/th')
+                            self.scrape_for_csv(csv_name='history', table_columns=table_columns, table_items=table_items,
+                                                folder_name = folder_name, path = 'td')
+                    except NoSuchElementException: # No History found for this Application
+                        print(f"\n{tab_index+2}. " + tab_panel.find_element(By.XPATH, f'./div[{tab_index+2}]/div/p').text.strip())
+                parse_history()
+            # --- --- --- NMAs --- --- --- *** Need further check.
+            elif 'NMAs' in tab_name:
+                def parse_NMAs():
+                    try:
+                        NMAs_table = tab_panel.find_element(By.XPATH, f'./div[{tab_index+2}]/div/table')
+                        table_items = NMAs_table.find_elements(By.XPATH, './tbody/tr')
+                        n_items = len(table_items)
+                        print(f"\n{tab_index+2}. {tab_name} Tab: {n_items}") if PRINT else None
+                        if n_items > 0:
+                            #app_df.at['other_fields.n_NMAs'] = n_items
+                            table_columns = NMAs_table.find_elements(By.XPATH, './thead/tr/th')
+                            self.scrape_for_csv(csv_name='NMAs', table_columns=table_columns, table_items=table_items,
+                                                folder_name = folder_name, path = 'td')
+                    except NoSuchElementException: # No NMAs found for this Application
+                        print(f"\n{tab_index+2}. " + tab_panel.find_element(By.XPATH, f'./div[{tab_index+2}]/div/p').text.strip())
+                parse_NMAs()
             else:
                 print(f'Unknown tab: {tab_name}')
                 assert 0 == 1
@@ -3952,8 +4298,11 @@ class Atrium_Scraper(scrapy.Spider):
         for tab_index, tab in enumerate(tabs[1:]):
             tab.click()
             tab_name = tab.text.strip()
-            # --- --- --- Other Details --- --- ---
-            if 'Other Details' in tab_name:
+            # --- --- --- Map --- --- ---
+            if 'Map' in tab_name:
+                pass
+            # --- --- --- Associated Documents --- --- ---
+            elif 'Associated Documents' in tab_name:
                 pass
             else:
                 print(f'Unknown tab: {tab_name}')
