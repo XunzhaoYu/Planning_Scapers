@@ -91,7 +91,7 @@ class Atrium_Scraper(scrapy.Spider):
             print(auth_names)
 
             app_dfs = []
-            self.auth_index = 24  #1, 3, 13
+            self.auth_index = 22  #1, 3, 13
             """
             # A: 0[Bridgend]    # [Details], [Other Details], [Decision], [Consultees], [Documents], [Public Notices]
             # B: 1[Cherwell]    # [Main Details], [Applicant/Agents], [Publicity], [Supporting Docs], [Properties], [Site History]
@@ -101,7 +101,6 @@ class Atrium_Scraper(scrapy.Spider):
             # D: 3 [Cumbria]        # Mage Page | Multiple Document Tabs.  https://planning.cumbria.gov.uk/Planning/Display/5/01/9006#undefined
             #    12[Leicestershire] # Mage Page | Multiple Document Tabs.  https://leicestershire.planning-register.co.uk/Disclaimer?returnUrl=%2FPlanning%2FDisplay%3FapplicationNumber%3D2001%252F9200%252F03
             #       (Planning portal Disclaimer | Agree)
-            # Unknown: 4[Derbyshire], 8[Hertfordshire], 18 [Oxfordshire]
             #
             # E: 5[Essex]       # https://planning.essex.gov.uk/Planning/Display/CC/COL/07/01  #***# Appeal details
             #       (Copyright & Disclaimer - Application search | Agree)
@@ -140,22 +139,23 @@ class Atrium_Scraper(scrapy.Spider):
             # 
             # M: 17 [NorthumberlandPark]  # https://nnpa.planning-register.co.uk/Planning/Display/02NP0007 #***#  没有main details, 注意与F区分
             #       [Proposal and Location], [Applicant Details], [Consultation], [Decision], [Documents]
-            #
-            #"""
-            # N: 22 [Suffolk]  # http://suffolk.planning-register.co.uk/Planning/Display?applicationNumber=SE%2F01%2F2648%2FP  # Information displayed in main page without tabs. (somehow similar to D)
-            #       (PLANNING ONLINE REGISTER – COPYRIGHT AND DISCLAIMER | Agree)
-            #       (Details) | [Other Details], [Location]
-            #
+            # 
             # O: 23 [Surrey]  # https://planning.surreycc.gov.uk/Planning/Display/PL1914  #***#  Applicant/Agent + Attachments
             #       accept
             #       [Main Details], [Applicant/Agent], [Consultation], [Decision], [Attachments]
             #
             # P: 24 [WelwynHatfield]  #  https://planning.welhat.gov.uk/Planning/Display/S6/2001/0028/FP
             #       [Main Details], [Constraints], [Location], [Decision], [Documents], [Consultees], [Neighbours], [History], [NMAs]  #***$ NMAs
-            #
+            # 
             # Q: 27 [WestSussex]  # https://westsussex.planning-register.co.uk/Planning/Display/SY/114/07
             #       [Main Details], [Map], [Associated Documents]  #***# Check if the same as E
-
+            # """
+            # N: 22 [Suffolk]  # http://suffolk.planning-register.co.uk/Planning/Display?applicationNumber=SE%2F01%2F2648%2FP  # Information displayed in main page without tabs. (somehow similar to D)
+            #       (PLANNING ONLINE REGISTER – COPYRIGHT AND DISCLAIMER | Agree)
+            #       (Details) | [Other Details], [Location]
+            #
+            # Unknown: 4[Derbyshire], 8[Hertfordshire], 18 [Oxfordshire]
+            #
             # 44, 73, 92, 94, 101,     135, 146, 149, 176, 194 Kent,
             # 202, 205, 206, 211, 218, 247, 249, 261, 275, 289 Radcar,
             # 322, 340, 354, 356, 392, 400, 401, 405, 415, 418
@@ -471,6 +471,7 @@ class Atrium_Scraper(scrapy.Spider):
                     'Case Officer':     'other_fields.case_officer',  # Cherwell & Crawley & Fylde
                     'Officer':          'other_fields.case_officer',  # A
                     'Planning Officer': 'other_fields.case_officer',  # Lancashire
+                    'County Councillor': 'other_fields.county_councillor', # WestSussex
                     # --- --- --- Dates --- --- ---
                     'Received':                 'other_fields.date_received',  # A
                     'Received Date':            'other_fields.date_received',  # Cherwell
@@ -510,6 +511,7 @@ class Atrium_Scraper(scrapy.Spider):
                     # Comments
                     'Comments Due Date': 'other_fields.comment_expires_date',  # Cherwell & Crawley
                     'Comments Due Date**':'other_fields.comment_expires_date',  # WestNorthamptonshire
+                    'Deadline for Comments': 'other_fields.comment_expires_date', # WestSussex
                     # Committee Date
                     'Committee Date':                   'other_fields.meeting_date',  # A & Cherwell [Main Details] & C [Main Details]
                     'Committee Date (if applicable)':   'other_fields.meeting_date',  # Fylde
@@ -538,6 +540,7 @@ class Atrium_Scraper(scrapy.Spider):
                     'Public Consultation End':      'other_fields.public_consultation_end_date',  # SouthWestDevon
 
                     # Determination
+                    'Determination Date': 'other_fields.determination_date',  # WestSussex
 
                     # Site Notice
                     'Site Notice Date':                 'other_fields.site_notice_start_date',  # Fylde
@@ -645,7 +648,7 @@ class Atrium_Scraper(scrapy.Spider):
     """
     data items
     """
-    # For Bridgend x1, Glamorgan x2, Crawley x1, Cumbria x1, Essex x2, Kent x1, Lancashire x2, Lincolnshire x1, Norfolk x3, NorthumberlandPark x2(3), Somerset x1, Surrey x1, WelwynHatfield x1.
+    # For Bridgend x1, Glamorgan x2, Crawley x1, Cumbria x1, Essex x2, Kent x1, Lancashire x2, Lincolnshire x1, Norfolk x3, NorthumberlandPark x2(3), Somerset x1, Surrey x1, WelwynHatfield x1, WestSussex x1.
     def scrape_data_items(self, app_df, items, item_values):
         for item, value in zip(items, item_values):
             item_name = item.text.strip()
@@ -839,7 +842,7 @@ class Atrium_Scraper(scrapy.Spider):
         return item
 
     ### Case 1 ### Multiple Tables
-    # [date, description]: For Glamorgan, Essex, Lancashire, Somerset, Lincolnshire(only file), NorthumberlandPark, Surrey, WelwynHatfield
+    # [date, description]: For Glamorgan, Essex, Lancashire, Somerset, Lincolnshire(only file), NorthumberlandPark, Surrey, WelwynHatfield, WestSussex
     # [date, type, description]: For Cherwell/WestNorthamptonshire, Fylde etc, Leicester, Norfolk
     def get_column_indexes(self, columns, keywords):
         n_columns = len(columns)
@@ -858,7 +861,7 @@ class Atrium_Scraper(scrapy.Spider):
         return column_indexes
     # [date_column, description_column] = self.get_column_indexes(columns, keywords=['date', 'file name'])
 
-    # For Glamorgan, Essex, Lancashire, Somerset, Lincolnshire(only file), NorthumberlandPark, Surrey, WelwynHatfield
+    # For Glamorgan, Essex, Lancashire, Somerset, Lincolnshire(only file), NorthumberlandPark, Surrey, WelwynHatfield, WestSussex
     # (Multi tabs without column names) For Cumbria, Leicestershire
     def rename_document_date_desc(self, document_item, document_name, document_type='-', description_column=2, date_column=3, path='td'):
         #item_extension = file_url.split('.')[-1]
@@ -2677,7 +2680,8 @@ class Atrium_Scraper(scrapy.Spider):
         Tab Applicants: A neighbour list. *bug of n_comments_public_received fixed on 24-11-11
         
         Tab Committee: Has phone and email contacts.
-        3. Encapsulated Doc system: Multi-tables with types as sub table names. [similar to Essex, Glamorgan] 
+        3. Encapsulated Doc system: Multi-tables with types as sub table names. (similar to WestSussex) 
+            Need click list button to scrape doc descriptions.
             #Shared Columns
             #Type1
             #    Document items. [date, description, file(with links)].
@@ -2846,6 +2850,8 @@ class Atrium_Scraper(scrapy.Spider):
 
                     n_documents, file_urls, document_names = 0, [], []
                     for table_index, document_table in enumerate(document_tables):
+                        document_table.find_element(By.XPATH, './tr[1]/th/span').click()
+
                         document_table_name = document_table.find_element(By.XPATH, './tr[1]/th').text.strip()
                         document_items = document_table.find_elements(By.XPATH, './tr')[1:]
                         n_table_documents = len(document_items)
@@ -3754,7 +3760,9 @@ class Atrium_Scraper(scrapy.Spider):
 
         try:
             # --- --- --- Main Details --- --- ---
-            tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '/html/body/div[3]/div[2]/div/div')))
+            #tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '/html/body/div[3]/div[2]/div/div')))
+            container = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '/html/body/div[3]/div[2]')))
+            tab_panel = container.find_element(By.XPATH, './div/div')
             #item_list = tab_panel.find_elements(By.CLASS_NAME, 'field col-xs-12 no-padding')
             item_list = tab_panel.find_elements(By.XPATH, './div')[:-3]
             print(tab_panel)
@@ -4254,9 +4262,20 @@ class Atrium_Scraper(scrapy.Spider):
 
 
 
-    """ WestSussex*
+    """ WestSussex # https://westsussex.planning-register.co.uk/Planning/Display/SY/114/07#undefined
     Features: [Main Details], [Map], [Associated Documents]
-        1. 
+        1. Encapsulated(1/1): scrape_data_items
+        Tab Main Page: Framework {item: span, value: div/span} 
+        
+        2. (0/0): No tab for other consultations, constraints, details.
+        
+        3.Encapsulated Doc system: Multi-tables with types as sub table names. (similar to Lancashire)
+        Need click list button to scrape doc descriptions.
+            #Shared Columns
+            #Type1
+            #    Document items [date, description, file(with links)].
+            #Type2
+            #    Document items [date, description, file(with links)].
     """
     def parse_data_item_WestSussex(self, response):
         app_df = response.meta['app_df']
@@ -4270,9 +4289,9 @@ class Atrium_Scraper(scrapy.Spider):
 
         try:
             # --- --- --- Main Details --- --- ---
-            tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="main"]/div[1]/div/div[4]/div[1]/fieldset/dl')))
-            items = tab_panel.find_elements(By.XPATH, './dt')
-            item_values = tab_panel.find_elements(By.XPATH, './dd')
+            tab_content = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="tab-content"]')))
+            items = tab_content.find_elements(By.XPATH, './div[1]/ul/li/span')
+            item_values = tab_content.find_elements(By.XPATH, './div[1]/ul/li/div/span')
             n_items = len(items)
             print(f"\n1. Details Tab: {n_items}") if PRINT else None #print(f"Details Tab: {n_items}")
             app_df = self.scrape_data_items(app_df, items, item_values)
@@ -4303,7 +4322,50 @@ class Atrium_Scraper(scrapy.Spider):
                 pass
             # --- --- --- Associated Documents --- --- ---
             elif 'Associated Documents' in tab_name:
-                pass
+                def get_documents():
+                    try:
+                        document_table_list = tab_content.find_element(By.XPATH, f'./div[{tab_index+2}]/table')
+                    except NoSuchElementException:  # No Documents found for this Application
+                        app_df.at['other_fields.n_documents'] = 0
+                        print(f"\n{tab_index+2}. <NULL> Document Tab: {app_df.at['other_fields.n_documents']} items.") if PRINT else None
+                        return 0, [], []
+
+                    document_tables = document_table_list.find_elements(By.XPATH, './tbody')
+                    n_tables = len(document_tables)
+                    print(f"\n{tab_index+2}. Document Tab: {n_tables} tables") if PRINT else None
+
+                    columns = document_table_list.find_elements(By.XPATH, './thead/tr/th')
+                    [date_column, description_column] = self.get_column_indexes(columns, keywords=['date', 'description'])
+
+                    n_documents, file_urls, document_names = 0, [], []
+                    for table_index, document_table in enumerate(document_tables):
+                        document_table.find_element(By.XPATH, './tr[1]/th/span').click()
+
+                        document_table_name = document_table.find_element(By.XPATH, './tr[1]/th').text.strip()
+                        document_items = document_table.find_elements(By.XPATH, './tr')[1:]
+                        n_table_documents = len(document_items)
+                        print(f"Table {table_index+1}: {document_table_name}, including {n_table_documents} documents.") if PRINT else None
+                        for document_item in document_items:
+                            n_documents += 1
+                            file_url = document_item.find_element(By.XPATH, f'./td[2]/a').get_attribute('href')
+                            file_urls.append(file_url)
+
+                            item_extension = file_url.split('.')[-1]
+                            document_name = f"uid={n_documents}.{item_extension}"
+                            document_name = self.rename_document_date_desc(document_item, document_name, document_type=document_table_name,
+                                                                           description_column=description_column, date_column=date_column, path='td')
+                            # document_name = f"date={document_date}&type={document_type}&desc={document_description}&{item_extension}"
+                            print(f"    Document {n_documents}: {document_name}") if PRINT else None
+                            document_name = replace_invalid_characters(document_name)
+                            document_names.append(f"{self.data_upload_path}{folder_name}/{document_name}")
+                    app_df.at['other_fields.n_documents'] = n_documents
+                    print(f'Total documents: {n_documents}') if PRINT else None
+                    return n_documents, file_urls, document_names
+
+                n_documents, file_urls, document_names = get_documents()
+                if n_documents > 0:
+                    item = self.create_item(driver, folder_name, file_urls, document_names)
+                    yield item
             else:
                 print(f'Unknown tab: {tab_name}')
                 assert 0 == 1
