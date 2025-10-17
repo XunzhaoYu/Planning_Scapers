@@ -13,7 +13,7 @@ from selenium.common.exceptions import TimeoutException
 
 from items import DownloadFilesItem
 from settings import PRINT, CLOUD_MODE, DEVELOPMENT_MODE
-from spiders.document_utils import replace_invalid_characters, get_documents, get_Civica_documents, get_NEC_or_Northgate_documents  #, get_Northgate_documents
+from spiders.document_utils import replace_invalid_characters, get_documents, get_Civica_documents, get_NEC_or_Northgate_documents, get_Exeter_documents  #, get_Northgate_documents
 from tools.utils import get_project_root, get_list_storage_path, get_data_storage_path, get_filenames, Month_Eng_to_Digit, get_scraper_by_type
 from tools.curl import upload_file, upload_folder
 #from tools.bypass_reCaptcha import bypass_reCaptcha
@@ -102,7 +102,7 @@ class UKPlanning_Scraper(scrapy.Spider):
                     'Agent Address': 'other_fields.agent_address',
                     'Environmental Assessment Requested': 'other_fields.environmental_assessment',  # New
                     'Environmental Assessment Required': 'other_fields.environmental_assessment',  # New Duplicate [Perth]
-                    'Community Council': 'other_fields.community_council',  # New* == parish
+                    'Community Council': 'other_fields.community_council',  # New*
                     'Community': 'other_fields.community_council',  # New* Duplicate [BreconBeacons]
                     'Community/Town Council': 'other_fields.community_council',  # New* Duplicate [Caerphilly]
                     }
@@ -256,7 +256,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             # auth_names = auth_names[[0, 1, 2, 3[ExternalDoc], 4, 6, 7, 8[2003-2022], 9[no 2016], 11, 12
             # 10[too many requests], 13[too many requests], 14, 17, 19]]
             app_dfs = []
-            self.auth_index = 0 # 59, 239
+            self.auth_index = 81 # 155 # 59, 239
             # Civica[13]: 4, 41, 86, 117, 123,     155(*version 2006), 168(*inaccessible), 171, 177, 192,     198, 202, 242,
             # NEC[9]: 2, 31, 60, 95(*page load issue), 113,      115, 147, 170, 182(*download failed)
             # Northgate[7]: 105[no comment], 106, 108(2003), 129, 133,     135, 143,
@@ -297,7 +297,7 @@ class UKPlanning_Scraper(scrapy.Spider):
                 #    file_path = f"{get_list_storage_path()}{auth}/{auth}{year}.csv"
                 filenames = get_filenames(f"{get_list_storage_path()}{auth}/")
                 print(f"{auth}. number of files: {len(filenames)}")
-                for filename in filenames[2:]: # https://pad-planning.bury.gov.uk/AniteIM.WebSearch/ExternalEntryPoint.aspx?SEARCH_TYPE=1&DOC_CLASS_CODE=DC&FOLDER1_REF=54751
+                for filename in filenames[5:]: # https://pad-planning.bury.gov.uk/AniteIM.WebSearch/ExternalEntryPoint.aspx?SEARCH_TYPE=1&DOC_CLASS_CODE=DC&FOLDER1_REF=54751
                     file_path = f"{get_list_storage_path()}{auth}/{filename}"
                     df = pd.read_csv(file_path)  # , index_col=0)  # <class 'pandas.core.frame.DataFrame'>
                     print(filename, df.shape[0])
@@ -348,6 +348,7 @@ class UKPlanning_Scraper(scrapy.Spider):
         # settings.
         self.index = -1
         #self.index = self.init_index
+        self.previous_key_value = None
         self.failures = 0
         #self.failed_apps = []
 
@@ -448,6 +449,18 @@ class UKPlanning_Scraper(scrapy.Spider):
                 url = app_df.at['url']
                 print(f"\n{app_df.name}, start url: {url}")
             print(app_df) if PRINT else None
+            
+            pattern = r'(keyVal|NUMBER|Number|caseno|Refval|AltRef|id|theApnID|PKID)=([^&]+)'
+            key_value = re.search(pattern, url).group(2)
+            print(f"\n keyValue: {key_value}")
+            while key_value == self.previous_key_value:
+                self.index += 1
+                app_df = self.app_dfs.iloc[self.index, :]
+                url = app_df.at['url']
+                print(f"\n Same key value:{key_value} and {self.previous_key_value} \n{app_df.name}, start url: {url}")
+                key_value = re.search(pattern, url).group(2)
+
+            self.previous_key_value = key_value
             # yield scrapy.Request(url=url, callback=self.parse_item)
             yield SeleniumRequest(url=url, callback=self.parse_summary_item, meta={'app_df': app_df})
         except IndexError:
@@ -622,68 +635,76 @@ class UKPlanning_Scraper(scrapy.Spider):
         app_df = response.meta['app_df']
         items = response.xpath('//*[@id="applicationDetails"]/tbody/tr')
         n_items = len(items)
-        print(f"\nFurther Information Tab: {n_items}") if PRINT else None # print(f"Further Information Tab: {n_items}")
-        for item in items:
-            item_name = item.xpath('./th/text()').get().strip()
-            # Duplicate
-            if item_name == 'Decision':
-                continue
-            data_name = self.details_dict[item_name]
+        if n_items == 0:
+            print('--- --- --- --- --- ' + response.url + ' --- --- --- --- ---')
+            yield SeleniumRequest(url=response.url, callback=self.parse_details_item, meta={'app_df': app_df}, dont_filter=True)
+        else:
+            print(f"\nFurther Information Tab: {n_items}") if PRINT else None # print(f"Further Information Tab: {n_items}")
+            for item in items:
+                item_name = item.xpath('./th/text()').get().strip()
+                # Duplicate
+                if item_name == 'Decision':
+                    continue
+                data_name = self.details_dict[item_name]
 
-            # if data_name in self.app_dfs.columns:
-            try:
-                # See source
-                if item_name in ['Agent Name', 'Applicant Name', 'Case Officer']:
-                    app_df.at[data_name] = item.xpath('./td/text()').get().strip()
-                    print(f"<{item_name}> scraped: {app_df.at[data_name]}") if PRINT else None
-                # Empty
-                elif self.is_empty(app_df.at[data_name]):
-                    app_df.at[data_name] = item.xpath('./td/text()').get().strip()
-                    print(f"<{item_name}> scraped: {app_df.at[data_name]}") if PRINT else None
-                # Filled
-                else:
-                    print(f"<{item_name}> filled.") if PRINT else None
-            # New
-            except KeyError:
-                # if item_name in ['Actual Decision Level', 'Expected Decision Level', 'Environmental Assessment Requested']:
-                app_df[data_name] = item.xpath('./td/text()').get().strip()
-                print(f"<{item_name}> scraped (new): {app_df.at[data_name]}") if PRINT else None
+                # if data_name in self.app_dfs.columns:
+                try:
+                    # See source
+                    if item_name in ['Agent Name', 'Applicant Name', 'Case Officer']:
+                        app_df.at[data_name] = item.xpath('./td/text()').get().strip()
+                        print(f"<{item_name}> scraped: {app_df.at[data_name]}") if PRINT else None
+                    # Empty
+                    elif self.is_empty(app_df.at[data_name]):
+                        app_df.at[data_name] = item.xpath('./td/text()').get().strip()
+                        print(f"<{item_name}> scraped: {app_df.at[data_name]}") if PRINT else None
+                    # Filled
+                    else:
+                        print(f"<{item_name}> filled.") if PRINT else None
+                # New
+                except KeyError:
+                    # if item_name in ['Actual Decision Level', 'Expected Decision Level', 'Environmental Assessment Requested']:
+                    app_df[data_name] = item.xpath('./td/text()').get().strip()
+                    print(f"<{item_name}> scraped (new): {app_df.at[data_name]}") if PRINT else None
 
-        url = app_df.at['url'].replace('summary', 'dates')
-        yield SeleniumRequest(url=url, callback=self.parse_dates_item, meta={'app_df': app_df})
+            url = app_df.at['url'].replace('summary', 'dates')
+            yield SeleniumRequest(url=url, callback=self.parse_dates_item, meta={'app_df': app_df})
 
     def parse_dates_item(self, response):
         app_df = response.meta['app_df']
         items = response.xpath('//*[@id="simpleDetailsTable"]/tbody/tr')
         n_items = len(items)
-        print(f"\nImportant Dates Tab: {n_items}") if PRINT else None #print(f"Important Dates Tab: {n_items}")
-        for item in items:
-            item_name = item.xpath('./th/text()').get().strip()
-            # Duplicate
-            if item_name in ['Application Received Date', 'Application Validated Date', 'Date Application Valid', 'Application Valid Date', 'Valid Date', 'Application Registered Date',
-                             'Decision Issued Date']:
-                continue
-            data_name = self.dates_dict[item_name]
+        if n_items == 0:
+            print('--- --- --- --- --- ' + response.url + ' --- --- --- --- ---')
+            yield SeleniumRequest(url=response.url, callback=self.parse_dates_item, meta={'app_df': app_df}, dont_filter=True)
+        else:
+            print(f"\nImportant Dates Tab: {n_items}") if PRINT else None #print(f"Important Dates Tab: {n_items}")
+            for item in items:
+                item_name = item.xpath('./th/text()').get().strip()
+                # Duplicate
+                if item_name in ['Application Received Date', 'Application Validated Date', 'Date Application Valid', 'Application Valid Date', 'Valid Date', 'Application Registered Date',
+                                 'Decision Issued Date']:
+                    continue
+                data_name = self.dates_dict[item_name]
 
-            # if data_name in self.app_dfs.columns:
-            try:
-                # Empty
-                if self.is_empty(app_df.at[data_name]):
+                # if data_name in self.app_dfs.columns:
+                try:
+                    # Empty
+                    if self.is_empty(app_df.at[data_name]):
+                        date_string = item.xpath('./td/text()').get().strip()
+                        app_df.at[data_name] = self.convert_date(date_string)
+                        print(f"<{item_name}> scraped: {app_df.at[data_name]}") if PRINT else None
+                    # Filled
+                    else:
+                        print(f"<{item_name}> filled.") if PRINT else None
+                # New
+                except KeyError:
+                    # if item_name in ['Agreed Expiry Date', 'Environmental Impact Assessment Received', 'Determination Deadline', 'Temporary Permission Expiry Date']:
                     date_string = item.xpath('./td/text()').get().strip()
-                    app_df.at[data_name] = self.convert_date(date_string)
-                    print(f"<{item_name}> scraped: {app_df.at[data_name]}") if PRINT else None
-                # Filled
-                else:
-                    print(f"<{item_name}> filled.") if PRINT else None
-            # New
-            except KeyError:
-                # if item_name in ['Agreed Expiry Date', 'Environmental Impact Assessment Received', 'Determination Deadline', 'Temporary Permission Expiry Date']:
-                date_string = item.xpath('./td/text()').get().strip()
-                app_df[data_name] = self.convert_date(date_string)
-                print(f"<{item_name}> scraped (new): {app_df.at[data_name]}") if PRINT else None
+                    app_df[data_name] = self.convert_date(date_string)
+                    print(f"<{item_name}> scraped (new): {app_df.at[data_name]}") if PRINT else None
 
-        url = app_df.at['url'].replace('summary', 'contacts')
-        yield SeleniumRequest(url=url, callback=self.parse_contacts_item, meta={'app_df': app_df})
+            url = app_df.at['url'].replace('summary', 'contacts')
+            yield SeleniumRequest(url=url, callback=self.parse_contacts_item, meta={'app_df': app_df})
 
     def parse_contacts_item(self, response):
         app_df = response.meta['app_df']
@@ -1058,14 +1079,13 @@ class UKPlanning_Scraper(scrapy.Spider):
     def parse_documents_item(self, response):
         app_df = response.meta['app_df']
         folder_name = response.meta['folder_name']
-        def create_item(folder_name, file_urls, document_names, IP_index=0):
+        def create_item(folder_name, file_urls, document_names):
             if not os.path.exists(self.failed_downloads_path + folder_name):
                 os.mkdir(self.failed_downloads_path + folder_name)
 
             item = DownloadFilesItem()
             item['file_urls'] = file_urls
             item['document_names'] = document_names
-            item['IP_index'] = IP_index  # new
             """
             csrf = response.xpath('//*[@id="caseDownloadForm"]/input[1]/@value').get()
             print("csrf:", csrf)
@@ -1108,8 +1128,7 @@ class UKPlanning_Scraper(scrapy.Spider):
             if n_documents > 0:
                 #document_names, file_urls = self.rename_documents_and_get_file_urls(response, self.data_upload_path, folder_name)
                 file_urls, document_names = get_documents(response, self.data_upload_path, folder_name)
-                print(f"----- ------ ------ ----- -----, IP test: {response.meta['IP_index']}")
-                item = create_item(folder_name, file_urls, document_names, response.meta['IP_index'])
+                item = create_item(folder_name, file_urls, document_names)
                 yield item
         elif mode == 'externalDocuments':  # Identify and redirect to the associated third-party document systems.
             docs_url = response.css('div.tabcontainer.toplevel').xpath('./p/a/@href').get()
@@ -1125,7 +1144,8 @@ class UKPlanning_Scraper(scrapy.Spider):
             mode_str = response.request.url.split('?')[1]
             print('mode_str: ', mode_str) if PRINT else None
             system_name = 'Unknown'
-            if 'SDescription' in mode_str or 'ref_no' in mode_str:
+            #if 'SDescription' in mode_str or 'ref_no' in mode_str:
+            if any(x in mode_str for x in ('SDescription', 'ref_no')):
                 """ Civica [13 LAs] examples:
                 [4]
                 [41]
@@ -1169,7 +1189,7 @@ class UKPlanning_Scraper(scrapy.Spider):
                 """
                 try:
                     powered_by = response.css('.powered-by').xpath('./a/text()').get()
-                    #print(powered_by)
+                    print(powered_by)
                     if 'NEC' in powered_by:
                         system_name = 'NEC'
                     elif 'Northgate' in powered_by:
@@ -1180,6 +1200,23 @@ class UKPlanning_Scraper(scrapy.Spider):
                         system_name = 'NEC'
                     elif 'Northgate' in copyright:
                         system_name = 'Northgate'
+            elif 'appref' in mode_str:
+                # [81] Exeter https://exeter.gov.uk/planning-services/permissions-and-applications/related-documents?appref=06/0009/FUL
+                system_name = 'Exeter'
+
+                driver = response.request.meta["driver"]
+                document_tree = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CLASS_NAME, 'tree')))
+                # //*[@id="main-content"]/div/div[1]/article/section/div[2]
+                document_items = document_tree.find_elements(By.XPATH, '//*[@id="1"]')
+                n_documents = len(document_items)
+                print(f"{app_df.name} <{system_name} mode> n_documents: {n_documents}, folder_name: {folder_name}")
+                app_df.at['other_fields.n_documents'] = n_documents
+
+                ### download documents ###
+                if n_documents > 0:
+                    file_urls, document_names = get_Exeter_documents(response, document_tree, n_documents, self.data_upload_path, folder_name)
+                    item = create_item(folder_name, file_urls, document_names)
+                    yield item
 
             if system_name == 'Unknown':
                 print('Unknown document system.')

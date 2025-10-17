@@ -4,10 +4,11 @@ import numpy as np
 from items import DownloadFilesItem
 from selenium.webdriver.common.by import By
 from settings import PRINT
+from tools.utils import get_data_storage_path
 
 
 def replace_invalid_characters(name):
-    invalid_chars = ['<', '>', ':', '\"', '/', '\\', '|', '?', '*']
+    #invalid_chars = ['<', '>', ':', '\"', '/', '\\', '|', '?', '*']
     """ The following characters are forbidden in Windows/Linux directory names.
     < (less than)
     > (greater than)
@@ -19,10 +20,11 @@ def replace_invalid_characters(name):
     ? (question mark)
     * (asterisk)
     #"""
-    for invalid_char in invalid_chars:
-        if invalid_char in name:
-            name = name.replace(invalid_char, '_')
-    return name
+    #for invalid_char in invalid_chars:
+    #    if invalid_char in name:
+    #        name = name.replace(invalid_char, '_')
+    #return name
+    return re.sub(r'[<>:"/\\|?*\n\r]+', '_', name)
     """
     if '/' in folder_name:
         folder_name = re.sub('/', '-', folder_name)
@@ -300,6 +302,56 @@ def get_NEC_or_Northgate_documents(response, n_documents, folder_path, folder_na
         pass
 
     return file_urls, document_names
+
+
+
+
+
+# doc href is #.
+def get_Exeter_documents(response, document_tree, n_documents, folder_path, folder_name):
+    file_urls = []
+    document_names = []
+    document_items = document_tree.find_elements(By.XPATH, '//*[@id="1"]')
+    pre_file_name_len = len(f"{get_data_storage_path()}{folder_path}{folder_name}/")
+    MAX_FILE_NAME_LEN = 210
+    allowed_file_name_len = MAX_FILE_NAME_LEN - pre_file_name_len
+    #print(f"{get_data_storage_path()}{folder_path}{folder_name}/", pre_file_name_len, allowed_file_name_len)
+    url_pattern = r"window\.open\('([^']+)'"
+    for i, document_item in enumerate(document_items):
+        # print(document_item.text)
+        print(f'--- --- document {i+1} --- ---') if PRINT else None
+        file_url = document_item.find_element(By.XPATH, './a').get_attribute('onclick')
+        #file_url2 = re.search(r"window\.open\('([^']+)'", file_url).group(1)
+        #print(file_url2)
+        file_url = re.findall(url_pattern, file_url)[0]
+        file_urls.append(response.urljoin(file_url))
+        #print(file_url)
+
+        document_string = document_item.find_element(By.XPATH, './a').get_attribute('title')
+        print(document_string)
+        document_date, document_description = document_string.split("_", 1)
+        print('date: ', document_date) if PRINT else None
+        print('description: ', document_description) if PRINT else None
+        #print(len(document_description))
+        if len(document_description) > allowed_file_name_len:
+            document_description = document_description[:allowed_file_name_len]
+        suffix = file_url.split('/')[-1].split('_')[1].lower()
+        document_name = f"date={document_date}&desc={document_description}&uid={i+1}.{suffix}"  # 7, 18
+        #print(len(document_description), pre_file_name_len + len(document_description))
+
+        # Check the format of document names.
+        print(document_name) if PRINT else None
+        document_name = replace_invalid_characters(document_name)
+        #print('new: ', document_name) if PRINT else None
+        document_names.append(f"{folder_path}{folder_name}/{document_name}")
+    return file_urls, document_names
+
+
+
+
+
+
+
 
 
 # Updated on 01/06/2024, has been merged to get_NEC_or_Northgate_documents().
