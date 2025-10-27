@@ -512,59 +512,40 @@ class Tascomi_Scraper(scrapy.Spider):
         # --- --- --- Associate Documents --- --- ---
         try:
             doc_list = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, f'//*[@id="documents"]/div/div[2]/table/tbody')))
-            doc_list = doc_list.find_elements(By.XPATH, './tr')
-            n_documents = len(doc_list)
+            document_items = doc_list.find_elements(By.XPATH, './tr')
+            n_documents = len(document_items)
             app_df.at['other_fields.n_documents'] = n_documents
             print(f"\n2 Documents Tab: {n_documents}")
         except TimeoutException:
             app_df.at['other_fields.n_documents'] = 0
             print(f"\n2 Documents Tab: No Document")
         if n_documents > 0:
+            n_documents, file_urls, document_names = 0, [], []
+            for document_item in document_items:
+                n_documents += 1
+                print(f'    - - - Document {n_documents} - - -') if PRINT else None
+                columns = document_item.find_elements(By.XPATH, './td')
+                assert len(columns) == 5
+                file_url = columns[4].find_element(By.XPATH, './a').get_attribute('href')
+                print(file_url) if PRINT else None
+                file_urls.append(file_url)
 
-        """ 
-        columns = document_table.find_elements(By.XPATH, './thead/tr/th')
-        [date_column, type_column, description_column] = self.get_column_indexes(columns, keywords=['date', 'category', 'title'])
-        if description_column < date_column:
-            date_column -= 1
-        if description_column < type_column:
-            type_column -= 1
+                document_type = columns[0].text.strip()
+                #print(document_type)
+                document_description = columns[1].text.strip()
+                if len(document_description) > 40:
+                    document_description = document_description.split('.')[0][:40]
+                print(document_description) if PRINT else None
+                document_date = columns[3].text.strip()
+                #print(document_date)
+                document_name = f'date={document_date}&type={document_type}&desc={document_description}&uid={n_documents}'
+                print(document_name) if PRINT else None
 
-        n_documents, file_urls, document_names = 0, [], []
-        for document_item in document_items:
-            n_documents += 1
-            #file_url = f"https://development.wiltshire.gov.uk/pr/s/contentdocument/{document_item.get_attribute('data-row-key-value')}"
-            file_url = f"https://development.wiltshire.gov.uk/pr/sfc/servlet.shepherd/document/download/{document_item.get_attribute('data-row-key-value')}?operationContext=S1"
-            print(file_url + '.')
-            file_urls.append(file_url)
-
-            item_extension = 'pdf'  # file_url.split('.')[-1]
-            document_name = f"uid={n_documents}.{item_extension}"
-
-            try:
-                document_description = document_item.find_element(By.XPATH, f'./th').text.strip()
-                document_name = f"desc={document_description}&{document_name}"
-            except NoSuchElementException:
-                pass
-            try:
-                document_type = document_item.find_element(By.XPATH, f'./td[{type_column}]').text.strip()
-                document_name = f"type={document_type}&{document_name}"
-            except NoSuchElementException:
-                pass
-            try:
-                document_date = document_item.find_element(By.XPATH, f'./td[{date_column}]').text.strip()
-                document_name = f"date={document_date}&{document_name}"
-            except NoSuchElementException:
-                pass
-            #document_name = self.rename_document(document_item, document_name, description_column=description_column, type_column=type_column, date_column=date_column, path='th')
-            print(f"    Document {n_documents}: {document_name}") if PRINT else None
-            document_name = replace_invalid_characters(document_name)
-            document_names.append(f"{self.data_upload_path}{folder_name}/{document_name}")
-              
-            return n_documents, file_urls, document_names
-        n_documents, file_urls, document_names = get_documents()
-        if n_documents > 0:
+                document_name = replace_invalid_characters(document_name)
+                # print('new: ', document_name) if PRINT else None
+                document_names.append(f"{self.data_upload_path}{folder_name}/{document_name}")
             item = self.create_item(driver, folder_name, file_urls, document_names)
             yield item
-        """
-        assert 1 == 0
+
+        #assert 1 == 0
         self.ending(app_df)
