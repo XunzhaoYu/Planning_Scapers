@@ -1,8 +1,8 @@
 import subprocess
-from tools.utils import get_data_storage_path
+from general.utils import get_data_storage_path
 
-user = 
-user_pass =
+user = "u4134221"
+user_pass = "u4134221:Aiyuanyuan7W"
 
 def upload_file(path):
     # -s or --silent option act as silent or quiet mode. Don’t show progress meter or error messages. Makes Curl mute.

@@ -1,6 +1,7 @@
 import os
 import pandas as pd
-from tools.utils import get_list_storage_path, get_data_storage_path, get_csv_files
+from general.utils import get_list_storage_path, get_data_storage_path
+from tools.utils import get_csv_files
 
 
 def append_all(temp=True):
@@ -12,7 +13,7 @@ def append_all(temp=True):
         csv_files = get_csv_files(get_data_storage_path())
         append_df = pd.concat([pd.read_csv(file)[::-1] for file in csv_files], ignore_index=True)
     else:
-        csv_files = get_csv_files(get_list_storage_path())
+        csv_files = get_csv_files(get_list_storage_path()) #, start_dir=300, end_dir=428)
         append_df = pd.concat([pd.read_csv(file) for file in csv_files], ignore_index=True)
     append_df.to_csv('../UKPlanning.csv', index=False)
 
