@@ -1,7 +1,7 @@
 Planning_Scapers
 
 
------ ----- ----- Project structure ----- ----- ----- 
+----- ----- ----- Project structure ----- ----- -----   
 The project is structured as follows:  
 .  
 ├── 📂 Lists/: The list of all applications from Local Authorities.   
