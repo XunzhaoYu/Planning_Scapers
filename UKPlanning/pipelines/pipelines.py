@@ -57,21 +57,9 @@ class DownloadFilesPipeline(FilesPipeline):
         return requests
 
     def file_path(self, request, response=None, info=None, *, item=None):
-        #print(info.spider.crawler.stats.get_value('file_count'))
-        #print(info.spider.crawler.stats.get_value(f"file_status_count/{200}"))
-        try:
-            string_data = str(response.headers['Content-Disposition'], 'utf-8')
-            doc_extension = string_data.split('.')[-1]
-            doc_extension = re.sub(r'[^a-zA-Z0-9]', '', doc_extension)
-            #print(f"document {info.spider.crawler.stats.get_value('file_count')} extension: {doc_extension}")
-            document_name = f"{request.meta.get('document_name')}.{doc_extension}"
-            #print(document_name)
-            return document_name
-        except AttributeError:
-            pass
+        # print(info.spider.crawler.stats.get_value('file_count'))
+        # print(info.spider.crawler.stats.get_value(f"file_status_count/{200}"))
         return request.meta.get('document_name')
-
-# def file_downloaded(self, response, request, info, *, item=None):
 
     def item_completed(self, results, item, info):
         DOWNLOAD_COMPLETED = True

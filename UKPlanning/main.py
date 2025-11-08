@@ -20,7 +20,7 @@ for i in range(2021, 2022):
     command = f"scrapy crawl Tascomi_Scraper -L WARNING -a auth_index=0 -a year={i}" # day-month-year
     subprocess.run(command.split())
 #"""
-command = f"scrapy crawl Tascomi_Scraper -L WARNING -a auth_index=171 -a year=-1" # day-month-year
+command = f"scrapy crawl Tascomi_Scraper -L WARNING -a auth_index=98 -a year=-1" # day-month-year
 subprocess.run(command.split())
 #cmdline.execute("scrapy crawl {:s} -L WARNING".format('UKPlanning_Redownload').split())
 #cmdline.execute("scrapy crawl UKPlanning_Redownload -L WARNING -a auth=Bassetlaw -a year=2008".split())

@@ -82,8 +82,7 @@ ITEM_PIPELINES = {
      #"UKPlanning.pipelines.DownloadFilesPipeline": 1,  # # for old architecture
      "UKPlanning.pipelines.pipelines.DownloadFilesPipeline": 1,  # # for new architecture
 }
-#FILES_STORE = "../ScrapedApplications/" # for old architecture
-FILES_STORE = "../../ScrapedApplications/" # for new architecture
+FILES_STORE = "../ScrapedApplications/"
 #FILES_STORE = "../Lists_Temp/"
 #ROTATING_PROXY_LIST_PATH = "../ips-datacenter_proxy1.txt"
 

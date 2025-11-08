@@ -35,6 +35,9 @@ class Tascomi_Scaper(Base_Scraper):
     auth_id = 415(411), Wirral: https://online.wirral.gov.uk/planning/index.html?fa=getApplication&id=160647
     """
 
+    # use pipelines_extension to obtain file extensions.
+    custom_settings = {'ITEM_PIPELINES': {'UKPlanning.pipelines.pipelines_extension.DownloadFilesPipeline': 1,}}
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -153,7 +156,7 @@ class Tascomi_Scaper(Base_Scraper):
         # click 'search' button.
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")  # scroll down to the bottom of this page.
         time.sleep(random.uniform(1., 1.5))
-        driver.find_element(By.XPATH, '//*[@id="form"]/div[16]/div/div/button[1]').click()
+        driver.find_element(By.CLASS_NAME, 'btn-success').click()
         # click 'view' button.
         try:
             view_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="application_results_table"]/tbody/tr/td[8]/button')))
