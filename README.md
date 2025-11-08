@@ -9,53 +9,45 @@ The project is structured as follows:
 ├── 📂 UKPlanning/: All scripts/scrapers.  
 │ &nbsp; &nbsp; &nbsp; ├── requirements.txt (to be added.)    
 │ &nbsp; &nbsp; &nbsp; ├── 📂 general/:                                      # General-purpose scraper logic (not tied to a specific framework)  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 __init__.py  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 base_scraper.py         # Common Scrapy Spider base class  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 utils.py                # General utility functions  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 items.py                #  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; └── parsers.py                 # Shared parsing utilities  
 │ &nbsp; &nbsp; &nbsp; │  
 │ &nbsp; &nbsp; &nbsp; ├── 📂 scrapers/:                         # Individual scraper instances for each framework  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 __init__.py  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── Idox/  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── __init__.py  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── Idox1_scraper.py       # Idox scraper 1 (inherits from IdoxBaseSpider)  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── Idox2_scraper.py  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; └── ...  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── Atrium/  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── __init__.py  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── Atrium1_scraper.py  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── Atrium2_scraper.py  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; └── ...  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── PlanningExplorer/  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── __init__.py  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── PlanningExplorer1_scraper.py  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; └── ...  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── CCED_scraper.py  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── Custom_scraper.py  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 Tascomi.py  
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── Custom_scraper.py   
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 Tascomi.py         
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── Thames.py  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; └── others/  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ├── __init__.py  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ├── pdf_scraper.py  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ├── sitemap_scraper.py  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; └── ...   
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp;  
-│ &nbsp; &nbsp; &nbsp; ├── 📂 middlewares/:                      # Globally available middleware modules  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── __init__.py  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── rotating_proxy_mw.py  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── recaptcha_mw.py  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── retry_mw.py  
+│ &nbsp; &nbsp; &nbsp; ├── 📂 middlewares/:  # Globally available middleware modules.    
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 middlewares.py  # Base middlewares.   
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── middlewares_IP.py  # middlewares for using IP proxies.     
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── middlewares_IP_rotation.py  # middlewares for rotating IP proxies frequently.    
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── user_agent_mw.py  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; └── custom/  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ├── idox_proxy_mw.py          # Idox-specific custom middleware  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; └── atrium_auth_mw.py         # Atrium-specific custom middleware  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp;  
-│ &nbsp; &nbsp; &nbsp; ├── 📂 pipelines/:                        # Globally available pipeline modules   
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── __init__.py  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── json_export_pipeline.py  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── db_pipeline.py  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── s3_pipeline.py  
+│ &nbsp; &nbsp; &nbsp; ├── 📂 pipelines/:  # Globally available pipeline modules.  
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 pipelines.py  # Base pipelines.  
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 pipelines_extension.py  # pipelines for obtaining file extensions.  
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── pipelines_Form_extension.py  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; └── custom/  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ├── idox_custom_pipeline.py   # Idox-specific custom pipeline  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; └── atrium_custom_pipeline.py # Atrium-specific custom pipeline  
