@@ -26,7 +26,7 @@ root/
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── PlanningExplorer/  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── PlanningExplorer1_scraper.py  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; └── ...  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── CCED_scraper.py  
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 CCED_scraper.py # to be updated. 
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── Custom_scraper.py   
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 Tascomi.py         
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── Thames.py  
@@ -47,7 +47,7 @@ root/
 │ &nbsp; &nbsp; &nbsp; ├── 📂 pipelines/:   Globally available pipeline modules.  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 pipelines.py:   Base pipelines.  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 pipelines_extension.py:   Pipelines for obtaining file extensions.  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── pipelines_Form_extension.py  
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 pipelines_form_extension.py:   Pipelines for obtaining file extensions with FormRequest.  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; └── custom/  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ├── idox_custom_pipeline.py:   Idox-specific custom pipeline.  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; └── atrium_custom_pipeline.py:   Atrium-specific custom pipeline.  
