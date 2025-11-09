@@ -3,20 +3,20 @@ Planning_Scapers
 
 ----- ----- ----- Project structure ----- ----- -----   
 The project is structured as follows:  
-.  
-├── 📂 Lists/: The list of all applications from Local Authorities.   
-├── 📂 ScrapedApplications/: The data and documents scraped from the Local Authorities/PlanIt API.  
-├── 📂 UKPlanning/: All scripts/scrapers.  
-│ &nbsp; &nbsp; &nbsp; ├── requirements.txt (to be added.)    
-│ &nbsp; &nbsp; &nbsp; ├── 📂 general/:                                      # General-purpose scraper logic (not tied to a specific framework)  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 base_scraper.py         # Common Scrapy Spider base class  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 utils.py                # General utility functions  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 items.py                #  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; └── parsers.py                 # Shared parsing utilities  
+root/  
+├── 📂 Lists/:   The list of all applications from Local Authorities.   
+├── 📂 ScrapedApplications/:   The data and documents scraped from the Local Authorities/PlanIt API.  
+├── 📂 UKPlanning/:   All scripts/scrapers.  
+│ &nbsp; &nbsp; &nbsp; ├── requirements.txt    
+│ &nbsp; &nbsp; &nbsp; ├── 📂 general/:   General-purpose scraper logic (not tied to a specific framework).  
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 base_scraper.py:   Common Scrapy Spider base class.  
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 utils.py:   General utility functions.  
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 items.py:   Define class Items for download files.   
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; └── parsers.py:   Shared parsing utilities.  
 │ &nbsp; &nbsp; &nbsp; │  
-│ &nbsp; &nbsp; &nbsp; ├── 📂 scrapers/:                         # Individual scraper instances for each framework  
+│ &nbsp; &nbsp; &nbsp; ├── 📂 scrapers/:   Individual scraper instances for each framework.  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── Idox/  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── Idox1_scraper.py       # Idox scraper 1 (inherits from IdoxBaseSpider)  
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── Idox1_scraper.py:   Idox scraper 1 (inherits from IdoxBaseSpider).  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── Idox2_scraper.py  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; └── ...  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── Atrium/  
@@ -35,34 +35,34 @@ The project is structured as follows:
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ├── sitemap_scraper.py  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; └── ...   
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp;  
-│ &nbsp; &nbsp; &nbsp; ├── 📂 middlewares/:  # Globally available middleware modules.    
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 middlewares.py  # Base middlewares.   
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── middlewares_IP.py  # middlewares for using IP proxies.     
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── middlewares_IP_rotation.py  # middlewares for rotating IP proxies frequently.    
+│ &nbsp; &nbsp; &nbsp; ├── 📂 middlewares/:   Globally available middleware modules.    
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 middlewares.py:   Base middlewares.   
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── middlewares_IP.py:   Middlewares for using IP proxies.     
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── middlewares_IP_rotation.py:   Middlewares for rotating IP proxies frequently.    
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── user_agent_mw.py  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; └── custom/  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ├── idox_proxy_mw.py          # Idox-specific custom middleware  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; └── atrium_auth_mw.py         # Atrium-specific custom middleware  
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ├── idox_proxy_mw.py:   Idox-specific custom middleware.  
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; └── atrium_auth_mw.py:   Atrium-specific custom middleware.  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp;  
-│ &nbsp; &nbsp; &nbsp; ├── 📂 pipelines/:  # Globally available pipeline modules.  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 pipelines.py  # Base pipelines.  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 pipelines_extension.py  # pipelines for obtaining file extensions.  
+│ &nbsp; &nbsp; &nbsp; ├── 📂 pipelines/:   Globally available pipeline modules.  
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 pipelines.py:   Base pipelines.  
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 pipelines_extension.py:   Pipelines for obtaining file extensions.  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── pipelines_Form_extension.py  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; └── custom/  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ├── idox_custom_pipeline.py   # Idox-specific custom pipeline  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; └── atrium_custom_pipeline.py # Atrium-specific custom pipeline  
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ├── idox_custom_pipeline.py:   Idox-specific custom pipeline.  
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; └── atrium_custom_pipeline.py:   Atrium-specific custom pipeline.  
 │ &nbsp; &nbsp; &nbsp; │  
-│ &nbsp; &nbsp; &nbsp; ├── 📂 tools/:                          # External tool modules  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📂 reCAPTCHA/:  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 reCAPTCHA_model.py  # Data pre-processing, model training and prediction.  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 reCAPTCHA_API.py  # APIs for scrapers.  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📂 model/: # ML models for solving reCAPTCHA puzzles.  
+│ &nbsp; &nbsp; &nbsp; ├── 📂 tools/:   External tool modules.  
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📂 reCAPTCHA/  
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 reCAPTCHA_model.py:   Data pre-processing, model training and prediction.  
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 reCAPTCHA_API.py:   APIs for scrapers.  
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📂 model/:   ML models for solving reCAPTCHA puzzles.  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; └── 📄 image_classifier.h5     
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📂 raw_training/: # Raw training data before pre-processing.  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📂 training/: # Training data.  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📂 test/: #   Test data.   
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📂 predicted/: # Prediction results of test data.   
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📂 deleted/: # Deleted duplicate training samples.   
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📂 raw_training/:   Raw training data before pre-processing.  
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📂 training/:   Training data.  
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📂 test/:   Test data.   
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📂 predicted/:   Prediction results of test data.   
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📂 deleted/:   Deleted duplicate training samples.   
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; └── 📄 class_names.txt  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── ip_rotation/  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── rotator_proxy_service.py  
@@ -70,10 +70,10 @@ The project is structured as follows:
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 data_process.py   
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 data_validation.py   
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 utils.py  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; └── email_sender.py # Notification tools (Slack, email, etc. Available in local repository only).   
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; └── email_sender.py:   Notification tools (Slack, email, etc. Available in local repository only).   
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp;  
-│ &nbsp; &nbsp; &nbsp; ├── 📂 configs/:                          # Project-wide configuration files  
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 settings.py            # Global Scrapy settings  
+│ &nbsp; &nbsp; &nbsp; ├── 📂 configs/:   Project-wide configuration files.  
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 settings.py:   Global Scrapy settings.  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── frameworks/  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── Idox_settings.py  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; └── Atrium_settings.py  
@@ -82,14 +82,14 @@ The project is structured as follows:
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ├── Idox2_settings.py  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; └── Atrium1_settings.py  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp;  
-│ &nbsp; &nbsp; &nbsp; └── tests/:                            # Unit and integration tests  
+│ &nbsp; &nbsp; &nbsp; └── tests/:   Unit and integration tests.  
 │ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ├── test_frameworks.py  
 │ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ├── test_scrapers.py  
 │ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; └── test_middlewares.py  
-├── 📄 EC2_commands: EC2 shell script for configuring EC2 instances.   
-├── 📄 local_commands: Local shell script for configuring EC2 instances.  
-├── 📄 scraper_document.pdf: User guidance for using scrapers on local machines (Scrapers).  
-├── 📄 scrapy.cfg: Scrapy entry configuration.  
+├── 📄 EC2_commands:   EC2 shell script for configuring EC2 instances.   
+├── 📄 local_commands:   Local shell script for configuring EC2 instances.  
+├── 📄 scraper_document.pdf:   User guidance for using scrapers on local machines (Scrapers).  
+├── 📄 scrapy.cfg:   Scrapy entry configuration.  
 └── 📄 README.md
 
 ----- ----- ----- Run scraper on local machines ----- ----- -----
