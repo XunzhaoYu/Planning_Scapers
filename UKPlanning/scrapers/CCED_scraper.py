@@ -1,4 +1,4 @@
-import os, time, random, timeit, re, sys
+import os, time, random
 import pandas as pd
 
 from selenium.webdriver.common.by import By
@@ -21,7 +21,7 @@ class CCED_Scraper(Base_Scraper):
     auth_id = 108(107), DorsetCouncil: https://planning.dorsetcouncil.gov.uk/plandisp.aspx?recno=72429
     """
 
-    # use pipelines_extension to obtain file extensions.
+    # use pipelines_form_extension to obtain file extensions.
     custom_settings = {'ITEM_PIPELINES': {'UKPlanning.pipelines.pipelines_form_extension.DownloadFilesPipeline': 1, }}
 
     def __init__(self, *args, **kwargs):
@@ -435,6 +435,6 @@ class CCED_Scraper(Base_Scraper):
                 parse_history()
             # --- --- --- Unknown Tabs --- --- ---
             else:
-                print(f"{tab_index+2}. Unknown Tab.")
+                print(f"{tab_index+2}. Unknown Tab: {tab_name}.")
                 assert 1 == 0
         self.ending(app_df)

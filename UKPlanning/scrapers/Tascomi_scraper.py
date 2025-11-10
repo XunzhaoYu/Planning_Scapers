@@ -324,7 +324,7 @@ class Tascomi_Scaper(Base_Scraper):
                             print(f'    - - - Appeal support doc {appeal_index + 1}: N/A - - -') if PRINT else None
             # --- --- --- Unknown Tabs --- --- ---
             else:
-                print(f'\n{tab_index+1}. Unknown Tab.')
+                print(f'\n{tab_index+1}. Unknown Tab: {tab_name}.')
                 assert 1 == 0
         if len(file_urls) > 0:
             item = self.create_item(driver, folder_name, file_urls, document_names)

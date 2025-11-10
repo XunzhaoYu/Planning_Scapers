@@ -14,13 +14,14 @@ for i in range(2021, 2022):
     #command = f"scrapy crawl UKPlanning_Scraper -L WARNING -a auth_index=0 -a year={i}"
     #command = f"scrapy crawl Atrium_Scraper -L WARNING -a auth_index=44 -a year={i}"
     #command = f"scrapy crawl PlanningExplorer_Scraper -L WARNING -a auth_index=44 -a year={i}"
-    #command = f"scrapy crawl Custom_Scraper -L WARNING -a auth_index=44 -a year={i}"
+    #command = f"scrapy crawl Custom_Scraper -L WARNING -a auth_index=412 -a year={i}"
     #command = f"scrapy crawl CCED_Scraper -L WARNING -a auth_index=108 -a year={i}"
     #command = f"scrapy crawl Thames_Scraper -L WARNING -a auth_index=44 -a year={i}"
     command = f"scrapy crawl Tascomi_Scraper -L WARNING -a auth_index=0 -a year={i}" # day-month-year
     subprocess.run(command.split())
 #"""
-command = f"scrapy crawl CCED_Scraper -L WARNING -a auth_index=108 -a year=-1"
+command = f"scrapy crawl Custom_Scraper -L WARNING -a auth_index=412 -a year=-1"
+#command = f"scrapy crawl CCED_Scraper -L WARNING -a auth_index=108 -a year=-1"
 #command = f"scrapy crawl Tascomi_Scraper -L WARNING -a auth_index=98 -a year=-1" # 98, 24-25year
 subprocess.run(command.split())
 #cmdline.execute("scrapy crawl {:s} -L WARNING".format('UKPlanning_Redownload').split())
