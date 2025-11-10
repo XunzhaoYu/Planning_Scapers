@@ -37,7 +37,8 @@ class Tascomi_Scaper(Base_Scraper):
     """
 
     # use pipelines_extension to obtain file extensions.
-    custom_settings = {'ITEM_PIPELINES': {'UKPlanning.pipelines.pipelines_extension.DownloadFilesPipeline': 1,}}
+    custom_settings = {'ITEM_PIPELINES': {'UKPlanning.pipelines.pipelines_extension.DownloadFilesPipeline': 1,},
+                       'SELENIUM_DRIVER_ARGUMENTS': []}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

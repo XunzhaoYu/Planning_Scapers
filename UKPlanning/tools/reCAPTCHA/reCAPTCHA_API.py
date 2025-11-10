@@ -9,7 +9,7 @@ def solve_puzzle(driver):
     puzzle_keyword = driver.find_element(By.XPATH, '//*[@id="root"]/div/form/div[3]/div/div[1]/em').text.strip()
     while n_clocks != 5:
         # Refresh for a clock puzzle.
-        while puzzle_keyword not in ['clock', '时钟']: # add the default languages of your browser here.
+        while puzzle_keyword not in ['the clocks', '时钟']: # add the default languages of your browser here.
             driver.find_element(By.XPATH, '//*[@id="amzn-btn-refresh-internal"]').click()  # click refresh button.
             time.sleep(1) # wait for refreshing a new puzzle
             puzzle_keyword = driver.find_element(By.XPATH, '//*[@id="root"]/div/form/div[3]/div/div[1]/em').text.strip()
