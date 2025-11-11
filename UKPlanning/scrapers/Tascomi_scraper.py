@@ -137,18 +137,18 @@ class Tascomi_Scaper(Base_Scraper):
         if app_df.at['url'].startswith('https://planandregulatory'):
             # scrape application directly.
             yield from self.parse_data_item_Tascomi(response)
-        else:
+        else: # the key mechanism of Scrapy, Generator-based callbacks, prevents us from visiting the same url, need adding para: dont_filter=True.
             url = 'https://planandregulatory.coventry.gov.uk/planning/index.html?fa=search'
-            yield SeleniumRequest(url=url, callback=self.search_by_appID_Tascomi, meta={'app_df': app_df})
+            yield SeleniumRequest(url=url, callback=self.search_by_appID_Tascomi, meta={'app_df': app_df}, dont_filter=True)
 
     def parse_Harrow_search_page_Tascomi(self, response):
         app_df = response.meta['app_df']
         if app_df.at['url'].startswith('https://planningsearch.harrow.gov.uk/planning/index'):
             # scrape application directly.
             yield from self.parse_data_item_Tascomi(response)
-        else:
+        else: # the key mechanism of Scrapy, Generator-based callbacks, prevents us from visiting the same url, need adding para: dont_filter=True.
             url = 'https://planningsearch.harrow.gov.uk/planning/index.html?fa=search'
-            yield SeleniumRequest(url=url, callback=self.search_by_appID_Tascomi, meta={'app_df': app_df})
+            yield SeleniumRequest(url=url, callback=self.search_by_appID_Tascomi, meta={'app_df': app_df}, dont_filter=True)
 
     # A module to search applications using their app_id.
     def search_by_appID_Tascomi(self, response):
@@ -165,16 +165,19 @@ class Tascomi_Scaper(Base_Scraper):
         input_reference.send_keys(app_id)
         # click 'search' button.
         driver.execute_script('window.scrollTo(0, document.body.scrollHeight);')  # scroll down to the bottom of this page.
-        time.sleep(random.uniform(1., 1.5))
-        driver.find_element(By.CLASS_NAME, 'btn-success').click()
-        # click 'view' button.
-        try:
-            view_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="application_results_table"]/tbody/tr/td[8]/button')))
-            time.sleep(random.uniform(.5, 1.))
-            view_button.click()
-        except TimeoutException:
-            print(f'Timeout error - search result: Application {app_id} is not found.')
-            return
+        for tries in range(3): # Sometimes there has no search result even if the app is available, so we try 3 times.
+            time.sleep(random.uniform(1., 1.5))
+            driver.find_element(By.CLASS_NAME, 'btn-success').click()
+            # click 'view' button.
+            try:
+                view_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="application_results_table"]/tbody/tr/td[8]/button')))
+                time.sleep(random.uniform(.5, 1.))
+                view_button.click()
+                break
+            except TimeoutException:
+                print(f'Timeout error - search result: Application {app_id} is not found.')
+                if tries == 2:
+                    return
         time.sleep(random.uniform(4., 5.))
 
         # move to the new tab: application page
