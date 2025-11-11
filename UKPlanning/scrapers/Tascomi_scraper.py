@@ -25,7 +25,7 @@ class Tascomi_Scaper(Base_Scraper):
     auth_id = 90, Coventry: https://planningsearch.coventry.gov.uk/planning/application/556153 [X]
                     [Search ID] https://planandregulatory.coventry.gov.uk/planning/index.html?fa=getApplication&id=249328
     auth_id = 98, Dartmoor: https://dartmoor-online.tascomi.com/planning/index.html?fa=getApplication&id=126932
-    auth_id = 161(159), Gwynedd: https://amg.gwynedd.llyw.cymru/planning/index.html?fa=getApplication&id=9310
+    auth_id = 161(159), Gwynedd: https://amg.gwynedd.llyw.cymru/planning/index.html?fa=getApplication&id=89
     auth_id = 162(160), Hackney: https://developmentandhousing.hackney.gov.uk/planning/index.html?fa=getApplication&id=63606
     *auth_id = 171(169), Harrow: https://planningsearch.harrow.gov.uk/planning/planning-application?RefType=GFPlanning&KeyNo=696420
     #   [404 Not Found, Search ID] https://planningsearch.harrow.gov.uk/planning/index.html?fa=getApplication&id=131697
@@ -134,13 +134,21 @@ class Tascomi_Scaper(Base_Scraper):
 
     def parse_Conventry_search_page_Tascomi(self, response):
         app_df = response.meta['app_df']
-        url = 'https://planandregulatory.coventry.gov.uk/planning/index.html?fa=search'
-        yield SeleniumRequest(url=url, callback=self.search_by_appID_Tascomi, meta={'app_df': app_df})
+        if app_df.at['url'].startswith('https://planandregulatory'):
+            # scrape application directly.
+            yield from self.parse_data_item_Tascomi(response)
+        else:
+            url = 'https://planandregulatory.coventry.gov.uk/planning/index.html?fa=search'
+            yield SeleniumRequest(url=url, callback=self.search_by_appID_Tascomi, meta={'app_df': app_df})
 
     def parse_Harrow_search_page_Tascomi(self, response):
         app_df = response.meta['app_df']
-        url = 'https://planningsearch.harrow.gov.uk/planning/index.html?fa=search'
-        yield SeleniumRequest(url=url, callback=self.search_by_appID_Tascomi, meta={'app_df': app_df})
+        if app_df.at['url'].startswith('https://planningsearch.harrow.gov.uk/planning/index'):
+            # scrape application directly.
+            yield from self.parse_data_item_Tascomi(response)
+        else:
+            url = 'https://planningsearch.harrow.gov.uk/planning/index.html?fa=search'
+            yield SeleniumRequest(url=url, callback=self.search_by_appID_Tascomi, meta={'app_df': app_df})
 
     # A module to search applications using their app_id.
     def search_by_appID_Tascomi(self, response):

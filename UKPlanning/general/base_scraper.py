@@ -70,7 +70,7 @@ class Base_Scraper(scrapy.Spider):
         if DEVELOPMENT_MODE:
             # sample one application of self.auth per year in the given range of years.
             # 在给定years的范围内对authority进行每年一个application的采样
-            test_index, test_year_from, test_year_end = 4, 12, 13  # Variables for test / development.
+            test_index, test_year_from, test_year_end = 4, 11, 12  # Variables for test / development.
             app_dfs = []
             filenames = get_filenames(f"{get_list_storage_path()}{self.auth}/")
             print(f"{self.auth}. number of files: {len(filenames)}")
@@ -200,7 +200,7 @@ class Base_Scraper(scrapy.Spider):
                 print(f"\n{app_df.name}, start url: {url}")
             print(app_df) if PRINT else None
             # yield SeleniumRequest(url=url, callback=self.parse_data_item, meta={'app_df': app_df})
-            yield SeleniumRequest(url=url, callback=self.parse_func, meta={'app_df': app_df})
+            yield SeleniumRequest(url=url, callback=self.parse_func, meta={'app_df': app_df})  # para: dont_filter=True
             # yield SeleniumRequest(url=url, callback=self.parse_func, meta={'app_df': app_df, 'valid_IPs': self.init_valid_IPs})
         except IndexError:
             print("list is empty.")
