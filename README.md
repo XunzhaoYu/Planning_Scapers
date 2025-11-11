@@ -29,7 +29,7 @@ root/
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 CCED_scraper.py:   DorsetCouncil, Christchurch.   
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 Custom_scraper.py:   Wiltshire.   
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 Tascomi.py:   Liverpool ... (12 LAs)             
-│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── Thames.py  
+│ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 Thames.py:   Richmond (need update).  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; └── others/  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ├── pdf_scraper.py  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ├── sitemap_scraper.py  

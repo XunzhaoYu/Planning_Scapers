@@ -41,7 +41,7 @@ def get_filenames(src_path, ending=0):
 
 
 # --- --- --- utils for scraping basic data --- --- ---
-# Used in CCED, Tascomi:
+# Used in CCED, Custom, Tascomi:
 def scrape_data_items(app_df, items, item_values, details_dict, PRINT):
     for item, value in zip(items, item_values):
         item_name = item.text.strip()
@@ -88,7 +88,12 @@ def scrape_multi_tables_for_csv(csv_names, tables, data_storage_path, folder_nam
             n_table_items.append(0)
     return n_table_items
 
-# Used in scrape_for_csv().
+def scrape_for_csv_single(self, csv_name, column_name, table_items, folder_name, path='td'):
+    content_dict = {column_name: [table_item.find_element(By.XPATH, f'./{path}').text.strip() for table_item in table_items]}
+    content_df = pd.DataFrame(content_dict)
+    content_df.to_csv(f"{self.data_storage_path}{folder_name}/{csv_name}.csv", index=False)
+
+# Used in scrape_for_csv(), and Custom:
 def unique_columns(column_names):
     count_dict = {}
     unique_names = []

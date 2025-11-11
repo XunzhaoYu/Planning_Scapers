@@ -10,7 +10,7 @@ from configs.settings import PRINT
 from general.base_scraper import Base_Scraper
 from general.document_utils import replace_invalid_characters, get_documents
 from general.items import DownloadFilesItem
-from general.utils import scrape_data_items, scrape_for_csv, scrape_multi_tables_for_csv  # test for further re-organization.
+from general.utils import unique_columns, scrape_data_items, scrape_for_csv, scrape_multi_tables_for_csv  # test for further re-organization.
 
 
 # To do: Christchurch scraper.
@@ -81,37 +81,19 @@ class CCED_Scraper(Base_Scraper):
             except KeyError:
                 app_df[data_name] = item_value
                 print(f'    <{item_name}> scraped (new): {app_df.at[data_name]}') if PRINT else None
-        return app_df
-
-    def unique_columns(self, column_names):
-        count_dict = {}
-        unique_names = []
-        for item in column_names:
-            if item in count_dict:
-                unique_names.append(f"{item}.{count_dict[item]}")
-                count_dict[item] += 1
-            else:
-                unique_names.append(item)
-                count_dict[item] = 1
-        return unique_names
+        return app_df 
 
     def scrape_for_csv(self, csv_name, table_columns, table_items, folder_name, path='td'):
         content_dict = {}
         column_names = [column.text.strip() for column in table_columns]
-        column_names = self.unique_columns(column_names)
+        column_names = unique_columns(column_names)
         n_columns = len(column_names)
 
         for column_index in range(n_columns):
             content_dict[column_names[column_index]] = [table_item.find_element(By.XPATH, f'./{path}[{column_index+1}]').text.strip() for table_item in table_items]
 
         content_df = pd.DataFrame(content_dict)
-        content_df.to_csv(f"{self.data_storage_path}{folder_name}/{csv_name}.csv", index=False)
-    
-    # never used in CCED:
-    def scrape_for_csv_single(self, csv_name, column_name, table_items, folder_name, path='td'):
-        content_dict = {column_name: [table_item.find_element(By.XPATH, f'./{path}').text.strip() for table_item in table_items]}
-        content_df = pd.DataFrame(content_dict)
-        content_df.to_csv(f"{self.data_storage_path}{folder_name}/{csv_name}.csv", index=False)
+        content_df.to_csv(f"{self.data_storage_path}{folder_name}/{csv_name}.csv", index=False) 
 
     def scrape_multi_tables_for_csv(self, csv_names, tables, folder_name, table_path='tbody/tr', column_path='th', item_path='td'):
         n_table_items = []
