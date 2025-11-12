@@ -44,7 +44,28 @@ class Agile_Scraper(Base_Scraper):
         # All sub_classes of Base_Scraper should define their self.parse_func(s) in __init__
         self.parse_func = self.parse_data_item_Agile
 
-    # details_dict
+    details_dict ={'Application reference number': 'uid',
+                   'Application type': 'other_fields.application_type',
+                   'Proposal description': 'description',
+                   'Location': 'address',
+                   'Town or communty council': '', #
+                   'Ward': 'other_fields.ward_name',
+                   'Status': 'other_fields.status',
+                   'Status description': '', #
+                   'Validated date': 'other_fields.date_validated',
+                   'Extension of time date': '', #
+                   'Decision level': 'other_fields.expected_decision_level',
+                   'Decision': 'other_fields.decision',
+                   'Decision date': 'other_fields.decision_issued_date',
+                   'Decision expiry date': '', #
+                   'Appeal type'
+                   'Appeal lodged date'
+                   'Appeal decision'
+                   'Appeal decision date'
+                   'Agent name/Company name'
+                   'Officer name'
+                   'Applicant surname/Company name'
+                   }
 
     def create_item(self, driver, folder_name, file_urls, document_names):
         if not os.path.exists(self.failed_downloads_path + folder_name):
