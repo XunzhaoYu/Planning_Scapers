@@ -6,6 +6,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
 from configs.settings import PRINT
 from general.base_scraper import Base_Scraper
@@ -14,6 +15,7 @@ from general.items import DownloadFilesItem
 from general.utils import scrape_data_items, scrape_for_csv  # test for further re-organization.
 #from tools.reCAPTCHA.reCAPTCHA_model import predict_base64_image
 from tools.reCAPTCHA.reCAPTCHA_API import solve_puzzle, click_puzzle_buttons
+
 
 
 class Tascomi_Scaper(Base_Scraper):
@@ -48,6 +50,8 @@ class Tascomi_Scaper(Base_Scraper):
             self.parse_func = self.parse_Conventry_search_page_Tascomi
         elif self.auth in ['Harrow']:
             self.parse_func = self.parse_Harrow_search_page_Tascomi
+        elif self.auth in ['Gwynedd']:
+            self.parse_func = self.parse_Gwynedd_language_Tascomi
         else:
             self.parse_func = self.parse_data_item_Tascomi
 
@@ -190,6 +194,22 @@ class Tascomi_Scaper(Base_Scraper):
 
         # scrape application
         yield from self.parse_data_item_Tascomi(response)
+
+    def parse_Gwynedd_language_Tascomi(self, response):
+        app_df = response.meta['app_df']
+        url = app_df.at['url']
+        if 'language=en' in url:
+            yield from SeleniumRequest(url=url, callback=self.parse_data_item_Tascomi, meta={'app_df': app_df}, dont_filter=True)
+        else:  # language can be 'cymraeg' or 'cy', the Welsh word for the Welsh language.
+            parsed = urlparse(url)
+            params = parse_qs(parsed.query)  # parse the query parameters into a dict.
+            params['language'] = ['en']  # set or replace the 'language' parameter as English.
+            new_query = urlencode(params, doseq=True)  # rebuild the query string.
+            new_url = urlunparse(parsed._replace(query=new_query))  # reconstruct the full URL.
+            print(f'new url with English pages: {new_url}') if PRINT else None
+            app_df.at['url'] = new_url
+            yield SeleniumRequest(url=app_df.at['url'], callback=self.parse_data_item_Tascomi, meta={'app_df': app_df}, dont_filter=True)
+
 
     def parse_data_item_Tascomi(self, response):
         app_df = response.meta['app_df']
