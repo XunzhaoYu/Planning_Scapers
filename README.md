@@ -7,7 +7,7 @@ root/
 ├── 📂 Lists/:   The list of all applications from Local Authorities.   
 ├── 📂 ScrapedApplications/:   The data and documents scraped from the Local Authorities/PlanIt API.  
 ├── 📂 UKPlanning/:   All scripts/scrapers.  
-│ &nbsp; &nbsp; &nbsp; ├── requirements.txt    
+│ &nbsp; &nbsp; &nbsp; ├── 📄 requirements.txt    
 │ &nbsp; &nbsp; &nbsp; ├── 📂 general/:   General-purpose scraper logic (not tied to a specific framework).  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 base_scraper.py:   Common Scrapy Spider base class.  
 │ &nbsp; &nbsp; &nbsp; │ &nbsp; &nbsp; &nbsp; ├── 📄 utils.py:   General utility functions.  
