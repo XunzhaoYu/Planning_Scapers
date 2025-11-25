@@ -45,26 +45,30 @@ class Agile_Scraper(Base_Scraper):
         self.parse_func = self.parse_data_item_Agile
 
     details_dict ={'Application reference number': 'uid',
+                   'LA reference': '--- --- --- ---', # Flintshire
                    'Application type': 'other_fields.application_type',
                    'Proposal description': 'description',
                    'Location': 'address',
-                   'Town or communty council': '', #
-                   'Ward': 'other_fields.ward_name',
+                   'Town or communty council': 'other_fields.parish', # Pembrokeshire
+                   'Ward': 'other_fields.ward_name', # Flintshire, Pembrokeshire
+                   'Parish': 'other_fields.parish',  # NewForestPark
+                   'Area': 'other_fields.parish', # Flintshire
                    'Status': 'other_fields.status',
-                   'Status description': '', #
+                   'Status description': '--- --- --- ---', #
                    'Validated date': 'other_fields.date_validated',
-                   'Extension of time date': '', #
+                   'Extension of time date': '--- --- --- ---', # Pembrokeshire
                    'Decision level': 'other_fields.expected_decision_level',
                    'Decision': 'other_fields.decision',
                    'Decision date': 'other_fields.decision_issued_date',
-                   'Decision expiry date': '', #
-                   'Appeal type'
-                   'Appeal lodged date'
-                   'Appeal decision'
-                   'Appeal decision date'
-                   'Agent name/Company name'
-                   'Officer name'
-                   'Applicant surname/Company name'
+                   'Decision expiry date': '--- --- --- ---', #
+                   'Appeal type': '--- --- --- ---', #
+                   'Appeal lodged date': '--- --- --- ---', # Flintshire, Pembrokeshire
+                   'Appeal decision': 'other_fields.appeal_result',
+                   'Appeal decision date': 'other_fields.appeal_decision_date',
+                   'Agent name/Company name': 'other_fields.agent_name', # Pembrokeshire
+                   'Agent name (company)': 'other_fields.agent_name',  # NewForestPark
+                   'Officer name': 'other_fields.case_officer',
+                   'Applicant surname/Company name': 'other_fields.applicant_name',
                    }
 
     def create_item(self, driver, folder_name, file_urls, document_names):
