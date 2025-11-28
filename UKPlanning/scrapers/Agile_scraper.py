@@ -79,6 +79,7 @@ class Agile_Scraper(Base_Scraper):
         item['file_urls'] = file_urls
         item['document_names'] = document_names
 
+
         cookies = driver.get_cookies()
         print(f'cookies:, {cookies}') if PRINT else None
         item['session_cookies'] = cookies
