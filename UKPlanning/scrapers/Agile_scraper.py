@@ -79,7 +79,6 @@ class Agile_Scraper(Base_Scraper):
         item['file_urls'] = file_urls
         item['document_names'] = document_names
 
-
         cookies = driver.get_cookies()
         print(f'cookies:, {cookies}') if PRINT else None
         item['session_cookies'] = cookies
@@ -94,11 +93,31 @@ class Agile_Scraper(Base_Scraper):
         print(f'parse_data_item_newScraper, scraper name: {scraper_name}, max_file_name_len: {max_file_name_len}.')
 
         try:
-            tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="content"]/div/section')))
+            if 'Terms and Conditions' in response.xpath('//*[@id="header"]/sas-cookie-consent/section/section/div[1]/p/text()').get():
+                print('Click: Accept.')
+                driver.find_element(By.XPATH, '//*[@id="header"]/sas-cookie-consent/section/section/div[1]/button[1]').click()
+        except TypeError:
+            pass
+
+        try:
+            tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="applicationDetails"]/uib-accordion/div')))  # role = 'tablist'
         except TimeoutException:
             # Planning Application details not available.
             note = response.xpath('//*[@id="main-content"]/article/h1/text()').get()
             print('note: ', note)
             return
+
+        tab_list = tab_panel.find_elements(By.XPATH, './div')
+        n_tabs = len(tab_list)
+
+        for tab_index, tab in enumerate(tab_list):
+            tab_name = tab.find_element(By.XPATH, './div/h4/a/span').text.strip()
+            print(f'\n{tab_index + 1}. {tab_name} Tab.')
+
+            if 'summary' in tab_name.lower():
+                # summaryTab = tab.div[2]/div/summaryc/div
+                item_list = driver.find_elements(By.XPATH, '//*[@id="summaryTab"]/form')
+                items =
+
 
         self.ending(app_df)
