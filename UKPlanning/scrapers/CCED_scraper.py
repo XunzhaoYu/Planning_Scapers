@@ -134,7 +134,8 @@ class CCED_Scraper(Base_Scraper):
         driver = response.request.meta["driver"]
         scraper_name = app_df.at['scraper_name']
         try:
-            if 'Disclaimer' in response.xpath('//*[@id="aspnetForm"]/div[3]/h2[1]/text()').get():
+            if 'Disclaimer' in WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="aspnetForm"]/div[3]/h2[1]'))).text:
+            #if 'Disclaimer' in response.xpath('//*[@id="aspnetForm"]/div[3]/h2[1]/text()').get():
                 print('Click: Accept.')
                 driver.find_element(By.XPATH, '//*[@id="ctl00_ContentPlaceHolder1_btnAccept"]').click()
         except TypeError:
@@ -155,7 +156,8 @@ class CCED_Scraper(Base_Scraper):
         max_file_name_len = self.max_folder_file_name_len - len(folder_name) - 5  # 5 chars for suffix/extension, such as .pdf
         try:
             disclaimer_index = 2 if scraper_name == 'DorsetCouncil' else 1
-            if 'Disclaimer' in response.xpath(f'//*[@id="aspnetForm"]/div[3]/h2[{disclaimer_index}]/text()').get():
+            if 'Disclaimer' in WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, f'//*[@id="aspnetForm"]/div[3]/h2[{disclaimer_index}]'))).text:
+            #if 'Disclaimer' in response.xpath(f'//*[@id="aspnetForm"]/div[3]/h2[{disclaimer_index}]/text()').get():
                 print('Click: Accept.')
                 driver.find_element(By.XPATH, '//*[@id="ctl00_ContentPlaceHolder1_btnAccept"]').click()
         except TypeError:
@@ -343,11 +345,12 @@ class CCED_Scraper(Base_Scraper):
                     for csv_name, n_items in zip(csv_names, n_table_items):
                         if csv_name == 'neighbour comments':
                             app_df.at['other_fields.n_comments_public_received'] = n_items
+                            app_df.at['other_fields.n_comments'] += n_items
                         elif csv_name == 'consultee comments':
                             app_df.at['other_fields.n_comments_consultee_responded'] = n_items
+                            app_df.at['other_fields.n_comments'] += n_items
                         elif csv_name == 'public notices':
                             app_df.at['other_fields.n_public_notices'] = n_items
-                    app_df.at['other_fields.n_comments'] = app_df.at['other_fields.n_comments_public_received'] + app_df.at['other_fields.n_comments_consultee_responded']
                     print(f"number of comments: {app_df.at['other_fields.n_comments']}")
                 parse_consultees()
             # --- --- --- Appeals (data + csv) --- --- ---
