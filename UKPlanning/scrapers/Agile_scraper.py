@@ -54,22 +54,54 @@ class Agile_Scraper(Base_Scraper):
                    'Parish': 'other_fields.parish',  # NewForestPark
                    'Area': 'other_fields.parish', # Flintshire
                    'Status': 'other_fields.status',
-                   'Status description': '--- --- --- ---', #
+                   'Status description': 'other_fields.status_description', #
+
                    'Validated date': 'other_fields.date_validated',
-                   'Extension of time date': '--- --- --- ---', # Pembrokeshire
+                   'Extension of time date': 'other_fields.extension_of_time_date', # Pembrokeshire
                    'Decision level': 'other_fields.expected_decision_level',
                    'Decision': 'other_fields.decision',
                    'Decision date': 'other_fields.decision_issued_date',
-                   'Decision expiry date': '--- --- --- ---', #
-                   'Appeal type': '--- --- --- ---', #
-                   'Appeal lodged date': '--- --- --- ---', # Flintshire, Pembrokeshire
+                   'Decision expiry date': 'other_fields.decision_expiry_date', #
+
+                   'Appeal type': 'other_fields.appeal_type', #
+                   'Appeal lodged date': 'other_fields.appeal_lodged_date', # Flintshire, Pembrokeshire
                    'Appeal decision': 'other_fields.appeal_result',
                    'Appeal decision date': 'other_fields.appeal_decision_date',
+
                    'Agent name/Company name': 'other_fields.agent_name', # Pembrokeshire
                    'Agent name (company)': 'other_fields.agent_name',  # NewForestPark
                    'Officer name': 'other_fields.case_officer',
                    'Applicant surname/Company name': 'other_fields.applicant_name',
+
+                   # conditions:
+                   #'Decision': 'other_fields.decision',
+                   #'Decision date': 'other_fields.decision_issued_date',
+
+                   # dates:
+                   #'Validated date': 'other_fields.date_validated',
+                   #'Decision date': 'other_fields.decision_issued_date',
+                   'Consultation expiry date': 'other_fields.consultation_end_date',
+                   'Press notice end date': 'other_fields.press_notice_end_date',
+                   #'Appeal lodged date': 'other_fields.appeal_lodged_date',
+                   #'Appeal decision date': 'other_fields.appeal_decision_date',
                    }
+
+    def scrape_data_items_from_AngularJS(self, app_df, item_list):
+        for item in item_list:
+            item_name = item.find_element(By.XPATH, './label').text.strip()
+            data_name = self.details_dict[item_name]
+            try:
+                item_value = item.find_element(By.XPATH, './input | ./textarea').get_attribute('value').strip()
+            except NoSuchElementException:
+                item_value = item.find_element(By.XPATH, './span').text.strip()
+
+            try:
+                app_df.at[data_name] = item_value
+                print(f'    <{item_name}> scraped: {app_df.at[data_name]}') if PRINT else None
+            except KeyError:
+                app_df[data_name] = item_value
+                print(f'    <{item_name}> scraped (new): {app_df.at[data_name]}') if PRINT else None
+        return app_df
 
     def create_item(self, driver, folder_name, file_urls, document_names):
         if not os.path.exists(self.failed_downloads_path + folder_name):
@@ -112,12 +144,34 @@ class Agile_Scraper(Base_Scraper):
 
         for tab_index, tab in enumerate(tab_list):
             tab_name = tab.find_element(By.XPATH, './div/h4/a/span').text.strip()
-            print(f'\n{tab_index + 1}. {tab_name} Tab.')
-
+            # --- --- --- Summary (data) --- --- ---
             if 'summary' in tab_name.lower():
                 # summaryTab = tab.div[2]/div/summaryc/div
-                item_list = driver.find_elements(By.XPATH, '//*[@id="summaryTab"]/form')
-                items =
+                item_list = driver.find_elements(By.XPATH, '//*[@id="summaryTab"]/form/div')
+                print(f'\n{tab_index + 1}. {tab_name} Tab: {len(item_list)} items.')
+                item_list = [item.find_element(By.XPATH, './div/*/div/div') for item in item_list]
+                app_df = self.scrape_data_items_from_AngularJS(app_df, item_list)
 
-
+            # --- --- --- Constraints/Policies (csv) --- --- ---
+            elif 'constraint' in tab_name.lower():
+                pass
+            # --- --- --- Documents (doc) --- --- ---
+            elif 'document' in tab_name.lower():
+                pass
+            # --- --- --- Conditions (data) --- --- ---
+            elif 'condition' in tab_name.lower():
+                item_list = driver.find_elements(By.XPATH, '//*[@id="conditionsTab"]/div/form/div')
+                # //*[@id="conditionsTab"]/div/form/div[1]/sas-input-text/div/div
+                print(f'\n{tab_index + 1}. {tab_name} Tab: {len(item_list)} items.')
+                item_list = [item.find_element(By.XPATH, './*/div/div') for item in item_list]
+                app_df = self.scrape_data_items_from_AngularJS(app_df, item_list)
+            # --- --- --- Dates (data) --- --- ---
+            elif 'date' in tab_name.lower():
+                item_list = driver.find_elements(By.XPATH, '//*[@id="datesTab"]/form/div')
+                print(f'\n{tab_index + 1}. {tab_name} Tab: {len(item_list)} items.')
+                item_list = [item.find_element(By.XPATH, './div/*/div/div') for item in item_list]
+                app_df = self.scrape_data_items_from_AngularJS(app_df, item_list)
+            else:
+                print(f'\n{tab_index+1}. Unknown Tab: {tab_name}.')
+                assert 1 == 0
         self.ending(app_df)
