@@ -125,11 +125,10 @@ class Agile_Scraper(Base_Scraper):
         print(f'parse_data_item_newScraper, scraper name: {scraper_name}, max_file_name_len: {max_file_name_len}.')
 
         try:
-            if 'Terms and Conditions' in response.xpath('//*[@id="header"]/sas-cookie-consent/section/section/div[1]/p/text()').get():
-                print('Click: Accept.')
-                driver.find_element(By.XPATH, '//*[@id="header"]/sas-cookie-consent/section/section/div[1]/button[1]').click()
+            WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="header"]/sas-cookie-consent/section/section/div[1]/button[1]'))).click()
+            print('Click: Accept.')
         except TypeError:
-            pass
+            print('No Cookie button.')
 
         try:
             tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="applicationDetails"]/uib-accordion/div')))  # role = 'tablist'
@@ -144,6 +143,11 @@ class Agile_Scraper(Base_Scraper):
 
         for tab_index, tab in enumerate(tab_list):
             tab_name = tab.find_element(By.XPATH, './div/h4/a/span').text.strip()
+            # check if the panel is opened, otherwise, data in this panel is not accessible.
+            if 'panel-open' not in tab.get_attribute('class'):
+                #tab.click()
+                tab.find_element(By.XPATH, './div/h4/a').click()
+                time.sleep(3)
             # --- --- --- Summary (data) --- --- ---
             if 'summary' in tab_name.lower():
                 # summaryTab = tab.div[2]/div/summaryc/div
@@ -170,6 +174,10 @@ class Agile_Scraper(Base_Scraper):
                 item_list = driver.find_elements(By.XPATH, '//*[@id="datesTab"]/form/div')
                 print(f'\n{tab_index + 1}. {tab_name} Tab: {len(item_list)} items.')
                 item_list = [item.find_element(By.XPATH, './div/*/div/div') for item in item_list]
+                # //*[@id="datesTab"]/form/div[1]/div/sas-input-text/div/div
+                # //*[@id="registrationDateDateLabel"]
+                print('id:', item_list[0].find_element(By.XPATH, './label').get_attribute('id'))
+                print('item name: ', item_list[0].find_element(By.XPATH, './label').text.strip())
                 app_df = self.scrape_data_items_from_AngularJS(app_df, item_list)
             else:
                 print(f'\n{tab_index+1}. Unknown Tab: {tab_name}.')

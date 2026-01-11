@@ -134,12 +134,10 @@ class CCED_Scraper(Base_Scraper):
         driver = response.request.meta["driver"]
         scraper_name = app_df.at['scraper_name']
         try:
-            if 'Disclaimer' in WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="aspnetForm"]/div[3]/h2[1]'))).text:
-            #if 'Disclaimer' in response.xpath('//*[@id="aspnetForm"]/div[3]/h2[1]/text()').get():
-                print('Click: Accept.')
-                driver.find_element(By.XPATH, '//*[@id="ctl00_ContentPlaceHolder1_btnAccept"]').click()
+            WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="ctl00_ContentPlaceHolder1_btnAccept"]'))).click()
+            print('Click: Accept.')
         except TypeError:
-            pass
+            print('No Cookie button.')
         print(f"parse_data_item_Christchurch scraper name: {scraper_name}")
 
         folder_name = self.setup_storage_path(app_df)
@@ -155,13 +153,10 @@ class CCED_Scraper(Base_Scraper):
         folder_name = self.setup_storage_path(app_df)
         max_file_name_len = self.max_folder_file_name_len - len(folder_name) - 5  # 5 chars for suffix/extension, such as .pdf
         try:
-            disclaimer_index = 2 if scraper_name == 'DorsetCouncil' else 1
-            if 'Disclaimer' in WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, f'//*[@id="aspnetForm"]/div[3]/h2[{disclaimer_index}]'))).text:
-            #if 'Disclaimer' in response.xpath(f'//*[@id="aspnetForm"]/div[3]/h2[{disclaimer_index}]/text()').get():
-                print('Click: Accept.')
-                driver.find_element(By.XPATH, '//*[@id="ctl00_ContentPlaceHolder1_btnAccept"]').click()
+            WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="ctl00_ContentPlaceHolder1_btnAccept"]'))).click()
+            print('Click: Accept.')
         except TypeError:
-            pass
+            print('No Cookie button.')
 
         print(f'parse_data_item_DorsetCouncil, scraper name: {scraper_name}, max_file_name_len: {max_file_name_len}.')
 
