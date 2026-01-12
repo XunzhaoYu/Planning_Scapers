@@ -1,4 +1,4 @@
-import os, time, random
+import os, time, random, re
 import pandas as pd
 
 from scrapy_selenium import SeleniumRequest
@@ -10,7 +10,7 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
 from configs.settings import PRINT
 from general.base_scraper import Base_Scraper
-from general.document_utils import replace_invalid_characters, get_documents
+from general.document_utils import replace_invalid_characters, get_documents, get_NEC_or_Northgate_documents
 from general.items import DownloadFilesItem
 from general.utils import unique_columns, scrape_data_items, scrape_for_csv, scrape_multi_tables_for_csv  # test for further re-organization.
 
@@ -139,15 +139,12 @@ class Agile_Scraper(Base_Scraper):
             return
 
         tab_list = tab_panel.find_elements(By.XPATH, './div')
-        n_tabs = len(tab_list)
-
         for tab_index, tab in enumerate(tab_list):
             tab_name = tab.find_element(By.XPATH, './div/h4/a/span').text.strip()
             # check if the panel is opened, otherwise, data in this panel is not accessible.
             if 'panel-open' not in tab.get_attribute('class'):
-                #tab.click()
                 tab.find_element(By.XPATH, './div/h4/a').click()
-                time.sleep(3)
+                time.sleep(1)
             # --- --- --- Summary (data) --- --- ---
             if 'summary' in tab_name.lower():
                 # summaryTab = tab.div[2]/div/summaryc/div
@@ -155,13 +152,59 @@ class Agile_Scraper(Base_Scraper):
                 print(f'\n{tab_index + 1}. {tab_name} Tab: {len(item_list)} items.')
                 item_list = [item.find_element(By.XPATH, './div/*/div/div') for item in item_list]
                 app_df = self.scrape_data_items_from_AngularJS(app_df, item_list)
-
             # --- --- --- Constraints/Policies (csv) --- --- ---
             elif 'constraint' in tab_name.lower():
-                pass
+                constraint_table = driver.find_element(By.XPATH, '//*[@id="constraintsSection"]/section[2]/sas-table/div[2]/table/tbody')
+                constraint_items = constraint_table.find_elements(By.XPATH, './tr')[1:]
+                print(f'\n{tab_index + 1}. {tab_name} Tab: {len(constraint_items)} items.')
+
+                table_items = constraint_items
+                column_name = 'Description'
+                path = 'td/span'
+                csv_name = 'constraints'
+                #get_attribute('textContent') or get_attribute('innerText')
+                content_dict = {column_name: [table_item.find_element(By.XPATH, f'./{path}').get_attribute('innerText').strip() for table_item in table_items]}
+                content_df = pd.DataFrame(content_dict)
+                content_df.to_csv(f"{self.data_storage_path}{folder_name}/{csv_name}.csv", index=False)
             # --- --- --- Documents (doc) --- --- ---
             elif 'document' in tab_name.lower():
-                pass
+                # open doc url
+                panel_tab = driver.current_window_handle
+                driver.find_element(By.XPATH, '//*[@id="documentsTab"]/div/a').click()
+                time.sleep(1)
+                all_tabs = driver.window_handles
+                doc_tab = [x for x in all_tabs if x != panel_tab][0]
+                driver.switch_to.window(doc_tab)  # move to doc tab.
+
+                version = 2024
+                # //*[@id="searchResult_info"]
+                try:
+                    documents_str = driver.find_element(By.XPATH, '//*[@id="searchResult_info"]').text.strip()  # documents_str = 'Showing 1 to 10 of {n_documents} entries'
+                    documents_str = documents_str.split('of')[1]  # documents_str = '{n_documents} entries'
+                    n_documents = int(re.search(r"\d+", documents_str).group())
+                except AttributeError:
+                    try:
+                        # //*[@id="PanelMain"]/div[1]
+                        documents_str = response.css('div.TitleLabel').xpath('./text()').get()  # documents_str = 'Search Results - {n_documents} records found'
+                        n_documents = int(re.search(r"\d+", documents_str).group())
+                        version = 2009
+                    except TypeError:
+                        print('No documents are available.') if PRINT else None
+                        n_documents = 0
+
+                print(f"{app_df.name} <NEC mode (ver.{version})> n_documents: {n_documents}, folder_name: {folder_name}")
+                app_df.at['other_fields.n_documents'] = n_documents
+
+                ### download documents ###
+                if n_documents > 0:
+                    file_urls, document_names = get_NEC_or_Northgate_documents(driver, n_documents, self.data_upload_path, folder_name, version)
+                    item = self.create_item(driver, folder_name, file_urls, document_names)
+                    yield item
+
+                # close doc tab, back to panel tab:
+                driver.close()  # close doc tab.
+                driver.switch_to.window(panel_tab)
+
             # --- --- --- Conditions (data) --- --- ---
             elif 'condition' in tab_name.lower():
                 item_list = driver.find_elements(By.XPATH, '//*[@id="conditionsTab"]/div/form/div')
@@ -172,12 +215,9 @@ class Agile_Scraper(Base_Scraper):
             # --- --- --- Dates (data) --- --- ---
             elif 'date' in tab_name.lower():
                 item_list = driver.find_elements(By.XPATH, '//*[@id="datesTab"]/form/div')
+                # //*[@id="datesTab"]/form/div[1]/div/sas-input-text/div/div
                 print(f'\n{tab_index + 1}. {tab_name} Tab: {len(item_list)} items.')
                 item_list = [item.find_element(By.XPATH, './div/*/div/div') for item in item_list]
-                # //*[@id="datesTab"]/form/div[1]/div/sas-input-text/div/div
-                # //*[@id="registrationDateDateLabel"]
-                print('id:', item_list[0].find_element(By.XPATH, './label').get_attribute('id'))
-                print('item name: ', item_list[0].find_element(By.XPATH, './label').text.strip())
                 app_df = self.scrape_data_items_from_AngularJS(app_df, item_list)
             else:
                 print(f'\n{tab_index+1}. Unknown Tab: {tab_name}.')
