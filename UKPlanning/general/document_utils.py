@@ -294,6 +294,7 @@ def get_NEC_or_Northgate_documents(driver, n_documents, folder_path, folder_name
         document_dates = re.findall(date_pattern, javascript)
         document_dates = [f"{document_date[20:22]} {document_date[17:19]} {document_date[23:27]}" for document_date in document_dates]
 
+
         # Type
         type_pattern = '"Doc_Type":"[^"]*"'
         document_types = re.findall(type_pattern, javascript)
