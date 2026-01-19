@@ -272,7 +272,7 @@ def get_NEC_or_Northgate_documents_Idox(response, n_documents, folder_path, fold
 # Updated on 12/01/2026. for Agile scrapers
 # Previous (Idox) version used regular expression (RE) to match the string of javascript.
 # This version manage to use a new method to get the Python dictionary of model info: model_data = driver.execute_script("return model;")
-def get_NEC_or_Northgate_documents(driver, n_documents, folder_path, folder_name, version=2024):
+def get_NEC_or_Northgate_documents(driver, n_documents, folder_path, folder_name, max_file_name_len, version=2024):
     file_urls = []
     document_names = []
     if version == 2024:  # Scrape from Javascript code. All docs in one page.
@@ -301,6 +301,10 @@ def get_NEC_or_Northgate_documents(driver, n_documents, folder_path, folder_name
             print(f"    file url: {file_url}") if PRINT else None
 
             document_name = f"date={document_dates[doc_index]}&type={document_types[doc_index]}&desc={document_descriptions[doc_index]}&uid={doc_index+1}.pdf"
+            len_limitation = len(document_name) - max_file_name_len
+            print(f'    Doc {n_documents} len_limitation: {len_limitation}') if len_limitation > -5 else None
+            if len_limitation > 0:
+                document_name = f"date={document_dates[doc_index]}&type={document_types[doc_index]}&desc={document_descriptions[doc_index][:-len_limitation]}&uid={doc_index+1}.pdf"
             #document_name = f"date={document_dates[doc_index]}&type={document_types[doc_index]}({document_filetypes[doc_index].lower()})&desc={document_descriptions[doc_index]}"
 
             # Check the format of document names.

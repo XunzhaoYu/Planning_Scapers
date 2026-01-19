@@ -45,7 +45,7 @@ class Agile_Scraper(Base_Scraper):
         self.parse_func = self.parse_data_item_Agile
 
     details_dict ={'Application reference number': 'uid',
-                   'LA reference': '--- --- --- ---', # Flintshire
+                   'LA reference': 'other_fields.LA_reference', # Flintshire
                    'Application type': 'other_fields.application_type',
                    'Proposal description': 'description',
                    'Location': 'address',
@@ -93,7 +93,7 @@ class Agile_Scraper(Base_Scraper):
             try:
                 item_value = item.find_element(By.XPATH, './input | ./textarea').get_attribute('value').strip()
             except NoSuchElementException:
-                item_value = item.find_element(By.XPATH, './span').text.strip()
+                item_value = item.find_element(By.XPATH, './span | ./a').text.strip()
 
             try:
                 app_df.at[data_name] = item_value
@@ -127,7 +127,7 @@ class Agile_Scraper(Base_Scraper):
         try:
             WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="header"]/sas-cookie-consent/section/section/div[1]/button[1]'))).click()
             print('Click: Accept.')
-        except TypeError:
+        except TimeoutException:
             print('No Cookie button.')
 
         try:
@@ -192,12 +192,13 @@ class Agile_Scraper(Base_Scraper):
                         print('No documents are available.') if PRINT else None
                         n_documents = 0
 
-                print(f"{app_df.name} <NEC mode (ver.{version})> n_documents: {n_documents}, folder_name: {folder_name}")
+                print(f'\n{tab_index+1}. Documents Tab <NEC mode (ver.{version})>: {n_documents} items, folder_name: {folder_name}')
+                #print(f"{app_df.name} <NEC mode (ver.{version})> n_documents: {n_documents}, folder_name: {folder_name}")
                 app_df.at['other_fields.n_documents'] = n_documents
 
                 ### download documents ###
                 if n_documents > 0:
-                    file_urls, document_names = get_NEC_or_Northgate_documents(driver, n_documents, self.data_upload_path, folder_name, version)
+                    file_urls, document_names = get_NEC_or_Northgate_documents(driver, n_documents, self.data_upload_path, folder_name, max_file_name_len, version)
                     item = self.create_item(driver, folder_name, file_urls, document_names)
                     yield item
 
@@ -205,7 +206,7 @@ class Agile_Scraper(Base_Scraper):
                 driver.close()  # close doc tab.
                 driver.switch_to.window(panel_tab)
 
-            # --- --- --- Conditions (data) --- --- ---
+            # --- --- --- Conditions (data + csv) --- --- ---
             elif 'condition' in tab_name.lower():
                 item_list = driver.find_elements(By.XPATH, '//*[@id="conditionsTab"]/div/form/div')
                 # //*[@id="conditionsTab"]/div/form/div[1]/sas-input-text/div/div
