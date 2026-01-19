@@ -155,7 +155,7 @@ class CCED_Scraper(Base_Scraper):
         try:
             WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="ctl00_ContentPlaceHolder1_btnAccept"]'))).click()
             print('Click: Accept.')
-        except TypeError:
+        except TimeoutException:
             print('No Cookie button.')
 
         print(f'parse_data_item_DorsetCouncil, scraper name: {scraper_name}, max_file_name_len: {max_file_name_len}.')
