@@ -160,7 +160,7 @@ class Agile_Scraper(Base_Scraper):
 
                 table_items = constraint_items
                 column_name = 'Description'
-                path = 'td/span'
+                path = 'td/span' # //*[@id="constraintsSection"]/section[2]/sas-table/div[1]/table/tbody/tr[1]/td/a/strong
                 csv_name = 'constraints'
                 #get_attribute('textContent') or get_attribute('innerText')
                 content_dict = {column_name: [table_item.find_element(By.XPATH, f'./{path}').get_attribute('innerText').strip() for table_item in table_items]}
