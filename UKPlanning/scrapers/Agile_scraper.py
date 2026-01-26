@@ -154,11 +154,13 @@ class Agile_Scraper(Base_Scraper):
                 app_df = self.scrape_data_items_from_AngularJS(app_df, item_list)
             # --- --- --- Constraints/Policies (csv) --- --- ---
             elif 'constraint' in tab_name.lower():
-                constraint_table = driver.find_element(By.XPATH, '//*[@id="constraintsSection"]/section[2]/sas-table/div[2]/table/tbody')
-                constraint_items = constraint_table.find_elements(By.XPATH, './tr')[1:]
-                print(f'\n{tab_index + 1}. {tab_name} Tab: {len(constraint_items)} items.')
+                item_table = driver.find_element(By.XPATH, '//*[@id="constraintsSection"]/section[2]/sas-table/div[2]/table/tbody')
+                items = item_table.find_elements(By.XPATH, './tr')  #[1:]
+                print(f'\n{tab_index + 1}. {tab_name} Tab: {len(items)} items.')
 
-                table_items = constraint_items
+                csv_name =
+                """
+                table_items = items
                 column_name = 'Description'
                 path = 'td/span' # //*[@id="constraintsSection"]/section[2]/sas-table/div[1]/table/tbody/tr[1]/td/a/strong
                 csv_name = 'constraints'
@@ -166,6 +168,7 @@ class Agile_Scraper(Base_Scraper):
                 content_dict = {column_name: [table_item.find_element(By.XPATH, f'./{path}').get_attribute('innerText').strip() for table_item in table_items]}
                 content_df = pd.DataFrame(content_dict)
                 content_df.to_csv(f"{self.data_storage_path}{folder_name}/{csv_name}.csv", index=False)
+                """
             # --- --- --- Documents (doc) --- --- ---
             elif 'document' in tab_name.lower():
                 # open doc url
