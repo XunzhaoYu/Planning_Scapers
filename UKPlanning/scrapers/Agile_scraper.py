@@ -158,7 +158,7 @@ class Agile_Scraper(Base_Scraper):
                 items = item_table.find_elements(By.XPATH, './tr')  #[1:]
                 print(f'\n{tab_index + 1}. {tab_name} Tab: {len(items)} items.')
 
-                csv_name =
+                csv_name = items[0].find_element(By.XPATH, './td/a/strong').text.strip().lower()
                 """
                 table_items = items
                 column_name = 'Description'
