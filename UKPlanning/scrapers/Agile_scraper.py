@@ -158,7 +158,23 @@ class Agile_Scraper(Base_Scraper):
                 items = item_table.find_elements(By.XPATH, './tr')  #[1:]
                 print(f'\n{tab_index + 1}. {tab_name} Tab: {len(items)} items.')
 
+                column_name = 'Description'
+                path = 'td/span'
+
                 csv_name = items[0].find_element(By.XPATH, './td/a/strong').text.strip().lower()
+                table_content = []
+                for item in items[1:]:
+                    try:
+                        table_content.append(item.find_element(By.XPATH, f'./{path}').get_attribute('innerText').strip())
+                    except NoSuchElementException:
+                        # save the current csv file:
+                        content_dict = {column_name: table_content}
+                        content_df = pd.DataFrame(content_dict)
+                        content_df.to_csv(f"{self.data_storage_path}{folder_name}/{csv_name}.csv", index=False)
+                        # initialize for the next csv file:
+                        csv_name = items.find_element(By.XPATH, './td/a/strong').text.strip().lower()
+                        table_content = []
+
                 """
                 table_items = items
                 column_name = 'Description'
