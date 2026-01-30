@@ -161,7 +161,7 @@ class Agile_Scraper(Base_Scraper):
                 column_name = 'Description'
                 path = 'td/span'
 
-                csv_name = items[0].find_element(By.XPATH, './td/a/strong').text.strip().lower()
+                csv_name = items[0].find_element(By.XPATH, './td/a/strong').get_attribute('innerText').strip().lower()
                 table_content = []
                 for item in items[1:]:
                     try:
@@ -172,9 +172,12 @@ class Agile_Scraper(Base_Scraper):
                         content_df = pd.DataFrame(content_dict)
                         content_df.to_csv(f"{self.data_storage_path}{folder_name}/{csv_name}.csv", index=False)
                         # initialize for the next csv file:
-                        csv_name = items.find_element(By.XPATH, './td/a/strong').text.strip().lower()
+                        csv_name = item.find_element(By.XPATH, './td/a/strong').get_attribute('innerText').strip().lower()
                         table_content = []
-
+                # save the final csv file:
+                content_dict = {column_name: table_content}
+                content_df = pd.DataFrame(content_dict)
+                content_df.to_csv(f"{self.data_storage_path}{folder_name}/{csv_name}.csv", index=False)
                 """
                 table_items = items
                 column_name = 'Description'
