@@ -154,40 +154,38 @@ class Agile_Scraper(Base_Scraper):
                 app_df = self.scrape_data_items_from_AngularJS(app_df, item_list)
             # --- --- --- Constraints/Policies (csv) --- --- ---
             elif 'constraint' in tab_name.lower():
+                # n_constraints = re.findall(r'\(\s*(\d+)\s*\)', tab_name)[0]
                 item_table = driver.find_element(By.XPATH, '//*[@id="constraintsSection"]/section[2]/sas-table/div[2]/table/tbody')
                 items = item_table.find_elements(By.XPATH, './tr')  #[1:]
                 print(f'\n{tab_index + 1}. {tab_name} Tab: {len(items)} items.')
+                if len(items) == 0:
+                    app_df.at['other_fields.n_constraints'] = 0
+                else:
+                    column_name = 'Description'
+                    path = 'td/span'
 
-                column_name = 'Description'
-                path = 'td/span'
-
-                csv_name = items[0].find_element(By.XPATH, './td/a/strong').get_attribute('innerText').strip().lower()
-                table_content = []
-                for item in items[1:]:
-                    try:
-                        table_content.append(item.find_element(By.XPATH, f'./{path}').get_attribute('innerText').strip())
-                    except NoSuchElementException:
-                        # save the current csv file:
-                        content_dict = {column_name: table_content}
-                        content_df = pd.DataFrame(content_dict)
-                        content_df.to_csv(f"{self.data_storage_path}{folder_name}/{csv_name}.csv", index=False)
-                        # initialize for the next csv file:
-                        csv_name = item.find_element(By.XPATH, './td/a/strong').get_attribute('innerText').strip().lower()
-                        table_content = []
-                # save the final csv file:
-                content_dict = {column_name: table_content}
-                content_df = pd.DataFrame(content_dict)
-                content_df.to_csv(f"{self.data_storage_path}{folder_name}/{csv_name}.csv", index=False)
-                """
-                table_items = items
-                column_name = 'Description'
-                path = 'td/span' # //*[@id="constraintsSection"]/section[2]/sas-table/div[1]/table/tbody/tr[1]/td/a/strong
-                csv_name = 'constraints'
-                #get_attribute('textContent') or get_attribute('innerText')
-                content_dict = {column_name: [table_item.find_element(By.XPATH, f'./{path}').get_attribute('innerText').strip() for table_item in table_items]}
-                content_df = pd.DataFrame(content_dict)
-                content_df.to_csv(f"{self.data_storage_path}{folder_name}/{csv_name}.csv", index=False)
-                """
+                    csv_name = items[0].find_element(By.XPATH, './td/a/strong').get_attribute('innerText').strip().lower()
+                    table_content = []
+                    for item in items[1:]:
+                        try:
+                            table_content.append(item.find_element(By.XPATH, f'./{path}').get_attribute('innerText').strip())
+                        except NoSuchElementException:
+                            # save the current csv file:
+                            content_dict = {column_name: table_content}
+                            content_df = pd.DataFrame(content_dict)
+                            content_df.to_csv(f"{self.data_storage_path}{folder_name}/{csv_name}.csv", index=False)
+                            n_content = len(table_content)
+                            if csv_name == 'constraints':
+                                app_df.at['other_fields.n_constraints'] = n_content
+                            print(f'    {csv_name}: {n_content} items.')
+                            # initialize for the next csv file:
+                            csv_name = item.find_element(By.XPATH, './td/a/strong').get_attribute('innerText').strip().lower()
+                            table_content = []
+                    # save the final csv file:
+                    content_dict = {column_name: table_content}
+                    content_df = pd.DataFrame(content_dict)
+                    content_df.to_csv(f"{self.data_storage_path}{folder_name}/{csv_name}.csv", index=False)
+                    print(f'    {csv_name}: {len(table_content)} items.')
             # --- --- --- Documents (doc) --- --- ---
             elif 'document' in tab_name.lower():
                 # open doc url
@@ -230,11 +228,29 @@ class Agile_Scraper(Base_Scraper):
 
             # --- --- --- Conditions (data + csv) --- --- ---
             elif 'condition' in tab_name.lower():
+                n_conditions = re.findall(r'\(\s*(\d+)\s*\)', tab_name)[0]
                 item_list = driver.find_elements(By.XPATH, '//*[@id="conditionsTab"]/div/form/div')
                 # //*[@id="conditionsTab"]/div/form/div[1]/sas-input-text/div/div
-                print(f'\n{tab_index + 1}. {tab_name} Tab: {len(item_list)} items.')
+                print(f'\n{tab_index + 1}. {tab_name} Tab: {len(item_list)} items + {n_conditions} conditions.')
                 item_list = [item.find_element(By.XPATH, './*/div/div') for item in item_list]
                 app_df = self.scrape_data_items_from_AngularJS(app_df, item_list)
+
+                if n_conditions != '0':
+                    csv_name = 'conditions'
+                    content_dict = {}
+                    item_table = driver.find_element(By.XPATH, '//*[@id="conditionsTab"]/section[2]/sas-table/div[1]/table/tbody')
+                    items = item_table.find_elements(By.XPATH, './tr')
+
+                    column_names = [column.get_attribute('data-title').strip() for column in items[0].find_elements(By.XPATH, './td')]
+                    column_names = unique_columns(column_names)
+                    n_columns = len(column_names)
+
+                    for column_index in range(n_columns):
+                        content_dict[column_names[column_index]] = [table_item.find_element(By.XPATH, f'./td[{column_index+1}]/span').get_attribute('innerText').strip() for table_item in items]
+
+                    content_df = pd.DataFrame(content_dict)
+                    content_df.to_csv(f'{self.data_storage_path}{folder_name}/{csv_name}.csv', index=False)
+                    # //*[@id="conditionsTab"]/section[2]/sas-table/div[1]/table/tbody/tr/td[1]/span
             # --- --- --- Dates (data) --- --- ---
             elif 'date' in tab_name.lower():
                 item_list = driver.find_elements(By.XPATH, '//*[@id="datesTab"]/form/div')
