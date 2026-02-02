@@ -18,21 +18,21 @@ from general.utils import unique_columns, scrape_data_items, scrape_for_csv, scr
 class Agile_Scraper(Base_Scraper):
     name = 'Agile_Scraper'
     """
-    1.auth_id = 61, CannockChase: https://planning.agileapplications.co.uk/cannock/application-details/7007
-    2.auth_id = 139(137), Exmoor: https://planning.agileapplications.co.uk/exmoor/application-details/2552
-    3.auth_id = 145(143), Flintshire: https://planning.agileapplications.co.uk/flintshire/application-details/28244
-    4.auth_id = 202(200), LakeDistrict: https://planning.agileapplications.co.uk/ldnpa/application-details/27229
-    5.auth_id = 229(227), Middlesbrough: https://planning.agileapplications.co.uk/middlesbrough/application-details/1781
-    6.auth_id = 236(234), MoleValley: x
-    7.auth_id = 244(242), NewForestPark: https://planning.agileapplications.co.uk/nfnpa/application-details/44335
-    8.auth_id = 275(272), OldOakParkRoyal: https://planning.agileapplications.co.uk/opdc/application-details/8807
+    1.-auth_id = 61, CannockChase: https://planning.agileapplications.co.uk/cannock/application-details/7007
+    2.-auth_id = 139(137), Exmoor: https://planning.agileapplications.co.uk/exmoor/application-details/2552
+    3.-auth_id = 145(143), Flintshire: https://planning.agileapplications.co.uk/flintshire/application-details/28244
+    4.-auth_id = 202(200), LakeDistrict: https://planning.agileapplications.co.uk/ldnpa/application-details/27229
+    5.-auth_id = 229(227), Middlesbrough: https://planning.agileapplications.co.uk/middlesbrough/application-details/1781
+    6.-auth_id = 236(234), MoleValley: x
+    7.-auth_id = 244(242), NewForestPark: https://planning.agileapplications.co.uk/nfnpa/application-details/44335
+    8.-auth_id = 275(272), OldOakParkRoyal: https://planning.agileapplications.co.uk/opdc/application-details/8807
     9.auth_id = 281(278), Pembrokeshire: https://planning.agileapplications.co.uk/pembrokeshire/application-details/24026
-    10.auth_id = 291(288), Redbridge: https://planning.agileapplications.co.uk/redbridge/application-details/110591
-    11.auth_id = 304(301), Rugby: https://planning.agileapplications.co.uk/rugby/application-details/2777
-    12.auth_id = 322(319), Slough: https://planning.agileapplications.co.uk/slough/application-details/11430
-    13.auth_id = 346(343), Staffordshire: https://planning.agileapplications.co.uk/staffordshire/application-details/25518
-    14.auth_id = 377(373), Tonbridge: https://planning.agileapplications.co.uk/tmbc/application-details/153514
-    15.auth_id = 427(423), YorkshireDales: https://planning.agileapplications.co.uk/yorkshiredale/application-details/488
+    10.-auth_id = 291(288), Redbridge: https://planning.agileapplications.co.uk/redbridge/application-details/110591
+    11.-auth_id = 304(301), Rugby: https://planning.agileapplications.co.uk/rugby/application-details/2777
+    12.-auth_id = 322(319), Slough: https://planning.agileapplications.co.uk/slough/application-details/11430
+    13.-auth_id = 346(343), Staffordshire: https://planning.agileapplications.co.uk/staffordshire/application-details/25518
+    14.-auth_id = 377(373), Tonbridge: https://planning.agileapplications.co.uk/tmbc/application-details/153514
+    15.-auth_id = 427(423), YorkshireDales: https://planning.agileapplications.co.uk/yorkshiredale/application-details/488
     """
 
     # use pipelines_extension to obtain file extensions.
@@ -143,6 +143,7 @@ class Agile_Scraper(Base_Scraper):
             tab_name = tab.find_element(By.XPATH, './div/h4/a/span').text.strip()
             # check if the panel is opened, otherwise, data in this panel is not accessible.
             if 'panel-open' not in tab.get_attribute('class'):
+                print(f'<panel-open> not in tab: {tab_name}')
                 tab.find_element(By.XPATH, './div/h4/a').click()
                 time.sleep(1)
             # --- --- --- Summary (data) --- --- ---
