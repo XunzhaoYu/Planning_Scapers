@@ -56,7 +56,8 @@ class Agile_Scraper(Base_Scraper):
                    'Status': 'other_fields.status',
                    'Status description': 'other_fields.status_description', #
 
-                   'Validated date': 'other_fields.date_validated',
+                   'Registration date': 'other_fields.date_validated', # CannockChase
+                   'Validated date': 'other_fields.date_validated', # Pembrokeshire
                    'Extension of time date': 'other_fields.extension_of_time_date', # Pembrokeshire
                    'Decision level': 'other_fields.expected_decision_level',
                    'Decision': 'other_fields.decision',
@@ -69,7 +70,7 @@ class Agile_Scraper(Base_Scraper):
                    'Appeal decision date': 'other_fields.appeal_decision_date',
 
                    'Agent name/Company name': 'other_fields.agent_name', # Pembrokeshire
-                   'Agent name (company)': 'other_fields.agent_name',  # NewForestPark
+                   'Agent name (company)': 'other_fields.agent_name',  # CannockChase, NewForestPark
                    'Officer name': 'other_fields.case_officer',
                    'Applicant surname/Company name': 'other_fields.applicant_name',
 
@@ -78,12 +79,13 @@ class Agile_Scraper(Base_Scraper):
                    #'Decision date': 'other_fields.decision_issued_date',
 
                    # dates:
-                   #'Validated date': 'other_fields.date_validated',
-                   #'Decision date': 'other_fields.decision_issued_date',
-                   'Consultation expiry date': 'other_fields.consultation_end_date',
-                   'Press notice end date': 'other_fields.press_notice_end_date',
-                   #'Appeal lodged date': 'other_fields.appeal_lodged_date',
-                   #'Appeal decision date': 'other_fields.appeal_decision_date',
+                   #'Registration date': 'other_fields.date_validated',  # duplicated: CannockChase.
+                   #'Validated date': 'other_fields.date_validated', # duplicated: Pembrokeshire
+                   #'Decision date': 'other_fields.decision_issued_date', # duplicated: Pembrokeshire
+                   'Consultation expiry date': 'other_fields.consultation_end_date', # Pembrokeshire
+                   'Press notice end date': 'other_fields.press_notice_end_date', # Pembrokeshire
+                   #'Appeal lodged date': 'other_fields.appeal_lodged_date', # duplicated: Pembrokeshire
+                   #'Appeal decision date': 'other_fields.appeal_decision_date', # duplicated: Pembrokeshire
                    }
 
     def scrape_data_items_from_AngularJS(self, app_df, item_list):
