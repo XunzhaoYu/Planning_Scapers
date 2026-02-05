@@ -81,29 +81,38 @@ class Agile_Scraper(Base_Scraper):
                    # dates:
                    #'Registration date': 'other_fields.date_validated',  # duplicated: CannockChase.
                    #'Validated date': 'other_fields.date_validated', # duplicated: Pembrokeshire
-                   #'Decision date': 'other_fields.decision_issued_date', # duplicated: Pembrokeshire
-                   'Consultation expiry date': 'other_fields.consultation_end_date', # Pembrokeshire
+                   #'Decision date': 'other_fields.decision_issued_date', # duplicated: CannockChase, Pembrokeshire
+                   'Consultation expiry': 'other_fields.consultation_end_date', # CannockChase.
+                   'Consultation expiry date': 'other_fields.consultation_end_date', #  CannockChase*, Pembrokeshire
+                   'Received date': 'other_fields.date_received', # CannockChase.
+                   'Site notice date': 'other_fields.site_notice_start_date', #  CannockChase
+                   'Newspapers': 'other_fields.newspapers', #  CannockChase
+                   'Press notice start date': 'other_fields.press_notice_start_date', # CannockChase
                    'Press notice end date': 'other_fields.press_notice_end_date', # Pembrokeshire
-                   #'Appeal lodged date': 'other_fields.appeal_lodged_date', # duplicated: Pembrokeshire
-                   #'Appeal decision date': 'other_fields.appeal_decision_date', # duplicated: Pembrokeshire
+                   #'Appeal lodged date': 'other_fields.appeal_lodged_date', # duplicated: CannockChas, Pembrokeshire
+                   #'Appeal decision date': 'other_fields.appeal_decision_date', # duplicated: CannockChas, Pembrokeshire
                    }
 
     def scrape_data_items_from_AngularJS(self, app_df, item_list):
+        contact_value = None
         for item in item_list:
             item_name = item.find_element(By.XPATH, './label').text.strip()
-            data_name = self.details_dict[item_name]
-            try:
-                item_value = item.find_element(By.XPATH, './input | ./textarea').get_attribute('value').strip()
-            except NoSuchElementException:
-                item_value = item.find_element(By.XPATH, './span | ./a').text.strip()
+            if item_name in ['Officer telephone']:
+                contact_value = item.find_element(By.XPATH, './input').get_attribute('value').strip()
+            else:
+                data_name = self.details_dict[item_name]
+                try:
+                    item_value = item.find_element(By.XPATH, './input | ./textarea').get_attribute('value').strip()
+                except NoSuchElementException:
+                    item_value = item.find_element(By.XPATH, './span | ./a').text.strip()
 
-            try:
-                app_df.at[data_name] = item_value
-                print(f'    <{item_name}> scraped: {app_df.at[data_name]}') if PRINT else None
-            except KeyError:
-                app_df[data_name] = item_value
-                print(f'    <{item_name}> scraped (new): {app_df.at[data_name]}') if PRINT else None
-        return app_df
+                try:
+                    app_df.at[data_name] = item_value
+                    print(f'    <{item_name}> scraped: {app_df.at[data_name]}') if PRINT else None
+                except KeyError:
+                    app_df[data_name] = item_value
+                    print(f'    <{item_name}> scraped (new): {app_df.at[data_name]}') if PRINT else None
+        return app_df, contact_value
 
     def create_item(self, driver, folder_name, file_urls, document_names):
         if not os.path.exists(self.failed_downloads_path + folder_name):
@@ -154,7 +163,13 @@ class Agile_Scraper(Base_Scraper):
                 item_list = driver.find_elements(By.XPATH, '//*[@id="summaryTab"]/form/div')
                 print(f'\n{tab_index + 1}. {tab_name} Tab: {len(item_list)} items.')
                 item_list = [item.find_element(By.XPATH, './div/*/div/div') for item in item_list]
-                app_df = self.scrape_data_items_from_AngularJS(app_df, item_list)
+                app_df, contact_value = self.scrape_data_items_from_AngularJS(app_df, item_list)
+
+                if contact_value:
+                    contact_dict = {'officer': [app_df.at['other_fields.case_officer']],
+                                    'telephone': [contact_value]}
+                    contact_df = pd.DataFrame(contact_dict)
+                    contact_df.to_csv(f"{self.data_storage_path}{folder_name}/contacts.csv", index=False)
             # --- --- --- Constraints/Policies (csv) --- --- ---
             elif 'constraint' in tab_name.lower():
                 # n_constraints = re.findall(r'\(\s*(\d+)\s*\)', tab_name)[0]
@@ -236,7 +251,7 @@ class Agile_Scraper(Base_Scraper):
                 # //*[@id="conditionsTab"]/div/form/div[1]/sas-input-text/div/div
                 print(f'\n{tab_index + 1}. {tab_name} Tab: {len(item_list)} items + {n_conditions} conditions.')
                 item_list = [item.find_element(By.XPATH, './*/div/div') for item in item_list]
-                app_df = self.scrape_data_items_from_AngularJS(app_df, item_list)
+                app_df, _ = self.scrape_data_items_from_AngularJS(app_df, item_list)
 
                 if n_conditions != '0':
                     csv_name = 'conditions'
@@ -260,7 +275,7 @@ class Agile_Scraper(Base_Scraper):
                 # //*[@id="datesTab"]/form/div[1]/div/sas-input-text/div/div
                 print(f'\n{tab_index + 1}. {tab_name} Tab: {len(item_list)} items.')
                 item_list = [item.find_element(By.XPATH, './div/*/div/div') for item in item_list]
-                app_df = self.scrape_data_items_from_AngularJS(app_df, item_list)
+                app_df, _ = self.scrape_data_items_from_AngularJS(app_df, item_list)
             else:
                 print(f'\n{tab_index+1}. Unknown Tab: {tab_name}.')
                 assert 1 == 0
