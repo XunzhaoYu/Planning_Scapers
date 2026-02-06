@@ -57,6 +57,7 @@ class Agile_Scraper(Base_Scraper):
                    'Status description': 'other_fields.status_description', #
 
                    'Registration date': 'other_fields.date_validated', # CannockChase
+                   'Registered date': 'other_fields.date_validated',  # CannockChase
                    'Validated date': 'other_fields.date_validated', # Pembrokeshire
                    'Extension of time date': 'other_fields.extension_of_time_date', # Pembrokeshire
                    'Decision level': 'other_fields.expected_decision_level',
@@ -156,8 +157,8 @@ class Agile_Scraper(Base_Scraper):
             if 'panel-open' not in tab.get_attribute('class'):
                 print(f'<panel-open> not in tab: {tab_name}')
                 tab.find_element(By.XPATH, './div/h4/a').click()
-                time.sleep(1)
-            # --- --- --- Summary (data) --- --- ---
+                time.sleep(2)
+            # --- --- --- Summary (data + optional: csv) --- --- ---
             if 'summary' in tab_name.lower():
                 # summaryTab = tab.div[2]/div/summaryc/div
                 item_list = driver.find_elements(By.XPATH, '//*[@id="summaryTab"]/form/div')
@@ -170,6 +171,16 @@ class Agile_Scraper(Base_Scraper):
                                     'telephone': [contact_value]}
                     contact_df = pd.DataFrame(contact_dict)
                     contact_df.to_csv(f"{self.data_storage_path}{folder_name}/contacts.csv", index=False)
+            # --- --- --- Consultations (csv) --- --- ---
+            elif 'consultation' in tab_name.lower():
+                print(f'\n{tab_index + 1}. {tab_name} Tab.')
+                #print(f'\n{tab_index + 1}. {tab_name} Tab: {len(item_list)} items.')
+
+            # --- --- --- Responses (csv) --- --- ---
+            elif 'responses' in tab_name.lower():
+                print(f'\n{tab_index + 1}. {tab_name} Tab.')
+                #print(f'\n{tab_index + 1}. {tab_name} Tab: {len(item_list)} items.')
+
             # --- --- --- Constraints/Policies (csv) --- --- ---
             elif 'constraint' in tab_name.lower():
                 # n_constraints = re.findall(r'\(\s*(\d+)\s*\)', tab_name)[0]
@@ -206,43 +217,68 @@ class Agile_Scraper(Base_Scraper):
                     print(f'    {csv_name}: {len(table_content)} items.')
             # --- --- --- Documents (doc) --- --- ---
             elif 'document' in tab_name.lower():
-                # open doc url
-                panel_tab = driver.current_window_handle
-                driver.find_element(By.XPATH, '//*[@id="documentsTab"]/div/a').click()
-                time.sleep(1)
-                all_tabs = driver.window_handles
-                doc_tab = [x for x in all_tabs if x != panel_tab][0]
-                driver.switch_to.window(doc_tab)  # move to doc tab.
-
-                version = 2024
-                # //*[@id="searchResult_info"]
+                # An external doc url:
                 try:
-                    documents_str = driver.find_element(By.XPATH, '//*[@id="searchResult_info"]').text.strip()  # documents_str = 'Showing 1 to 10 of {n_documents} entries'
-                    documents_str = documents_str.split('of')[1]  # documents_str = '{n_documents} entries'
-                    n_documents = int(re.search(r"\d+", documents_str).group())
-                except AttributeError:
+                    # open doc url
+                    panel_tab = driver.current_window_handle
+                    driver.find_element(By.XPATH, '//*[@id="documentsTab"]/div/a').click()
+                    time.sleep(1)
+                    all_tabs = driver.window_handles
+                    doc_tab = [x for x in all_tabs if x != panel_tab][0]
+                    driver.switch_to.window(doc_tab)  # move to doc tab.
+
+                    version = 2024
+                    # //*[@id="searchResult_info"]
                     try:
-                        # //*[@id="PanelMain"]/div[1]
-                        documents_str = response.css('div.TitleLabel').xpath('./text()').get()  # documents_str = 'Search Results - {n_documents} records found'
+                        documents_str = driver.find_element(By.XPATH, '//*[@id="searchResult_info"]').text.strip()  # documents_str = 'Showing 1 to 10 of {n_documents} entries'
+                        documents_str = documents_str.split('of')[1]  # documents_str = '{n_documents} entries'
                         n_documents = int(re.search(r"\d+", documents_str).group())
-                        version = 2009
-                    except TypeError:
-                        print('No documents are available.') if PRINT else None
+                    except AttributeError:
+                        try:
+                            # //*[@id="PanelMain"]/div[1]
+                            documents_str = response.css('div.TitleLabel').xpath('./text()').get()  # documents_str = 'Search Results - {n_documents} records found'
+                            n_documents = int(re.search(r"\d+", documents_str).group())
+                            version = 2009
+                        except TypeError:
+                            print('No documents are available.') if PRINT else None
+                            n_documents = 0
+
+                    print(f'\n{tab_index+1}. Documents Tab <NEC mode (ver.{version})>: {n_documents} items, folder_name: {folder_name}')
+                    #print(f"{app_df.name} <NEC mode (ver.{version})> n_documents: {n_documents}, folder_name: {folder_name}")
+                    app_df.at['other_fields.n_documents'] = n_documents
+
+                    ### download documents ###
+                    if n_documents > 0:
+                        file_urls, document_names = get_NEC_or_Northgate_documents(driver, n_documents, self.data_upload_path, folder_name, max_file_name_len, version)
+                        item = self.create_item(driver, folder_name, file_urls, document_names)
+                        yield item
+
+                    # close doc tab, back to panel tab:
+                    driver.close()  # close doc tab.
+                    driver.switch_to.window(panel_tab)
+                # No external doc url, use doc table directly.
+                except NoSuchElementException:
+                    n_documents = int(re.findall(r'\(\s*(\d+)\s*\)', tab_name)[0])
+                    print(f'\n{tab_index + 1}. Documents Tab: {n_documents} items, folder_name: {folder_name}')
+                    app_df.at['other_fields.n_documents'] = n_documents
+                    if n_documents > 0:
                         n_documents = 0
+                        item_table = driver.find_element(By.XPATH, '//*[@id="documents"]/div[2]/table/tbody')
+                        item_list = item_table.find_elements(By.XPATH, './tr')
+                        document_type, document_description, document_date  = None, None, None
+                        for item in item_list:
+                            try:
+                                document_type = item.find_element(By.XPATH, './td/a/strong').get_attribute('innerText').strip()
+                            except NoSuchElementException:
+                                n_documents += 1
+                                document_suffix = item.find_element(By.XPATH, './td[2]/span').get_attribute('innerText').split('.')[-1].strip()
+                                document_description = item.find_element(By.XPATH, './td[3]/span').get_attribute('innerText').strip()
+                                document_date = item.find_element(By.XPATH, './td[4]/span').get_attribute('innerText').strip()
+                                document_name = f'date={document_date}&type={document_type}&desc={document_description}&uid={n_documents}.{document_suffix}'
+                                print(f'    Document {n_documents}: {document_name}') if PRINT else None
+                                document_name = replace_invalid_characters(document_name)
 
-                print(f'\n{tab_index+1}. Documents Tab <NEC mode (ver.{version})>: {n_documents} items, folder_name: {folder_name}')
-                #print(f"{app_df.name} <NEC mode (ver.{version})> n_documents: {n_documents}, folder_name: {folder_name}")
-                app_df.at['other_fields.n_documents'] = n_documents
-
-                ### download documents ###
-                if n_documents > 0:
-                    file_urls, document_names = get_NEC_or_Northgate_documents(driver, n_documents, self.data_upload_path, folder_name, max_file_name_len, version)
-                    item = self.create_item(driver, folder_name, file_urls, document_names)
-                    yield item
-
-                # close doc tab, back to panel tab:
-                driver.close()  # close doc tab.
-                driver.switch_to.window(panel_tab)
+                    # //*[@id="documents"]/div[1]/table/tbody/tr[2]/td[1]/div/button/span
 
             # --- --- --- Conditions (data + csv) --- --- ---
             elif 'condition' in tab_name.lower():
@@ -276,6 +312,10 @@ class Agile_Scraper(Base_Scraper):
                 print(f'\n{tab_index + 1}. {tab_name} Tab: {len(item_list)} items.')
                 item_list = [item.find_element(By.XPATH, './div/*/div/div') for item in item_list]
                 app_df, _ = self.scrape_data_items_from_AngularJS(app_df, item_list)
+
+            # --- --- --- Map --- --- ---
+            elif 'map' in tab_name.lower():
+                print(f'\n{tab_index + 1}. {tab_name} Tab.')
             else:
                 print(f'\n{tab_index+1}. Unknown Tab: {tab_name}.')
                 assert 1 == 0
