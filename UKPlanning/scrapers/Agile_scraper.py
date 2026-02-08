@@ -265,20 +265,67 @@ class Agile_Scraper(Base_Scraper):
                         n_documents = 0
                         item_table = driver.find_element(By.XPATH, '//*[@id="documents"]/div[2]/table/tbody')
                         item_list = item_table.find_elements(By.XPATH, './tr')
-                        document_type, document_description, document_date  = None, None, None
+                        document_type, document_description, document_date, file_urls, document_names  = None, None, None, [], []
                         for item in item_list:
                             try:
                                 document_type = item.find_element(By.XPATH, './td/a/strong').get_attribute('innerText').strip()
                             except NoSuchElementException:
                                 n_documents += 1
-                                document_suffix = item.find_element(By.XPATH, './td[2]/span').get_attribute('innerText').split('.')[-1].strip()
+                                # step1: get file url
+                                current_tab = driver.current_window_handle
+
+                                file_button = item.find_element(By.XPATH, f'./td[1]/div/button/span')
+                                #time.sleep(2)
+                                driver.execute_script("arguments[0].scrollIntoView(true);", file_button)
+                                #time.sleep(5)
+                                #WebDriverWait(item, 10).until(EC.element_to_be_clickable((By.XPATH, './td[1]/div/button/span'))).click()
+                                WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="documents"]/div[2]/table/tbody/tr[2]/td[1]/div/button/span'))).click()
+                                #file_button.click()
+                                time.sleep(2)
+
+                                all_tabs = driver.window_handles
+                                new_tabs = [x for x in all_tabs if x != current_tab]
+                                if len(new_tabs) == 0:
+                                    print(f'file url: NULL, new tab already closed.')
+                                    assert 1 == 0  # fix it later.
+                                    continue
+                                else:
+                                    new_tab = new_tabs[0]
+                                    driver.switch_to.window(new_tab)
+                                    file_url = driver.current_url  # https://planningapi.agileapplications.co.uk//api/application/document/CANNOCK/JC9CFUTHW4M2QVXQHZE262XU54FRGBF3HHABHX2XKM4TYD5V3G3R2LC52BE32A33US9MU8FHALADR
+                                    print('file url: ', file_url)
+                                    if file_url == 'about:blank':
+                                        print(f'    Document {n_documents}: Skip.')
+                                        print(f'    app tab: {current_tab}')
+                                        print(f'    all tabs: {driver.window_handles}')
+                                        print(f'    doc tab: {new_tab}')
+                                        while new_tab in driver.window_handles:
+                                            time.sleep(1)
+                                        # print(f'current tab: {driver.current_window_handle}')
+                                        driver.switch_to.window(current_tab)
+                                        continue
+                                    else:
+                                        file_urls.append(file_url)
+                                        driver.close()
+                                        driver.switch_to.window(current_tab)
+
+                                # step2: get document name, if url not exist, skip this step.
+                                document_extension = item.find_element(By.XPATH, './td[2]/span').get_attribute('innerText').split('.')[-1].strip()
                                 document_description = item.find_element(By.XPATH, './td[3]/span').get_attribute('innerText').strip()
                                 document_date = item.find_element(By.XPATH, './td[4]/span').get_attribute('innerText').strip()
-                                document_name = f'date={document_date}&type={document_type}&desc={document_description}&uid={n_documents}.{document_suffix}'
+                                document_name = f'date={document_date}&type={document_type}&desc={document_description}&uid={n_documents}.{document_extension}'
                                 print(f'    Document {n_documents}: {document_name}') if PRINT else None
-                                document_name = replace_invalid_characters(document_name)
 
-                    # //*[@id="documents"]/div[1]/table/tbody/tr[2]/td[1]/div/button/span
+                                len_limitation = len(document_name) - max_file_name_len
+                                print(f'    Doc {n_documents} len_limitation: {len_limitation}') if len_limitation > -5 else None
+                                if len_limitation > 0:
+                                    temp_name = document_name.split('&uid')[0]
+                                    document_name = f'{temp_name[:-len_limitation]}&uid={n_documents}.{document_extension}'
+                                document_name = replace_invalid_characters(document_name)
+                                document_names.append(document_name)
+                        item = self.create_item(driver, folder_name, file_urls, document_names)
+                        yield item
+
 
             # --- --- --- Conditions (data + csv) --- --- ---
             elif 'condition' in tab_name.lower():
