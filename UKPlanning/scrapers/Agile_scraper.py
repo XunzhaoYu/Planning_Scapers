@@ -7,6 +7,7 @@ from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.webdriver.common.action_chains import ActionChains
 
 from configs.settings import PRINT
 from general.base_scraper import Base_Scraper
@@ -266,20 +267,42 @@ class Agile_Scraper(Base_Scraper):
                         item_table = driver.find_element(By.XPATH, '//*[@id="documents"]/div[2]/table/tbody')
                         item_list = item_table.find_elements(By.XPATH, './tr')
                         document_type, document_description, document_date, file_urls, document_names  = None, None, None, [], []
-                        for item in item_list:
+                        LA_abbreviation = driver.current_url.split('/')[-3].upper()
+                        print('LA abbreviation: ', LA_abbreviation)
+                        for item_index, item in enumerate(item_list):
+                            row_data = driver.execute_script("return angular.element(arguments[0]).scope().row;", item)
+                            if row_data:
+                                n_documents += 1
+
+                                file_url = f"https://planningapi.agileapplications.co.uk//api/application/document/{LA_abbreviation}/{row_data['documentHash']}"
+                                print('file url: ', file_url)
+                                file_urls.append(file_url)
+                                document_extension = row_data['name'].split('.')[-1].strip()
+                                document_name = f"date={row_data['receivedDate'][:10]}&type={row_data['mediaDescription']}&desc={row_data['description']}&uid={n_documents}.{document_extension}"
+
+                                """
                             try:
                                 document_type = item.find_element(By.XPATH, './td/a/strong').get_attribute('innerText').strip()
+                                row_data = driver.execute_script("return angular.element(arguments[0]).scope().row;", item)
+                                print(row_data)
                             except NoSuchElementException:
                                 n_documents += 1
+
+                                row_data = driver.execute_script("return angular.element(arguments[0]).scope().row;", item)
+                                print(row_data)
+                                print(row_data['documentHash'])
+                                print(row_data['description'])
+                                print(row_data['mediaDescription'])
+                                print(row_data['receivedDate'])
+                                print(row_data['name'])
                                 # step1: get file url
                                 current_tab = driver.current_window_handle
 
-                                file_button = item.find_element(By.XPATH, f'./td[1]/div/button/span')
-                                #time.sleep(2)
-                                driver.execute_script("arguments[0].scrollIntoView(true);", file_button)
-                                #time.sleep(5)
-                                #WebDriverWait(item, 10).until(EC.element_to_be_clickable((By.XPATH, './td[1]/div/button/span'))).click()
-                                WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="documents"]/div[2]/table/tbody/tr[2]/td[1]/div/button/span'))).click()
+                                #driver.execute_script('window.scrollTo(0, document.body.scrollHeight);')  # scroll down to the bottom of this page.
+                                driver.execute_script("arguments[0].scrollIntoView();", tab)
+                                #file_button = item.find_element(By.XPATH, f'./td[1]/div/button/span')
+                                WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, f'//*[@id="documents"]/div[1]/table/tbody/tr[{item_index+1}]/td[1]/div/button'))).click()
+                                #file_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, f'//*[@id="documents"]/div[1]/table/tbody/tr[{item_index}]/td[1]/div/button')))
                                 #file_button.click()
                                 time.sleep(2)
 
@@ -314,15 +337,16 @@ class Agile_Scraper(Base_Scraper):
                                 document_description = item.find_element(By.XPATH, './td[3]/span').get_attribute('innerText').strip()
                                 document_date = item.find_element(By.XPATH, './td[4]/span').get_attribute('innerText').strip()
                                 document_name = f'date={document_date}&type={document_type}&desc={document_description}&uid={n_documents}.{document_extension}'
-                                print(f'    Document {n_documents}: {document_name}') if PRINT else None
+                                """
 
+                                print(f'    Document {n_documents}: {document_name}') if PRINT else None
                                 len_limitation = len(document_name) - max_file_name_len
                                 print(f'    Doc {n_documents} len_limitation: {len_limitation}') if len_limitation > -5 else None
                                 if len_limitation > 0:
                                     temp_name = document_name.split('&uid')[0]
                                     document_name = f'{temp_name[:-len_limitation]}&uid={n_documents}.{document_extension}'
                                 document_name = replace_invalid_characters(document_name)
-                                document_names.append(document_name)
+                                document_names.append(f"{self.data_upload_path}{folder_name}/{document_name}")
                         item = self.create_item(driver, folder_name, file_urls, document_names)
                         yield item
 
