@@ -22,7 +22,7 @@ class Agile_Scraper(Base_Scraper):
     """
     1.auth_id = 61, CannockChase: https://planning.agileapplications.co.uk/cannock/application-details/7007
     2.-auth_id = 139(137), Exmoor: https://planning.agileapplications.co.uk/exmoor/application-details/2552
-    3.-auth_id = 145(143), Flintshire: https://planning.agileapplications.co.uk/flintshire/application-details/28244
+    3.auth_id = 145(143), Flintshire: https://planning.agileapplications.co.uk/flintshire/application-details/28244
     4.-auth_id = 202(200), LakeDistrict: https://planning.agileapplications.co.uk/ldnpa/application-details/27229
     5.-auth_id = 229(227), Middlesbrough: https://planning.agileapplications.co.uk/middlesbrough/application-details/1781
     6.-auth_id = 236(234), MoleValley: x
@@ -46,37 +46,38 @@ class Agile_Scraper(Base_Scraper):
         # All sub_classes of Base_Scraper should define their self.parse_func(s) in __init__
         self.parse_func = self.parse_data_item_Agile
 
-    details_dict ={'Application reference number': 'uid', # Flintshire
+    details_dict ={'Application reference number': 'uid', # Flintshire, LakeDistrict
                    'LA Reference': 'other_fields.LA_reference', # Flintshire
-                   'Application type': 'other_fields.application_type', # Flintshire
-                   'Proposal description': 'description', # Flintshire
-                   'Location': 'address', # Flintshire
+                   'Application type': 'other_fields.application_type', # Flintshire, LakeDistrict
+                   'Proposal description': 'description', # Flintshire, LakeDistrict
+                   'Location': 'address', # Flintshire, LakeDistrict
                    'Town or communty council': 'other_fields.parish', # Pembrokeshire
                    'Ward': 'other_fields.ward_name', # CannockChase, Flintshire, Pembrokeshire
-                   'Parish': 'other_fields.parish',  # CannockChase, NewForestPark
+                   'Parish': 'other_fields.parish',  # CannockChase, LakeDistrict, NewForestPark
                    'Area': 'other_fields.parish', # Flintshire
-                   'Status': 'other_fields.status', # Flintshire
+                   'Status': 'other_fields.status', # Flintshire, LakeDistrict
                    'Status description': 'other_fields.status_description', # Flintshire
 
-                   'Registration date': 'other_fields.date_validated', # CannockChase, Flintshire
+                   'Registration date': 'other_fields.date_validated', # CannockChase, Flintshire, LakeDistrict
                    'Registered date': 'other_fields.date_validated',  # CannockChase
                    'Validated date': 'other_fields.date_validated', # Pembrokeshire
                    'Target Determination date': 'other_fields.determination_date', # Flintshire
                    'Level of Decision': 'other_fields.expected_decision_level', # Flintshire
                    'Extension of time date': 'other_fields.extension_of_time_date', # Flintshire, Pembrokeshire
                    'Decision level': 'other_fields.expected_decision_level',
-                   'Decision': 'other_fields.decision', # Flintshire
-                   'Decision date': 'other_fields.decision_issued_date', # Flintshire
+                   'Decision': 'other_fields.decision', # Flintshire, LakeDistrict
+                   'Decision date': 'other_fields.decision_issued_date', # Flintshire, LakeDistrict
                    'Decision expiry date': 'other_fields.decision_expiry_date', # Flintshire
 
-                   'Appeal type': 'other_fields.appeal_type', # Flintshire
-                   'Appeal lodged date': 'other_fields.appeal_lodged_date', # Flintshire, Pembrokeshire
-                   'Appeal decision': 'other_fields.appeal_result', # Flintshire
-                   'Appeal decision date': 'other_fields.appeal_decision_date', # Flintshire
+                   'Appeal type': 'other_fields.appeal_type', # Flintshire, LakeDistrict
+                   'Appeal lodged date': 'other_fields.appeal_lodged_date', # Flintshire, LakeDistrict, Pembrokeshire
+                   'Appeal decision': 'other_fields.appeal_result', # Flintshire, LakeDistrict
+                   'Appeal decision date': 'other_fields.appeal_decision_date', # Flintshire, LakeDistrict
 
                    'Agent name/Company name': 'other_fields.agent_name', # Pembrokeshire
+                   'Applicants name': 'other_fields.applicant_name', # Flintshire
                    'Agent name (company)': 'other_fields.agent_name',  # CannockChase, Flintshire, NewForestPark
-                   'Officer name': 'other_fields.case_officer', # Flintshire
+                   'Officer name': 'other_fields.case_officer', # Flintshire, LakeDistrict
                    'Applicant surname/Company name': 'other_fields.applicant_name',
                    'Easting':  'other_fields.easting', # Flintshire
                    'Northing': 'other_fields.northing', # Flintshire
@@ -87,18 +88,18 @@ class Agile_Scraper(Base_Scraper):
                    #'Decision date': 'other_fields.decision_issued_date',
 
                    # dates:
-                   #'Registration date': 'other_fields.date_validated',  # duplicated: CannockChase, Flintshire.
+                   #'Registration date': 'other_fields.date_validated',  # duplicated: CannockChase, Flintshire, LakeDistrict.
                    #'Validated date': 'other_fields.date_validated', # duplicated: Pembrokeshire
-                   #'Decision date': 'other_fields.decision_issued_date', # duplicated: CannockChase, Flintshire, Pembrokeshire
+                   #'Decision date': 'other_fields.decision_issued_date', # duplicated: CannockChase, Flintshire, LakeDistrict, Pembrokeshire
                    'Consultation expiry': 'other_fields.consultation_end_date', # CannockChase, Flintshire.
                    'Consultation expiry date': 'other_fields.consultation_end_date', #  CannockChase*, Flintshire, Pembrokeshire
-                   'Received date': 'other_fields.date_received', # CannockChase, Flintshire.
+                   'Received date': 'other_fields.date_received', # CannockChase, Flintshire, LakeDistrict.
                    'Site notice date': 'other_fields.site_notice_start_date', #  CannockChase, Flintshire
                    'Newspapers': 'other_fields.newspapers', #  CannockChase, Flintshire
                    'Press notice start date': 'other_fields.press_notice_start_date', # CannockChase, Flintshire
                    'Press notice end date': 'other_fields.press_notice_end_date', # Pembrokeshire
-                   #'Appeal lodged date': 'other_fields.appeal_lodged_date', # duplicated: CannockChas, Flintshire, Pembrokeshire
-                   #'Appeal decision date': 'other_fields.appeal_decision_date', # duplicated: CannockChas, Flintshire, Pembrokeshire
+                   #'Appeal lodged date': 'other_fields.appeal_lodged_date', # duplicated: CannockChas, Flintshire, LakeDistrict, Pembrokeshire
+                   #'Appeal decision date': 'other_fields.appeal_decision_date', # duplicated: CannockChas, Flintshire, LakeDistrict, Pembrokeshire
                    }
 
     def scrape_data_items_from_AngularJS(self, app_df, item_list):
@@ -153,7 +154,7 @@ class Agile_Scraper(Base_Scraper):
             tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="applicationDetails"]/uib-accordion/div')))  # role = 'tablist'
         except TimeoutException:
             # Planning Application details not available.
-            note = response.xpath('//*[@id="main-content"]/article/h1/text()').get()
+            note = response.xpath('//*[@id="page"]/div/div/div/h1/text()').get()
             print('note: ', note)
             return
 
@@ -185,18 +186,18 @@ class Agile_Scraper(Base_Scraper):
                 #n_comments = int(re.findall(r'\(\s*(\d+)\s*\)', tab_name)[0])
                 #app_df.at['other_fields.n_comments'] = n_comments
 
-            # --- --- --- Responses (csv) --- --- ---
+            # --- --- --- Responses (multiple multi-column csv) --- --- ---
             # CannockChase(0), Flintshire
             elif 'responses' in tab_name.lower():
                 n_responses = int(re.findall(r'\(\s*(\d+)\s*\)', tab_name)[0])
-                print(f'\n{tab_index + 1}. {tab_name} Tab: {n_responses} items.')
+                print(f'\n{tab_index + 1}. {tab_name} Tab.')  # {n_responses} items.')
                 if n_responses > 0:
                     app_df.at['other_fields.n_comments'] = n_responses
                     visible_div_index = 1
                     try:
-                        print('1: ', driver.find_element(By.XPATH, '//*[@id="responsesTab"]/section/sas-table/div[1]/table/tbody/tr[2]/td[1]/span').get_attribute('innerHTML'))
+                        print('1: ', driver.find_element(By.XPATH, '//*[@id="responsesTab"]/section/sas-table/div[1]/table/tbody/tr[2]/td[1]/span').get_attribute('innerHTML').strip())
                     except NoSuchElementException:
-                        print('2: ', driver.find_element(By.XPATH, '//*[@id="responsesTab"]/section/sas-table/div[2]/table/tbody/tr[2]/td[1]/span').get_attribute('innerHTML'))
+                        print('2: ', driver.find_element(By.XPATH, '//*[@id="responsesTab"]/section/sas-table/div[2]/table/tbody/tr[2]/td[1]/span').get_attribute('innerHTML').strip())
                         visible_div_index = 2
                     item_table = driver.find_element(By.XPATH, f'//*[@id="responsesTab"]/section/sas-table/div[{visible_div_index}]/table/tbody')
                     items = item_table.find_elements(By.XPATH, './tr')
@@ -216,7 +217,7 @@ class Agile_Scraper(Base_Scraper):
                         try: # write data to csv file:
                             for column_index in range(n_columns):
                                 content_dict[column_names[column_index]].append(item.find_element(By.XPATH, f'./td[{column_index+1}]/span').get_attribute('innerText').strip())
-                            n_content += 1
+                            n_content += int(content_dict[column_names[-1]][-1])
                         except NoSuchElementException: # save the current csv file:
                             content_df = pd.DataFrame(content_dict)
                             content_df.to_csv(f"{self.data_storage_path}{folder_name}/{csv_name}.csv", index=False)
@@ -225,6 +226,7 @@ class Agile_Scraper(Base_Scraper):
                             print(f'    {csv_name}: {n_content} items.')
                             # initialize for the next csv file:
                             csv_name = item.find_element(By.XPATH, './td/a/strong').get_attribute('innerText').split('(')[0].lower()
+                            assert csv_name == 'consultee' # test
                             content_dict = {}
                             n_content = 0
                             for column_index in range(n_columns):
@@ -232,26 +234,25 @@ class Agile_Scraper(Base_Scraper):
 
                     content_df = pd.DataFrame(content_dict)
                     content_df.to_csv(f'{self.data_storage_path}{folder_name}/{csv_name}.csv', index=False)
+                    # app_df.at[?] = n_content # test
                     print(f'    {csv_name}: {n_content} items.')
 
-            # --- --- --- Constraints/Policies (csv) --- --- ---
+            # --- --- --- Constraints/Policies (multiple single-column csv) --- --- ---
             # CannockChase, Flintshire
             elif 'constraint' in tab_name.lower():
                 # n_constraints = re.findall(r'\(\s*(\d+)\s*\)', tab_name)[0]
                 item_table = driver.find_element(By.XPATH, '//*[@id="constraintsSection"]/section[2]/sas-table/div[2]/table/tbody')
                 items = item_table.find_elements(By.XPATH, './tr')  #[1:]
-                print(f'\n{tab_index + 1}. {tab_name} Tab: {len(items)} items.')
+                print(f'\n{tab_index + 1}. {tab_name} Tab.')  # {len(items)} items.')
                 if len(items) == 0:
                     app_df.at['other_fields.n_constraints'] = 0
                 else:
                     column_name = 'Description'
-                    path = 'td/span'
-
                     csv_name = items[0].find_element(By.XPATH, './td/a/strong').get_attribute('innerText').strip().lower()
                     table_content = []
                     for item in items[1:]:
                         try:
-                            table_content.append(item.find_element(By.XPATH, f'./{path}').get_attribute('innerText').strip())
+                            table_content.append(item.find_element(By.XPATH, f'./td/span').get_attribute('innerText').strip())
                         except NoSuchElementException:
                             # save the current csv file:
                             content_dict = {column_name: table_content}
@@ -312,7 +313,7 @@ class Agile_Scraper(Base_Scraper):
                     driver.close()  # close doc tab.
                     driver.switch_to.window(panel_tab)
                 # No external doc url, use doc table directly.
-                # CannockChase, Flintshire
+                # CannockChase, Flintshire, LakeDistrict
                 except NoSuchElementException:
                     n_documents = int(re.findall(r'\(\s*(\d+)\s*\)', tab_name)[0])
                     print(f'\n{tab_index + 1}. Documents Tab: {n_documents} items, folder_name: {folder_name}')
@@ -348,7 +349,7 @@ class Agile_Scraper(Base_Scraper):
                         item = self.create_item(driver, folder_name, file_urls, document_names)
                         yield item
 
-            # --- --- --- Conditions (data + csv) --- --- ---
+            # --- --- --- Conditions (data + one multi-column csv) --- --- ---
             # CannockChase, Flintshire
             elif 'condition' in tab_name.lower():
                 n_conditions = re.findall(r'\(\s*(\d+)\s*\)', tab_name)[0]
@@ -375,7 +376,7 @@ class Agile_Scraper(Base_Scraper):
                     content_df.to_csv(f'{self.data_storage_path}{folder_name}/{csv_name}.csv', index=False)
                     # //*[@id="conditionsTab"]/section[2]/sas-table/div[1]/table/tbody/tr/td[1]/span
             # --- --- --- Dates (data) --- --- ---
-            # CannockChase, Flintshire
+            # CannockChase, Flintshire, LakeDistrict
             elif 'date' in tab_name.lower():
                 item_list = driver.find_elements(By.XPATH, '//*[@id="datesTab"]/form/div')
                 # //*[@id="datesTab"]/form/div[1]/div/sas-input-text/div/div
@@ -384,7 +385,7 @@ class Agile_Scraper(Base_Scraper):
                 app_df, _ = self.scrape_data_items_from_AngularJS(app_df, item_list)
 
             # --- --- --- Map --- --- ---
-            # CannockChase, Flintshire
+            # CannockChase, Flintshire, LakeDistrict
             elif 'map' in tab_name.lower():
                 print(f'\n{tab_index + 1}. {tab_name} Tab.')
             else:
