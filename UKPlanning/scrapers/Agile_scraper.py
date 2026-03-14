@@ -164,12 +164,12 @@ class Agile_Scraper(Base_Scraper):
             tab_name = tab.find_element(By.XPATH, './div/h4/a/span').text.strip()
             # check if the panel is opened, otherwise, data in this panel is not accessible.
             if 'panel-open' not in tab.get_attribute('class'):
-                #print(f'<panel-open> not in tab: {tab_name}')
+                print(f'<panel-open> not in tab: {tab_name}')
                 tab.find_element(By.XPATH, './div/h4/a').click()
                 time.sleep(2)
             # --- --- --- Summary (data + optional: csv) --- --- ---
             if 'summary' in tab_name.lower():
-                # summaryTab = tab.div[2]/div/summaryc/div
+                # summaryTab = tab.div[2]/div/summary/div
                 item_list = driver.find_elements(By.XPATH, '//*[@id="summaryTab"]/form/div')
                 print(f'\n{tab_index + 1}. {tab_name} Tab: {len(item_list)} items.')
                 item_list = [item.find_element(By.XPATH, './div/*/div/div') for item in item_list]
@@ -185,9 +185,69 @@ class Agile_Scraper(Base_Scraper):
             # consultee
             # see https://planning.agileapplications.co.uk/opdc/application-details/8993
             elif 'consultation' in tab_name.lower():
+                n_comments = int(re.findall(r'\(\s*(\d+)\s*\)', tab_name)[0])
                 print(f'\n{tab_index + 1}. {tab_name} Tab.')
-                #n_comments = int(re.findall(r'\(\s*(\d+)\s*\)', tab_name)[0])
-                #app_df.at['other_fields.n_comments'] = n_comments
+                if n_comments > 0:
+                    consultation_button = driver.find_element(By.XPATH, '//*[@id="consultationsTab"]/section[2]/sas-table/div[2]/table/tbody/tr[1]/td/a')
+                    if 'right' in consultation_button.find_element(By.XPATH, './span[1]').get_attribute('class'):
+                        consultation_button.click()
+                        time.sleep(2)
+                        assert 'down' in consultation_button.find_element(By.XPATH, './span[1]').get_attribute('class')
+
+                    visible_div_index = 1
+                    try:
+                        print('1: ', driver.find_element(By.XPATH, '//*[@id="consultationsTab"]/section[2]/sas-table/div[1]/table/tbody/tr[2]/td[1]/span').get_attribute('innerHTML').strip())
+                    except NoSuchElementException:
+                        print('2: ', driver.find_element(By.XPATH, '//*[@id="consultationsTab"]/section[2]/sas-table/div[2]/table/tbody/tr[2]/td[1]/span').get_attribute('innerHTML').strip())
+                        visible_div_index = 2
+                    item_table = driver.find_element(By.XPATH, f'//*[@id="consultationsTab"]/section[2]/sas-table/div[{visible_div_index}]/table/tbody')
+                    items = item_table.find_elements(By.XPATH, './tr')
+                    print(f'section 2: n items: {len(items)}')
+                    item_table3 = driver.find_element(By.XPATH, f'//*[@id="consultationsTab"]/section/sas-table/div[{visible_div_index}]/table/tbody')
+                    items = item_table3.find_elements(By.XPATH, './tr')
+                    print(f'section: n items: {len(items)}')
+
+                    column_names = [column.get_attribute('data-title').strip() for column in items[1].find_elements(By.XPATH, './td')]
+                    column_names = unique_columns(column_names)
+                    n_columns = len(column_names)
+
+                    # initialize a csv
+                    csv_name = items[0].find_element(By.XPATH, './td/a/strong').get_attribute('innerText').split('(')[0].lower()
+                    content_dict = {}
+                    n_content = 0
+                    for column_index in range(n_columns):
+                        # content_dict[column_names[column_index]] = [table_item.find_element(By.XPATH, f'./td[{column_index + 1}]/span').get_attribute('innerText').strip() for table_item in items[1:]]
+                        content_dict[column_names[column_index]] = []
+                    for item in items[1:]:
+                        try:  # write data to csv file:
+                            for column_index in range(n_columns):
+                                content_dict[column_names[column_index]].append(item.find_element(By.XPATH, f'./td[{column_index + 1}]/span').get_attribute('innerText').strip())
+                            n_content += int(content_dict[column_names[-1]][-1])
+                        except NoSuchElementException:  # save the current csv file:
+                            content_df = pd.DataFrame(content_dict)
+                            content_df.to_csv(f"{self.data_storage_path}{folder_name}/{csv_name}.csv", index=False)
+                            if csv_name == 'consultee':
+                                app_df.at['other_fields.n_comments_consultee_total_consulted'] = n_content
+                            elif csv_name == 'neighbour':
+                                app_df.at['other_fields.n_comments_public_total_consulted'] = n_content
+                            print(f'    {csv_name}: {n_content} items.')
+                            # initialize for the next csv file:
+                            csv_name = item.find_element(By.XPATH, './td/a/strong').get_attribute('innerText').split('(')[0].lower()
+                            assert csv_name in ['consultee', 'neighbour']  # test
+                            content_dict = {}
+                            n_content = 0
+                            for column_index in range(n_columns):
+                                content_dict[column_names[column_index]] = []
+
+                    content_df = pd.DataFrame(content_dict)
+                    content_df.to_csv(f'{self.data_storage_path}{folder_name}/{csv_name}.csv', index=False)
+                    if csv_name == 'consultee':
+                        app_df.at['other_fields.n_comments_consultee_total_consulted'] = n_content
+                    elif csv_name == 'neighbour':
+                        app_df.at['other_fields.n_comments_public_total_consulted'] = n_content
+                    # app_df.at[?] = n_content # test
+                    print(f'    {csv_name}: {n_content} items.')
+
 
             # --- --- --- Responses (multiple multi-column csv) --- --- ---
             # CannockChase(0), Flintshire, Middlesbrough(0), NewForestPark, OldOakParkRoyal
