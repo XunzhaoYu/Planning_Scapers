@@ -187,8 +187,11 @@ class Agile_Scraper(Base_Scraper):
             elif 'consultation' in tab_name.lower():
                 n_comments = int(re.findall(r'\(\s*(\d+)\s*\)', tab_name)[0])
                 print(f'\n{tab_index + 1}. {tab_name} Tab.')
+                app_df.at['other_fields.n_comments_consultee_total_consulted'] = 0
+                app_df.at['other_fields.n_comments_public_total_consulted'] = 0
                 if n_comments > 0:
-                    consultation_button = driver.find_element(By.XPATH, '//*[@id="consultationsTab"]/section[2]/sas-table/div[2]/table/tbody/tr[1]/td/a')
+                    # open the first consultation list
+                    consultation_button = driver.find_element(By.XPATH, '//*[@id="consultationsTab"]/section[2]/sas-table/div[1]/table/tbody/tr[1]/td/a')
                     if 'right' in consultation_button.find_element(By.XPATH, './span[1]').get_attribute('class'):
                         consultation_button.click()
                         time.sleep(2)
@@ -202,10 +205,7 @@ class Agile_Scraper(Base_Scraper):
                         visible_div_index = 2
                     item_table = driver.find_element(By.XPATH, f'//*[@id="consultationsTab"]/section[2]/sas-table/div[{visible_div_index}]/table/tbody')
                     items = item_table.find_elements(By.XPATH, './tr')
-                    print(f'section 2: n items: {len(items)}')
-                    item_table3 = driver.find_element(By.XPATH, f'//*[@id="consultationsTab"]/section/sas-table/div[{visible_div_index}]/table/tbody')
-                    items = item_table3.find_elements(By.XPATH, './tr')
-                    print(f'section: n items: {len(items)}')
+
 
                     column_names = [column.get_attribute('data-title').strip() for column in items[1].find_elements(By.XPATH, './td')]
                     column_names = unique_columns(column_names)
@@ -219,21 +219,22 @@ class Agile_Scraper(Base_Scraper):
                         # content_dict[column_names[column_index]] = [table_item.find_element(By.XPATH, f'./td[{column_index + 1}]/span').get_attribute('innerText').strip() for table_item in items[1:]]
                         content_dict[column_names[column_index]] = []
                     for item in items[1:]:
+                        print(n_content)
                         try:  # write data to csv file:
                             for column_index in range(n_columns):
                                 content_dict[column_names[column_index]].append(item.find_element(By.XPATH, f'./td[{column_index + 1}]/span').get_attribute('innerText').strip())
-                            n_content += int(content_dict[column_names[-1]][-1])
+                            n_content += 1  #int(content_dict[column_names[-1]][-1])
                         except NoSuchElementException:  # save the current csv file:
                             content_df = pd.DataFrame(content_dict)
                             content_df.to_csv(f"{self.data_storage_path}{folder_name}/{csv_name}.csv", index=False)
                             if csv_name == 'consultee':
                                 app_df.at['other_fields.n_comments_consultee_total_consulted'] = n_content
-                            elif csv_name == 'neighbour':
-                                app_df.at['other_fields.n_comments_public_total_consulted'] = n_content
+                            else:  # if csv_name == 'neighbour':
+                                app_df.at['other_fields.n_comments_public_total_consulted'] += n_content
                             print(f'    {csv_name}: {n_content} items.')
                             # initialize for the next csv file:
                             csv_name = item.find_element(By.XPATH, './td/a/strong').get_attribute('innerText').split('(')[0].lower()
-                            assert csv_name in ['consultee', 'neighbour']  # test
+                            assert csv_name in ['consultee', 'neighbour', 'interested party']  # test
                             content_dict = {}
                             n_content = 0
                             for column_index in range(n_columns):
@@ -243,8 +244,8 @@ class Agile_Scraper(Base_Scraper):
                     content_df.to_csv(f'{self.data_storage_path}{folder_name}/{csv_name}.csv', index=False)
                     if csv_name == 'consultee':
                         app_df.at['other_fields.n_comments_consultee_total_consulted'] = n_content
-                    elif csv_name == 'neighbour':
-                        app_df.at['other_fields.n_comments_public_total_consulted'] = n_content
+                    else:  # if csv_name == 'neighbour':
+                        app_df.at['other_fields.n_comments_public_total_consulted'] += n_content
                     # app_df.at[?] = n_content # test
                     print(f'    {csv_name}: {n_content} items.')
 
@@ -255,6 +256,8 @@ class Agile_Scraper(Base_Scraper):
             elif 'responses' in tab_name.lower():
                 n_responses = int(re.findall(r'\(\s*(\d+)\s*\)', tab_name)[0])
                 print(f'\n{tab_index + 1}. {tab_name} Tab.')  # {n_responses} items.')
+                app_df.at['other_fields.n_comments_consultee_responded'] = 0
+                app_df.at['other_fields.n_comments_public_received'] = 0
                 if n_responses > 0:
                     app_df.at['other_fields.n_comments'] = n_responses
                     visible_div_index = 1
@@ -287,12 +290,12 @@ class Agile_Scraper(Base_Scraper):
                             content_df.to_csv(f"{self.data_storage_path}{folder_name}/responses-{csv_name}.csv", index=False)
                             if csv_name == 'consultee':
                                 app_df.at['other_fields.n_comments_consultee_responded'] = n_content
-                            elif csv_name == 'neighbour':
-                                app_df.at['other_fields.n_comments_public_received'] = n_content
+                            else:  # if csv_name == 'neighbour':
+                                app_df.at['other_fields.n_comments_public_received'] += n_content
                             print(f'    {csv_name}: {n_content} items.')
                             # initialize for the next csv file:
                             csv_name = item.find_element(By.XPATH, './td/a/strong').get_attribute('innerText').split('(')[0].lower()
-                            assert csv_name in ['consultee', 'neighbour'] # test
+                            assert csv_name in ['consultee', 'neighbour', 'interested party'] # test
                             content_dict = {}
                             n_content = 0
                             for column_index in range(n_columns):
@@ -302,8 +305,8 @@ class Agile_Scraper(Base_Scraper):
                     content_df.to_csv(f'{self.data_storage_path}{folder_name}/responses-{csv_name}.csv', index=False)
                     if csv_name == 'consultee':
                         app_df.at['other_fields.n_comments_consultee_responded'] = n_content
-                    elif csv_name == 'neighbour':
-                        app_df.at['other_fields.n_comments_public_received'] = n_content
+                    else:  # if csv_name == 'neighbour':
+                        app_df.at['other_fields.n_comments_public_received'] += n_content
                     # app_df.at[?] = n_content # test
                     print(f'    {csv_name}: {n_content} items.')
 
