@@ -190,8 +190,10 @@ class Agile_Scraper(Base_Scraper):
                 app_df.at['other_fields.n_comments_consultee_total_consulted'] = 0
                 app_df.at['other_fields.n_comments_public_total_consulted'] = 0
                 if n_comments > 0:
+                    consultation_table = driver.find_element(By.XPATH, "//table[@name='consultations']")
                     # open the first consultation list
-                    consultation_button = driver.find_element(By.XPATH, '//*[@id="consultationsTab"]/section[2]/sas-table/div[1]/table/tbody/tr[1]/td/a')
+                    consultation_button = consultation_table.find_element(By.XPATH, './tbody/tr[1]/td/a')
+                    #consultation_button = driver.find_element(By.XPATH, '//*[@id="consultationsTab"]/section[2]/sas-table/div[1]/table/tbody/tr[1]/td/a')
                     if 'right' in consultation_button.find_element(By.XPATH, './span[1]').get_attribute('class'):
                         consultation_button.click()
                         time.sleep(2)
