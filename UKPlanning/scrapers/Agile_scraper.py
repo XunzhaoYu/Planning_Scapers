@@ -191,7 +191,16 @@ class Agile_Scraper(Base_Scraper):
                 app_df.at['other_fields.n_comments_public_total_consulted'] = 0
                 if n_comments > 0:
                     consultation_table = driver.find_element(By.XPATH, "//table[@name='consultations']")
-                    # open the first consultation list
+                    # identify the list status
+                    n_rows = len(consultation_table.find_elements(By.XPATH, './tbody/tr'))
+                    if n_rows < n_comments: # lists are not expanded. # we assume all lists share the same status.
+                        for list_index in range(n_rows, 0, -1):
+                            consultation_button = consultation_table.find_element(By.XPATH, f'./tbody/tr[{list_index}]/td/a')
+                            if 'right' in consultation_button.find_element(By.XPATH, './span[1]').get_attribute('class'):
+                                consultation_button.click()
+                                time.sleep(2)
+                                assert 'down' in consultation_button.find_element(By.XPATH, './span[1]').get_attribute('class')
+                    """
                     consultation_button = consultation_table.find_element(By.XPATH, './tbody/tr[1]/td/a')
                     #consultation_button = driver.find_element(By.XPATH, '//*[@id="consultationsTab"]/section[2]/sas-table/div[1]/table/tbody/tr[1]/td/a')
                     if 'right' in consultation_button.find_element(By.XPATH, './span[1]').get_attribute('class'):
@@ -207,7 +216,8 @@ class Agile_Scraper(Base_Scraper):
                         visible_div_index = 2
                     item_table = driver.find_element(By.XPATH, f'//*[@id="consultationsTab"]/section[2]/sas-table/div[{visible_div_index}]/table/tbody')
                     items = item_table.find_elements(By.XPATH, './tr')
-
+                    """
+                    items = consultation_table.find_elements(By.XPATH, './tbody/tr')
 
                     column_names = [column.get_attribute('data-title').strip() for column in items[1].find_elements(By.XPATH, './td')]
                     column_names = unique_columns(column_names)
