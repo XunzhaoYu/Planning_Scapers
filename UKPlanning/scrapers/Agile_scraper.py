@@ -261,7 +261,6 @@ class Agile_Scraper(Base_Scraper):
                     # app_df.at[?] = n_content # test
                     print(f'    {csv_name}: {n_content} items.')
 
-
             # --- --- --- Responses (multiple multi-column csv) --- --- ---
             # CannockChase(0), Flintshire, Middlesbrough(0), NewForestPark, OldOakParkRoyal
             # consultee, neighbour.
@@ -272,6 +271,10 @@ class Agile_Scraper(Base_Scraper):
                 app_df.at['other_fields.n_comments_public_received'] = 0
                 if n_responses > 0:
                     app_df.at['other_fields.n_comments'] = n_responses
+
+                    responses_table = driver.find_element(By.XPATH, "//table[@name='responses']")
+                    items = responses_table.find_elements(By.XPATH, './tbody/tr')
+                    """
                     visible_div_index = 1
                     try:
                         print('1: ', driver.find_element(By.XPATH, '//*[@id="responsesTab"]/section/sas-table/div[1]/table/tbody/tr[2]/td[1]/span').get_attribute('innerHTML').strip())
@@ -280,7 +283,7 @@ class Agile_Scraper(Base_Scraper):
                         visible_div_index = 2
                     item_table = driver.find_element(By.XPATH, f'//*[@id="responsesTab"]/section/sas-table/div[{visible_div_index}]/table/tbody')
                     items = item_table.find_elements(By.XPATH, './tr')
-
+                    """
                     column_names = [column.get_attribute('data-title').strip() for column in items[1].find_elements(By.XPATH, './td')]
                     column_names = unique_columns(column_names)
                     n_columns = len(column_names)
