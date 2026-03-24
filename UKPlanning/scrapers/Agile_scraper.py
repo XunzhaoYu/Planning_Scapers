@@ -112,6 +112,12 @@ class Agile_Scraper(Base_Scraper):
         contact_value = None
         for item in item_list:
             item_name = item.find_element(By.XPATH, './label').text.strip()
+            """ # ***
+            if item_name == '':
+                print(f'debug - item name: {item_name}')
+                item_name = item.find_element(By.XPATH, './label').get_attribute('innerText').strip()
+                print(f'new item name: {item_name}')
+            """
             if item_name in ['Officer telephone']:
                 contact_value = item.find_element(By.XPATH, './input').get_attribute('value').strip()
             else:
@@ -437,21 +443,35 @@ class Agile_Scraper(Base_Scraper):
                         item = self.create_item(driver, folder_name, file_urls, document_names)
                         yield item
 
-            # --- --- --- Conditions (data + one multi-column csv) --- --- ---
+            # --- --- --- Conditions (data + one multi-column csv, multi-pages) --- --- ---
             # CannockChase, Flintshire, Middlesbrough, NewForestPark, Redbridge
+            #
             elif 'condition' in tab_name.lower():
-                n_conditions = re.findall(r'\(\s*(\d+)\s*\)', tab_name)[0]
+                n_conditions = int(re.findall(r'\(\s*(\d+)\s*\)', tab_name)[0])
                 item_list = driver.find_elements(By.XPATH, '//*[@id="conditionsTab"]/div/form/div')
                 # //*[@id="conditionsTab"]/div/form/div[1]/sas-input-text/div/div
                 print(f'\n{tab_index + 1}. {tab_name} Tab: {len(item_list)} items + {n_conditions} conditions.')
                 item_list = [item.find_element(By.XPATH, './*/div/div') for item in item_list]
                 app_df, _ = self.scrape_data_items_from_AngularJS(app_df, item_list)
 
-                if n_conditions != '0':
+                if n_conditions > 0:
                     csv_name = 'conditions'
                     content_dict = {}
-                    item_table = driver.find_element(By.XPATH, '//*[@id="conditionsTab"]/section[2]/sas-table/div[1]/table/tbody')
+                    if n_conditions > 10:
+                        n_clicks = n_conditions//10
+                        for i in range(n_clicks):
+                            try:
+                                show_more_results_button = driver.find_element(By.XPATH, '//*[@id="conditionsTab"]/section[2]/sas-table/div[2]/div[4]/div/div/a')
+                                driver.execute_script("arguments[0].click();", show_more_results_button)
+                                time.sleep(2)
+                                print(f'{i+1}: click show more results.')
+                            except NoSuchElementException:
+                                break
+
+                    #item_table = driver.find_element(By.XPATH, '//*[@id="conditionsTab"]/section[2]/sas-table/div[1]/table/tbody')
+                    item_table = driver.find_element(By.XPATH, "//table[@name='conditions']/tbody")
                     items = item_table.find_elements(By.XPATH, './tr')
+                    print(f'number of scraped conditions: {len(items)}')
 
                     column_names = [column.get_attribute('data-title').strip() for column in items[0].find_elements(By.XPATH, './td')]
                     column_names = unique_columns(column_names)
