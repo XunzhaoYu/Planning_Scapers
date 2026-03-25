@@ -32,7 +32,7 @@ class Agile_Scraper(Base_Scraper):
     10.auth_id = 291(288), Redbridge: https://planning.agileapplications.co.uk/redbridge/application-details/110591
     11.auth_id = 304(301), Rugby: https://planning.agileapplications.co.uk/rugby/application-details/2777
     12.auth_id = 322(319), Slough: https://planning.agileapplications.co.uk/slough/application-details/11430
-    13.-auth_id = 346(343), Staffordshire: https://planning.agileapplications.co.uk/staffordshire/application-details/25518
+    13.auth_id = 346(343), Staffordshire: https://planning.agileapplications.co.uk/staffordshire/application-details/25518
     14.-auth_id = 377(373), Tonbridge: https://planning.agileapplications.co.uk/tmbc/application-details/153514
     15.-auth_id = 427(423), YorkshireDales: https://planning.agileapplications.co.uk/yorkshiredale/application-details/488
     """
@@ -46,18 +46,19 @@ class Agile_Scraper(Base_Scraper):
         # All sub_classes of Base_Scraper should define their self.parse_func(s) in __init__
         self.parse_func = self.parse_data_item_Agile
 
-    details_dict ={'Application reference number': 'uid', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby, Slough
+    details_dict ={'Application reference number': 'uid', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby, Slough, Staffordshire
                    'LA Reference': 'other_fields.LA_reference', # Flintshire
-                   'Application type': 'other_fields.application_type', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby, Slough
-                   'Proposal description': 'description', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Rugby, Slough
+                   'Application type': 'other_fields.application_type', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby, Slough, Staffordshire
+                   'Proposal description': 'description', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Rugby, Slough, Staffordshire
                    'Full proposal description': 'description', # Redbridge
-                   'Location': 'address', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Rugby, Slough
+                   'Location': 'address', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Rugby, Slough, Staffordshire
                    'Town or communty council': 'other_fields.parish', # Pembrokeshire
                    'Ward': 'other_fields.ward_name', # CannockChase, Flintshire, Middlesbrough, Pembrokeshire, OldOakParkRoyal, Redbridge, Rugby, Slough
-                   'Parish': 'other_fields.parish',  # CannockChase, LakeDistrict, Middlesbrough, NewForestPark, NewForestPark, Rugby, Slough
+                   'District': 'other_fields.distric',  # Staffordshire
+                   'Parish': 'other_fields.parish',  # CannockChase, LakeDistrict, Middlesbrough, NewForestPark, NewForestPark, Rugby, Slough, Staffordshire
                    'Area': 'other_fields.parish', # Flintshire, Slough
-                   'Status': 'other_fields.status', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby, Slough
-                   'Status description': 'other_fields.status_description', # Flintshire, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby, Slough
+                   'Status': 'other_fields.status', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby, Slough, Staffordshire
+                   'Status description': 'other_fields.status_description', # Flintshire, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby, Slough, Staffordshire
                    'UPRN': 'other_fields.uprn', # Rugby
                    'Eircode': 'other_fields.eircode', # Rugby
 
@@ -65,6 +66,9 @@ class Agile_Scraper(Base_Scraper):
                    'Registered date': 'other_fields.date_validated',  # CannockChase, Redbridge
                    'Validated date': 'other_fields.date_validated', # Pembrokeshire
                    'Valid date':'other_fields.date_validated',  # Rugby
+                   'Date valid': 'other_fields.date_validated', # Staffordshire
+                   'Target date': 'other_fields.target_decision_date', # Staffordshire
+                   'Revised target date': 'other_fields.revised_target_decision_date',  # Staffordshire
                    'Publicity start date': 'other_fields.publicity_start_date',  # Redbridge
                    'Publicity end date': 'other_fields.publicity_end_date',  # Redbridge
                    'Target Determination date': 'other_fields.determination_date', # Flintshire
@@ -74,19 +78,22 @@ class Agile_Scraper(Base_Scraper):
                    'Committee agenda item': 'other_fields.committee_agenda_item', # Rugby
                    'Committee Date': 'other_fields.meeting_date', # Rugby
                    'Decision level': 'other_fields.expected_decision_level',
-                   'Decision': 'other_fields.decision', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby, Slough
-                   'Decision date': 'other_fields.decision_issued_date', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby, Slough
+                   'Decision': 'other_fields.decision', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby, Slough, Staffordshire
+                   'Decision date': 'other_fields.decision_issued_date', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby, Slough, Staffordshire
                    'Decision expiry date': 'other_fields.decision_expiry_date', # Flintshire, Middlesbrough, OldOakParkRoyal, Rugby, Slough
+                   'Dispatch date': 'other_fields.dispatch_date', # Staffordshire
 
-                   'Appeal type': 'other_fields.appeal_type', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby, Slough
-                   'Appeal lodged date': 'other_fields.appeal_lodged_date', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Pembrokeshire, Redbridge, Rugby, Slough
-                   'Appeal decision': 'other_fields.appeal_result', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby, Slough
-                   'Appeal decision date': 'other_fields.appeal_decision_date', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby, Slough
+                   'Appeal type': 'other_fields.appeal_type', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby, Slough, Staffordshire
+                   'Appeal lodged date': 'other_fields.appeal_lodged_date', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Pembrokeshire, Redbridge, Rugby, Slough, Staffordshire
+                   'Appeal decision': 'other_fields.appeal_result', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby, Slough, Staffordshire
+                   'Appeal decision date': 'other_fields.appeal_decision_date', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby, Slough, Staffordshire
 
                    'Agent name/Company name': 'other_fields.agent_name', # Pembrokeshire
                    'Applicants name': 'other_fields.applicant_name', # Flintshire
+                   'Applicant’s name': 'other_fields.applicant_name', # Staffordshire
                    'Agent name (company)': 'other_fields.agent_name',  # CannockChase, Flintshire, NewForestPark, NewForestPark, OldOakParkRoyal, Rugby, Slough
-                   'Officer name': 'other_fields.case_officer', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, Rugby, Slough
+                   'Agent’s name': 'other_fields.agent_name', # Staffordshire
+                   'Officer name': 'other_fields.case_officer', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, Rugby, Slough, Staffordshire
                    'Applicant surname/Company name': 'other_fields.applicant_name',
                    'Easting':  'other_fields.easting', # Flintshire, Rugby
                    'Northing': 'other_fields.northing', # Flintshire, Rugby
@@ -100,20 +107,27 @@ class Agile_Scraper(Base_Scraper):
                    #'Registration date': 'other_fields.date_validated',  # duplicated: CannockChase, Flintshire, LakeDistrict, Middlesbrough, Slough
                    #'Validated date': 'other_fields.date_validated', # duplicated: Pembrokeshire
                    #'Valid date': 'other_fields.date_validated' # duplicated: Rugby
+                   #'Date valid': 'other_fields.date_validated' # duplicated: Staffordshire
                    'Validation date': 'other_fields.date_validated', # NewForestPark
-                   #'Decision date': 'other_fields.decision_issued_date', # duplicated: CannockChase, Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Pembrokeshire, Rugby, Slough
+                   #'Target date': 'other_fields.target_decision_date',  # duplicated: Staffordshire
+                   #'Revised target date': 'other_fields.revised_target_decision_date',  # duplicated: Staffordshire
+                   #'Decision date': 'other_fields.decision_issued_date', # duplicated: CannockChase, Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Pembrokeshire, Rugby, Slough, Staffordshire
+                   'Public comments by': 'other_fields.public_consultation_end_date',  # Staffordshire
+                   'Consultee comments by': 'other_fields.consultation_end_date', # Staffordshire
                    'Consultation expiry': 'other_fields.consultation_end_date', # CannockChase, Flintshire, Middlesbrough, NewForestPark, OldOakParkRoyal.
                    'Consultation expiry date': 'other_fields.consultation_end_date', #  CannockChase*, Flintshire, Middlesbrough, OldOakParkRoyal, Pembrokeshire, Rugby, Slough
                    'Received date': 'other_fields.date_received', # CannockChase, Flintshire, LakeDistrict, Middlesbrough, Slough
-                   'Site notice date': 'other_fields.site_notice_start_date', #  CannockChase, Flintshire, Middlesbrough, OldOakParkRoyal, Rugby, Slough
+                   'Site notice date': 'other_fields.site_notice_start_date', #  CannockChase, Flintshire, Middlesbrough, OldOakParkRoyal, Rugby, Slough, Staffordshire
                    'Site Notice End': 'other_fields.site_notice_end_date',  # Redbridge
                    'Newspapers': 'other_fields.newspapers', #  CannockChase, Flintshire, OldOakParkRoyal, Slough
                    'Press notice start date': 'other_fields.press_notice_start_date', # CannockChase, Flintshire, Middlesbrough, OldOakParkRoyal, Slough
+                   'Press notice date': 'other_fields.press_notice_start_date', # Staffordshire
                    'Press notice end date': 'other_fields.press_notice_end_date', # Pembrokeshire
                    'Press Notice reason': 'other_fields.press_notice_reason', # Rugby
                    'Target Decision Due Date': 'other_fields.target_decision_date', # Slough
-                   #'Appeal lodged date': 'other_fields.appeal_lodged_date', # duplicated: CannockChas, Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Pembrokeshire, Rugby, Slough
-                   #'Appeal decision date': 'other_fields.appeal_decision_date', # duplicated: CannockChas, Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Pembrokeshire, Rugby, Slough
+                   #'Dispatch date': 'other_fields.dispatch_date', # duplicated: Staffordshire
+                   #'Appeal lodged date': 'other_fields.appeal_lodged_date', # duplicated: CannockChas, Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Pembrokeshire, Rugby, Slough, Staffordshire
+                   #'Appeal decision date': 'other_fields.appeal_decision_date', # duplicated: CannockChas, Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Pembrokeshire, Rugby, Slough, Staffordshire
                    }
 
     def scrape_data_items_from_AngularJS(self, app_df, item_list):
@@ -560,7 +574,7 @@ class Agile_Scraper(Base_Scraper):
                     assert 1 == 0
 
             # --- --- --- Map --- --- ---
-            # CannockChase, Flintshire, LakeDistrict
+            # CannockChase, Flintshire, LakeDistrict, Staffordshire
             elif 'map' in tab_name.lower():
                 print(f'\n{tab_index + 1}. {tab_name} Tab.')
 
