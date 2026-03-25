@@ -29,7 +29,7 @@ class Agile_Scraper(Base_Scraper):
     7.auth_id = 244(242), NewForestPark: https://planning.agileapplications.co.uk/nfnpa/application-details/44335
     8.auth_id = 275(272), OldOakParkRoyal: https://planning.agileapplications.co.uk/opdc/application-details/8807
     9.auth_id = 281(278), Pembrokeshire: https://planning.agileapplications.co.uk/pembrokeshire/application-details/24026
-    10.-auth_id = 291(288), Redbridge: https://planning.agileapplications.co.uk/redbridge/application-details/110591
+    10.auth_id = 291(288), Redbridge: https://planning.agileapplications.co.uk/redbridge/application-details/110591
     11.-auth_id = 304(301), Rugby: https://planning.agileapplications.co.uk/rugby/application-details/2777
     12.-auth_id = 322(319), Slough: https://planning.agileapplications.co.uk/slough/application-details/11430
     13.-auth_id = 346(343), Staffordshire: https://planning.agileapplications.co.uk/staffordshire/application-details/25518
@@ -46,45 +46,50 @@ class Agile_Scraper(Base_Scraper):
         # All sub_classes of Base_Scraper should define their self.parse_func(s) in __init__
         self.parse_func = self.parse_data_item_Agile
 
-    details_dict ={'Application reference number': 'uid', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge
+    details_dict ={'Application reference number': 'uid', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby
                    'LA Reference': 'other_fields.LA_reference', # Flintshire
-                   'Application type': 'other_fields.application_type', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge
-                   'Proposal description': 'description', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal
+                   'Application type': 'other_fields.application_type', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby
+                   'Proposal description': 'description', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Rugby
                    'Full proposal description': 'description', # Redbridge
-                   'Location': 'address', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal
+                   'Location': 'address', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Rugby
                    'Town or communty council': 'other_fields.parish', # Pembrokeshire
-                   'Ward': 'other_fields.ward_name', # CannockChase, Flintshire, Middlesbrough, Pembrokeshire, OldOakParkRoyal, Redbridge
-                   'Parish': 'other_fields.parish',  # CannockChase, LakeDistrict, Middlesbrough, NewForestPark, NewForestPark
+                   'Ward': 'other_fields.ward_name', # CannockChase, Flintshire, Middlesbrough, Pembrokeshire, OldOakParkRoyal, Redbridge, Rugby
+                   'Parish': 'other_fields.parish',  # CannockChase, LakeDistrict, Middlesbrough, NewForestPark, NewForestPark, Rugby
                    'Area': 'other_fields.parish', # Flintshire
-                   'Status': 'other_fields.status', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge
-                   'Status description': 'other_fields.status_description', # Flintshire, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge
+                   'Status': 'other_fields.status', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby
+                   'Status description': 'other_fields.status_description', # Flintshire, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby
+                   'UPRN': 'other_fields.uprn', # Rugby
+                   'Eircode': 'other_fields.eircode', # Rugby
 
                    'Registration date': 'other_fields.date_validated', # CannockChase, Flintshire, LakeDistrict, Middlesbrough,
                    'Registered date': 'other_fields.date_validated',  # CannockChase, Redbridge
                    'Validated date': 'other_fields.date_validated', # Pembrokeshire
+                   'Valid date':'other_fields.date_validated',  # Rugby
                    'Publicity start date': 'other_fields.publicity_start_date',  # Redbridge
                    'Publicity end date': 'other_fields.publicity_end_date',  # Redbridge
                    'Target Determination date': 'other_fields.determination_date', # Flintshire
                    'Application target date': 'other_fields.target_decision_date', # Redbridge
                    'Level of Decision': 'other_fields.expected_decision_level', # Flintshire
-                   'Extension of time date': 'other_fields.extension_of_time_date', # Flintshire, Middlesbrough, Pembrokeshire, OldOakParkRoyal, Redbridge
+                   'Extension of time date': 'other_fields.extension_of_time_date', # Flintshire, Middlesbrough, Pembrokeshire, OldOakParkRoyal, Redbridge, Rugby
+                   'Committee agenda item': 'other_fields.committee_agenda_item', # Rugby
+                   'Committee Date': 'other_fields.meeting_date', # Rugby
                    'Decision level': 'other_fields.expected_decision_level',
-                   'Decision': 'other_fields.decision', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge
-                   'Decision date': 'other_fields.decision_issued_date', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge
-                   'Decision expiry date': 'other_fields.decision_expiry_date', # Flintshire, Middlesbrough, OldOakParkRoyal
+                   'Decision': 'other_fields.decision', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby
+                   'Decision date': 'other_fields.decision_issued_date', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby
+                   'Decision expiry date': 'other_fields.decision_expiry_date', # Flintshire, Middlesbrough, OldOakParkRoyal, Rugby
 
-                   'Appeal type': 'other_fields.appeal_type', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge
-                   'Appeal lodged date': 'other_fields.appeal_lodged_date', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Pembrokeshire, Redbridge
-                   'Appeal decision': 'other_fields.appeal_result', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge
-                   'Appeal decision date': 'other_fields.appeal_decision_date', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge
+                   'Appeal type': 'other_fields.appeal_type', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby
+                   'Appeal lodged date': 'other_fields.appeal_lodged_date', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Pembrokeshire, Redbridge, Rugby
+                   'Appeal decision': 'other_fields.appeal_result', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby
+                   'Appeal decision date': 'other_fields.appeal_decision_date', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby
 
                    'Agent name/Company name': 'other_fields.agent_name', # Pembrokeshire
                    'Applicants name': 'other_fields.applicant_name', # Flintshire
-                   'Agent name (company)': 'other_fields.agent_name',  # CannockChase, Flintshire, NewForestPark, NewForestPark, OldOakParkRoyal
-                   'Officer name': 'other_fields.case_officer', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark
+                   'Agent name (company)': 'other_fields.agent_name',  # CannockChase, Flintshire, NewForestPark, NewForestPark, OldOakParkRoyal, Rugby
+                   'Officer name': 'other_fields.case_officer', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, Rugby
                    'Applicant surname/Company name': 'other_fields.applicant_name',
-                   'Easting':  'other_fields.easting', # Flintshire
-                   'Northing': 'other_fields.northing', # Flintshire
+                   'Easting':  'other_fields.easting', # Flintshire, Rugby
+                   'Northing': 'other_fields.northing', # Flintshire, Rugby
                    'Final date for third party observations/submissions': 'other_fields.final_date_for_third_party', # Flintshire*
 
                    # conditions:
@@ -94,18 +99,20 @@ class Agile_Scraper(Base_Scraper):
                    # dates:
                    #'Registration date': 'other_fields.date_validated',  # duplicated: CannockChase, Flintshire, LakeDistrict, Middlesbrough.
                    #'Validated date': 'other_fields.date_validated', # duplicated: Pembrokeshire
+                   #'Valid date': 'other_fields.date_validated' # duplicated: Rugby
                    'Validation date': 'other_fields.date_validated', # NewForestPark
-                   #'Decision date': 'other_fields.decision_issued_date', # duplicated: CannockChase, Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Pembrokeshire
+                   #'Decision date': 'other_fields.decision_issued_date', # duplicated: CannockChase, Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Pembrokeshire, Rugby
                    'Consultation expiry': 'other_fields.consultation_end_date', # CannockChase, Flintshire, Middlesbrough, NewForestPark, OldOakParkRoyal.
-                   'Consultation expiry date': 'other_fields.consultation_end_date', #  CannockChase*, Flintshire, Middlesbrough, OldOakParkRoyal, Pembrokeshire
+                   'Consultation expiry date': 'other_fields.consultation_end_date', #  CannockChase*, Flintshire, Middlesbrough, OldOakParkRoyal, Pembrokeshire, Rugby
                    'Received date': 'other_fields.date_received', # CannockChase, Flintshire, LakeDistrict, Middlesbrough.
-                   'Site notice date': 'other_fields.site_notice_start_date', #  CannockChase, Flintshire, Middlesbrough, OldOakParkRoyal
+                   'Site notice date': 'other_fields.site_notice_start_date', #  CannockChase, Flintshire, Middlesbrough, OldOakParkRoyal, Rugby
                    'Site Notice End': 'other_fields.site_notice_end_date',  # Redbridge
                    'Newspapers': 'other_fields.newspapers', #  CannockChase, Flintshire, OldOakParkRoyal
                    'Press notice start date': 'other_fields.press_notice_start_date', # CannockChase, Flintshire, Middlesbrough, OldOakParkRoyal
                    'Press notice end date': 'other_fields.press_notice_end_date', # Pembrokeshire
-                   #'Appeal lodged date': 'other_fields.appeal_lodged_date', # duplicated: CannockChas, Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Pembrokeshire
-                   #'Appeal decision date': 'other_fields.appeal_decision_date', # duplicated: CannockChas, Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Pembrokeshire
+                   'Press Notice reason': 'other_fields.press_notice_reason', # Rugby
+                   #'Appeal lodged date': 'other_fields.appeal_lodged_date', # duplicated: CannockChas, Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Pembrokeshire, Rugby
+                   #'Appeal decision date': 'other_fields.appeal_decision_date', # duplicated: CannockChas, Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Pembrokeshire, Rugby
                    }
 
     def scrape_data_items_from_AngularJS(self, app_df, item_list):
@@ -170,7 +177,16 @@ class Agile_Scraper(Base_Scraper):
             print('note: ', note)
             return
 
-        def expand_list(table, n_comments):
+        def expand_list(table):
+            group_rows = table.find_elements(By.CSS_SELECTOR, "tr.ng-table-group")
+            for row in group_rows:
+                button = row.find_element(By.XPATH, './td/a')
+                if 'right' in button.find_element(By.XPATH, './span[1]').get_attribute('class'):
+                    button.click()
+                    time.sleep(2)
+                    assert 'down' in button.find_element(By.XPATH, './span[1]').get_attribute('class')
+
+        def expand_list2(table, n_comments):
             # identify the list status
             n_rows = len(table.find_elements(By.XPATH, './tbody/tr'))
             if n_rows < n_comments:  # lists are not expanded. # we assume all lists share the same status.
@@ -203,8 +219,8 @@ class Agile_Scraper(Base_Scraper):
                     contact_df = pd.DataFrame(contact_dict)
                     contact_df.to_csv(f"{self.data_storage_path}{folder_name}/contacts.csv", index=False)
             # --- --- --- Consultations (csv) --- --- ---
-            # CannockChase, Flintshire(0), Middlesbrough(0), NewForestPark(0), OldOakParkRoyal
-            # consultee
+            # CannockChase, Flintshire(0), Middlesbrough(0), NewForestPark(0), OldOakParkRoyal, Rugby
+            # consultee, neighbour, interested party
             # see https://planning.agileapplications.co.uk/opdc/application-details/8993
             elif 'consultation' in tab_name.lower():
                 n_comments = int(re.findall(r'\(\s*(\d+)\s*\)', tab_name)[0])
@@ -214,17 +230,7 @@ class Agile_Scraper(Base_Scraper):
                 if n_comments > 0:
                     consultation_table = driver.find_element(By.XPATH, "//table[@name='consultations']")
                     # identify the list status
-                    expand_list(consultation_table, n_comments)
-                    """
-                    n_rows = len(consultation_table.find_elements(By.XPATH, './tbody/tr'))
-                    if n_rows < n_comments: # lists are not expanded. # we assume all lists share the same status.
-                        for list_index in range(n_rows, 0, -1):
-                            consultation_button = consultation_table.find_element(By.XPATH, f'./tbody/tr[{list_index}]/td/a')
-                            if 'right' in consultation_button.find_element(By.XPATH, './span[1]').get_attribute('class'):
-                                consultation_button.click()
-                                time.sleep(2)
-                                assert 'down' in consultation_button.find_element(By.XPATH, './span[1]').get_attribute('class')
-                    """
+                    expand_list(consultation_table)
                     items = consultation_table.find_elements(By.XPATH, './tbody/tr')
 
                     column_names = [column.get_attribute('data-title').strip() for column in items[1].find_elements(By.XPATH, './td')]
@@ -239,6 +245,27 @@ class Agile_Scraper(Base_Scraper):
                         # content_dict[column_names[column_index]] = [table_item.find_element(By.XPATH, f'./td[{column_index + 1}]/span').get_attribute('innerText').strip() for table_item in items[1:]]
                         content_dict[column_names[column_index]] = []
                     for item in items[1:]:
+                        class_attr = item.get_attribute("class")
+                        if "ng-table-group" in class_attr:
+                            content_df = pd.DataFrame(content_dict)
+                            content_df.to_csv(f"{self.data_storage_path}{folder_name}/{csv_name}.csv", index=False)
+                            if csv_name == 'consultee':
+                                app_df.at['other_fields.n_comments_consultee_total_consulted'] = n_content
+                            else:  # if csv_name == 'neighbour':
+                                app_df.at['other_fields.n_comments_public_total_consulted'] += n_content
+                            print(f'    {csv_name}: {n_content} items.')
+                            # initialize for the next csv file:
+                            csv_name = item.find_element(By.XPATH, './td/a/strong').get_attribute('innerText').split('(')[0].lower()
+                            assert csv_name in ['consultee', 'neighbour', 'interested party']  # test
+                            content_dict = {}
+                            n_content = 0
+                            for column_index in range(n_columns):
+                                content_dict[column_names[column_index]] = []
+                        else:
+                            for column_index in range(n_columns):
+                                content_dict[column_names[column_index]].append(item.find_element(By.XPATH, f'./td[{column_index + 1}]/span').get_attribute('innerText').strip())
+                            n_content += 1  # consultation table does not have multi-content in each row.  # int(content_dict[column_names[-1]][-1])
+                        """
                         try:  # write data to csv file:
                             for column_index in range(n_columns):
                                 content_dict[column_names[column_index]].append(item.find_element(By.XPATH, f'./td[{column_index + 1}]/span').get_attribute('innerText').strip())
@@ -258,6 +285,7 @@ class Agile_Scraper(Base_Scraper):
                             n_content = 0
                             for column_index in range(n_columns):
                                 content_dict[column_names[column_index]] = []
+                        """
 
                     content_df = pd.DataFrame(content_dict)
                     content_df.to_csv(f'{self.data_storage_path}{folder_name}/{csv_name}.csv', index=False)
@@ -269,8 +297,8 @@ class Agile_Scraper(Base_Scraper):
                     print(f'    {csv_name}: {n_content} items.')
 
             # --- --- --- Responses (multiple multi-column csv) --- --- ---
-            # CannockChase(0), Flintshire, Middlesbrough(0), NewForestPark, OldOakParkRoyal
-            # consultee, neighbour.
+            # CannockChase(0), Flintshire, Middlesbrough(0), NewForestPark, OldOakParkRoyal, Rugby
+            # consultee, neighbour, interested party, applicant
             elif 'responses' in tab_name.lower():
                 n_responses = int(re.findall(r'\(\s*(\d+)\s*\)', tab_name)[0])
                 print(f'\n{tab_index + 1}. {tab_name} Tab.')  # {n_responses} items.')
@@ -281,7 +309,7 @@ class Agile_Scraper(Base_Scraper):
 
                     responses_table = driver.find_element(By.XPATH, "//table[@name='responses']")
                     # identify the list status
-                    expand_list(responses_table, n_responses)
+                    expand_list(responses_table)
                     items = responses_table.find_elements(By.XPATH, './tbody/tr')
 
                     column_names = [column.get_attribute('data-title').strip() for column in items[1].find_elements(By.XPATH, './td')]
@@ -296,6 +324,27 @@ class Agile_Scraper(Base_Scraper):
                         #content_dict[column_names[column_index]] = [table_item.find_element(By.XPATH, f'./td[{column_index + 1}]/span').get_attribute('innerText').strip() for table_item in items[1:]]
                         content_dict[column_names[column_index]] = []
                     for item in items[1:]:
+                        class_attr = item.get_attribute("class")
+                        if "ng-table-group" in class_attr:
+                            content_df = pd.DataFrame(content_dict)
+                            content_df.to_csv(f"{self.data_storage_path}{folder_name}/responses-{csv_name}.csv", index=False)
+                            if csv_name == 'consultee':
+                                app_df.at['other_fields.n_comments_consultee_responded'] = n_content
+                            else:  # if csv_name == 'neighbour':
+                                app_df.at['other_fields.n_comments_public_received'] += n_content
+                            print(f'    {csv_name}: {n_content} items.')
+                            # initialize for the next csv file:
+                            csv_name = item.find_element(By.XPATH, './td/a/strong').get_attribute('innerText').split('(')[0].lower()
+                            assert csv_name in ['consultee', 'neighbour', 'interested party'] # test
+                            content_dict = {}
+                            n_content = 0
+                            for column_index in range(n_columns):
+                                content_dict[column_names[column_index]] = []
+                        else:
+                            for column_index in range(n_columns):
+                                content_dict[column_names[column_index]].append(item.find_element(By.XPATH, f'./td[{column_index + 1}]/span').get_attribute('innerText').strip())
+                            n_content += int(content_dict[column_names[-1]][-1])
+                        """
                         try: # write data to csv file:
                             for column_index in range(n_columns):
                                 content_dict[column_names[column_index]].append(item.find_element(By.XPATH, f'./td[{column_index+1}]/span').get_attribute('innerText').strip())
@@ -315,6 +364,7 @@ class Agile_Scraper(Base_Scraper):
                             n_content = 0
                             for column_index in range(n_columns):
                                 content_dict[column_names[column_index]] = []
+                        """
 
                     content_df = pd.DataFrame(content_dict)
                     content_df.to_csv(f'{self.data_storage_path}{folder_name}/responses-{csv_name}.csv', index=False)
@@ -326,7 +376,7 @@ class Agile_Scraper(Base_Scraper):
                     print(f'    {csv_name}: {n_content} items.')
 
             # --- --- --- Constraints/Policies (multiple single-column csv) --- --- ---
-            # CannockChase, Flintshire, Middlesbrough, NewForestPark
+            # CannockChase, Flintshire, Middlesbrough, NewForestPark, Rugby
             # Policies only: Redbridge
             # constraint, policies, conservation areas.
             elif any(word in tab_name.lower() for word in ['constraint', 'policies']): # 'constraint' in tab_name.lower():
@@ -444,15 +494,21 @@ class Agile_Scraper(Base_Scraper):
                         yield item
 
             # --- --- --- Conditions (data + one multi-column csv, multi-pages) --- --- ---
-            # CannockChase, Flintshire, Middlesbrough, NewForestPark, Redbridge
-            #
+            # CannockChase, Flintshire, Middlesbrough, NewForestPark, Redbridge, Rugby
             elif 'condition' in tab_name.lower():
                 n_conditions = int(re.findall(r'\(\s*(\d+)\s*\)', tab_name)[0])
-                item_list = driver.find_elements(By.XPATH, '//*[@id="conditionsTab"]/div/form/div')
-                # //*[@id="conditionsTab"]/div/form/div[1]/sas-input-text/div/div
-                print(f'\n{tab_index + 1}. {tab_name} Tab: {len(item_list)} items + {n_conditions} conditions.')
-                item_list = [item.find_element(By.XPATH, './*/div/div') for item in item_list]
-                app_df, _ = self.scrape_data_items_from_AngularJS(app_df, item_list)
+
+                item_block = driver.find_elements(By.XPATH, '//*[@id="conditionsTab"]/div')
+                class_attr = item_block.get_attribute('class')
+                if 'ng-hide' in class_attr:
+                    # //*[@id="conditionsTab"]/section[1]/div/span
+                    print(driver.find_element(By.XPATH, '//*[@id="conditionsTab"]/section[1]/div/span').get_attribute('innerText').strip())
+                else:
+                    item_list = item_block.find_elements(By.XPATH, './form/div')
+                    # //*[@id="conditionsTab"]/div/form/div[1]/sas-input-text/div/div
+                    print(f'\n{tab_index + 1}. {tab_name} Tab: {len(item_list)} items + {n_conditions} conditions.')
+                    item_list = [item.find_element(By.XPATH, './*/div/div') for item in item_list]
+                    app_df, _ = self.scrape_data_items_from_AngularJS(app_df, item_list)
 
                 if n_conditions > 0:
                     csv_name = 'conditions'
