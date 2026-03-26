@@ -496,7 +496,10 @@ class Agile_Scraper(Base_Scraper):
                         item_table = driver.find_element(By.XPATH, '//*[@id="documents"]/div[2]/table/tbody')
                         item_list = item_table.find_elements(By.XPATH, './tr')
                         document_type, document_description, document_date, file_urls, document_names  = None, None, None, [], []
-                        LA_abbreviation = driver.current_url.split('/')[-3].upper()
+                        if self.auth in ['YorkshireDales']:
+                            LA_abbreviation = 'YD'
+                        else:
+                            LA_abbreviation = driver.current_url.split('/')[-3].upper()
                         print('LA abbreviation: ', LA_abbreviation)
                         for item_index, item in enumerate(item_list):
                             row_data = driver.execute_script("return angular.element(arguments[0]).scope().row;", item)
