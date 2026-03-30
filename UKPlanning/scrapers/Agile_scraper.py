@@ -46,9 +46,11 @@ class Agile_Scraper(Base_Scraper):
 
         # All sub_classes of Base_Scraper should define their self.parse_func(s) in __init__
         if self.auth in ['Tonbridge']:
+            self.url_check = True
+            self.url_preprocess = self.url_preprocess_Tonbridge
             self.parse_func = self.parse_Tonbridge_search_page_Agile
             #self.parse_func = self.search_by_appID_Agile
-            self.time_out_solver = self.parse_Tonbridge_search_page_Agile
+            #self.time_out_solver = self.parse_Tonbridge_search_page_Agile
             print('self.parse_Tonbridge_search_page_Agile')
         elif self.auth in ['YorkshireDales']:
             self.parse_func = self.parse_YorkshireDales_fix_page_Agile
@@ -182,17 +184,24 @@ class Agile_Scraper(Base_Scraper):
         item['session_cookies'] = cookies
         return item
 
+    def url_preprocess_Tonbridge(self, url):
+        if url.startswith('https://planning.agileapplications.co.uk/tmbc'):
+            return url
+        else:
+            return 'https://planning.agileapplications.co.uk/tmbc/search-applications/'
+
     def parse_Tonbridge_search_page_Agile(self, response):
         app_df = response.meta['app_df']
-        """
+        #"""
         if app_df.at['url'].startswith('https://planning.agileapplications.co.uk/tmbc'):
             # scrape application directly.
             yield from self.parse_data_item_Agile(response)
         else:  # the key mechanism of Scrapy, Generator-based callbacks, prevents us from visiting the same url, need adding para: dont_filter=True.
-        """
-        url = 'https://planning.agileapplications.co.uk/tmbc/search-applications/'
-        print(f'Tonbridge search: {url}')
-        yield SeleniumRequest(url=url, callback=self.search_by_appID_Agile, meta={'app_df': app_df}, dont_filter=True)
+        #"""
+            yield from self.search_by_appID_Agile(response)
+            #url = 'https://planning.agileapplications.co.uk/tmbc/search-applications/'
+            #print(f'Tonbridge search: {url}')
+            #yield SeleniumRequest(url=url, callback=self.search_by_appID_Agile, meta={'app_df': app_df}, dont_filter=True)
 
     # A module to search applications using their app_id.
     def search_by_appID_Agile(self, response):
@@ -258,6 +267,7 @@ class Agile_Scraper(Base_Scraper):
         except TimeoutException:
             print('No Cookie button.')
 
+        time.sleep(20)
         try:
             tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="applicationDetails"]/uib-accordion/div')))  # role = 'tablist'
         except TimeoutException:
