@@ -22,10 +22,15 @@ class Agile_Scraper(Base_Scraper):
     """
     1.auth_id = 61, CannockChase: https://planning.agileapplications.co.uk/cannock/application-details/7007
     2.-auth_id = 139(137), Exmoor: https://planning.agileapplications.co.uk/exmoor/application-details/2552
+                                    https://exmoor.planning-register.co.uk/Search
+                                    https://exmoor.planning-register.co.uk/Planning/Display?applicationNumber=62%2F41%2F08%2F005
+                                    https://exmoor.planning-register.co.uk/Planning/Display?applicationNumber=EXM%2F26%2F084%2FFULL
     3.auth_id = 145(143), Flintshire: https://planning.agileapplications.co.uk/flintshire/application-details/28244
     4.auth_id = 202(200), LakeDistrict: https://planning.agileapplications.co.uk/ldnpa/application-details/27229 (many apps are unavailable)
     5.auth_id = 229(227), Middlesbrough: https://planning.agileapplications.co.uk/middlesbrough/application-details/1781
-    6.-auth_id = 236(234), MoleValley: x
+    6.-auth_id = 236(234), MoleValley: url error.
+                                        https://molevalley-publicportal.statmap.co.uk/horizonext
+                                        https://molevalley-publicportal.statmap.co.uk/horizoNext/publicportal/planningapplications/1954
     7.auth_id = 244(242), NewForestPark: https://planning.agileapplications.co.uk/nfnpa/application-details/44335
     8.auth_id = 275(272), OldOakParkRoyal: https://planning.agileapplications.co.uk/opdc/application-details/8807
     9.auth_id = 281(278), Pembrokeshire: https://planning.agileapplications.co.uk/pembrokeshire/application-details/24026
@@ -55,21 +60,34 @@ class Agile_Scraper(Base_Scraper):
             self.parse_func = self.parse_YorkshireDales_fix_page_Agile
         else:
             self.parse_func = self.parse_data_item_Agile
-            print('self.parse_data_item_Agile')
 
-    details_dict ={'Application reference number': 'uid', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby, Slough, Staffordshire, Tonbridge, YorkshireDales
-                   'LA Reference': 'other_fields.LA_reference', # Flintshire
-                   'Application type': 'other_fields.application_type', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby, Slough, Staffordshire, Tonbridge, YorkshireDales
-                   'Proposal description': 'description', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Rugby, Slough, Staffordshire, Tonbridge, YorkshireDales
+    details_dict ={# 13: All except Exmoor and MoleValley
+                   'Application reference number': 'uid',
+                   'Application type': 'other_fields.application_type',
+                   'Location': 'address',
+
+                   'Decision': 'other_fields.decision',
+                   'Decision date': 'other_fields.decision_issued_date',
+
+                   'Appeal type': 'other_fields.appeal_type',
+                   'Appeal lodged date': 'other_fields.appeal_lodged_date',
+                   'Appeal decision': 'other_fields.appeal_result',
+                   'Appeal decision date': 'other_fields.appeal_decision_date',
+                   # 12
+                   'Status': 'other_fields.status', # 12: except Exmoor, MoleValley, and Tonbridge.
+                   'Proposal description': 'description', # 12: except Exmoor, MoleValley, and Redbridge.
                    'Full proposal description': 'description', # Redbridge
-                   'Location': 'address', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Rugby, Slough, Staffordshire, Tonbridge, YorkshireDales
+                   # 11
+                   'Status description': 'other_fields.status_description', # 11: except Exmoor, LakeDistrict, MoleValley, and Tonbridge.
+                   'Extension of time date': 'other_fields.extension_of_time_date', # 11: except Exmoor, LakeDistrict, MoleValley, and Staffordshire.
+
+                   'LA Reference': 'other_fields.LA_reference', # Flintshire
                    'Town or communty council': 'other_fields.parish', # Pembrokeshire
                    'Ward': 'other_fields.ward_name', # CannockChase, Flintshire, Middlesbrough, Pembrokeshire, OldOakParkRoyal, Redbridge, Rugby, Slough, Tonbridge
                    'District': 'other_fields.distric',  # Staffordshire
                    'Parish': 'other_fields.parish',  # CannockChase, LakeDistrict, Middlesbrough, NewForestPark, NewForestPark, Rugby, Slough, Staffordshire, Tonbridge, YorkshireDales
-                   'Area': 'other_fields.area', # Flintshire, Slough, YorkshireDales
-                   'Status': 'other_fields.status', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby, Slough, Staffordshire, YorkshireDales
-                   'Status description': 'other_fields.status_description', # Flintshire, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby, Slough, Staffordshire, YorkshireDales
+                   'Area': 'other_fields.area', # CannockChase, Flintshire, Slough, YorkshireDales
+
                    'UPRN': 'other_fields.uprn', # Rugby
                    'Eircode': 'other_fields.eircode', # Rugby
 
@@ -85,20 +103,13 @@ class Agile_Scraper(Base_Scraper):
                    'Target Determination date': 'other_fields.determination_date', # Flintshire
                    'Application target date': 'other_fields.target_decision_date', # Redbridge, Tonbridge
                    'Level of Decision': 'other_fields.expected_decision_level', # Flintshire
-                   'Extension of time date': 'other_fields.extension_of_time_date', # Flintshire, Middlesbrough, Pembrokeshire, OldOakParkRoyal, Redbridge, Rugby, Slough, Tonbridge, YorkshireDales
                    'Committee agenda item': 'other_fields.committee_agenda_item', # Rugby
                    'Committee Date': 'other_fields.meeting_date', # Rugby
                    'Decision level': 'other_fields.expected_decision_level',
-                   'Decision': 'other_fields.decision', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby, Slough, Staffordshire, Tonbridge, YorkshireDales
-                   'Decision date': 'other_fields.decision_issued_date', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby, Slough, Staffordshire, Tonbridge, YorkshireDales
                    'Decision Due Date': 'other_fields.decision_due_date', # YorkshireDales
                    'Decision expiry date': 'other_fields.decision_expiry_date', # Flintshire, Middlesbrough, OldOakParkRoyal, Rugby, Slough, YorkshireDales
                    'Dispatch date': 'other_fields.dispatch_date', # Staffordshire
 
-                   'Appeal type': 'other_fields.appeal_type', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby, Slough, Staffordshire, Tonbridge, YorkshireDales
-                   'Appeal lodged date': 'other_fields.appeal_lodged_date', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Pembrokeshire, Redbridge, Rugby, Slough, Staffordshire, Tonbridge, YorkshireDales
-                   'Appeal decision': 'other_fields.appeal_result', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby, Slough, Staffordshire, Tonbridge, YorkshireDales
-                   'Appeal decision date': 'other_fields.appeal_decision_date', # Flintshire, LakeDistrict, Middlesbrough, NewForestPark, OldOakParkRoyal, Redbridge, Rugby, Slough, Staffordshire, Tonbridge, YorkshireDales
 
                    'Agent name/Company name': 'other_fields.agent_name', # Pembrokeshire
                    'Applicants name': 'other_fields.applicant_name', # Flintshire
@@ -323,6 +334,9 @@ class Agile_Scraper(Base_Scraper):
                     # identify the list status
                     expand_list(consultation_table)
                     items = consultation_table.find_elements(By.XPATH, './tbody/tr')
+                    if len(items) == 0:
+                        app_df.at['other_fields.n_comments_consultee_total_consulted'] = n_comments
+                        continue
 
                     column_names = [column.get_attribute('data-title').strip() for column in items[1].find_elements(By.XPATH, './td')]
                     column_names = unique_columns(column_names)
