@@ -288,17 +288,6 @@ class Agile_Scraper(Base_Scraper):
                     time.sleep(2)
                     assert 'down' in button.find_element(By.XPATH, './span[1]').get_attribute('class')
 
-        def expand_list2(table, n_comments):
-            # identify the list status
-            n_rows = len(table.find_elements(By.XPATH, './tbody/tr'))
-            if n_rows < n_comments:  # lists are not expanded. # we assume all lists share the same status.
-                for list_index in range(n_rows, 0, -1):
-                    button = table.find_element(By.XPATH, f'./tbody/tr[{list_index}]/td/a')
-                    if 'right' in button.find_element(By.XPATH, './span[1]').get_attribute('class'):
-                        button.click()
-                        time.sleep(2)
-                        assert 'down' in button.find_element(By.XPATH, './span[1]').get_attribute('class')
-
         tab_list = tab_panel.find_elements(By.XPATH, './div')
         for tab_index, tab in enumerate(tab_list):
             tab_name = tab.find_element(By.XPATH, './div/h4/a/span').text.strip()
