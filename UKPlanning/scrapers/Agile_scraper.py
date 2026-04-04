@@ -51,14 +51,12 @@ class Agile_Scraper(Base_Scraper):
         super().__init__(*args, **kwargs)
 
         # All sub_classes of Base_Scraper should define their self.parse_func(s) in __init__
-        if self.auth in ['Tonbridge']:
+        if self.auth in ['Tonbridge', 'YorkshireDales']:
             self.url_check = True
-            self.url_preprocess = self.url_preprocess_Agile
-            #self.url_preprocess = self.url_preprocess_Tonbridge
-            #self.parse_func = self.parse_Tonbridge_search_page_Agile
-            print('self.parse_Tonbridge_search_page_Agile')
-        elif self.auth in ['YorkshireDales']:
-            self.parse_func = self.parse_YorkshireDales_fix_page_Agile
+            if self.auth == 'YorkshireDales':
+                self.url_preprocess = self.url_preprocess_YorkshireDales
+            else:
+                self.url_preprocess = self.url_preprocess_Agile
         else:
             self.parse_func = self.parse_data_item_Agile
 
@@ -212,29 +210,17 @@ class Agile_Scraper(Base_Scraper):
         return item
 
     def url_preprocess_Agile(self, url):
+        # if url is correct, run the scraper directly.
         if url.startswith(f'https://planning.agileapplications.co.uk/{self.LA_url_dict[self.auth]}'):
             self.parse_func = self.parse_data_item_Agile
             return url
-        else:
+        else: # do pre-process.
             self.parse_func = self.search_by_appID_Agile
             return f'https://planning.agileapplications.co.uk/{self.LA_url_dict[self.auth]}/search-applications/'
 
-    # delete
-    def url_preprocess_Tonbridge(self, url):
-        if url.startswith('https://planning.agileapplications.co.uk/tmbc'):
-            return url
-        else:
-            return 'https://planning.agileapplications.co.uk/tmbc/search-applications/'
-        # https://planning.agileapplications.co.uk/yorkshiredales/search-applications/
-    # delete
-    def parse_Tonbridge_search_page_Agile(self, response):
-        app_df = response.meta['app_df']
-        # url is correct, go to scraper.
-        if app_df.at['url'].startswith('https://planning.agileapplications.co.uk/tmbc'):
-            # scrape application directly.
-            yield from self.parse_data_item_Agile(response)
-        else: # url is replaced by the search page, go to search_by_appID.
-            yield from self.search_by_appID_Agile(response)
+    def url_preprocess_YorkshireDales(self, url):
+        new_url = re.sub(r'yorkshiredale(?![s])', 'yorkshiredales', url)
+        return self.url_preprocess_Agile(new_url)
 
     # A module to search applications using their app_id.
     def search_by_appID_Agile(self, response):
@@ -276,13 +262,6 @@ class Agile_Scraper(Base_Scraper):
 
         # scrape application
         yield from self.parse_data_item_Agile(response)
-
-    def parse_YorkshireDales_fix_page_Agile(self, response):
-        app_df = response.meta['app_df']
-        new_url = re.sub(r'yorkshiredale(?![s])', 'yorkshiredales', app_df.at['url'])
-        app_df.at['url'] = new_url
-        print(f'fixed url: {new_url}')
-        yield SeleniumRequest(url=new_url, callback=self.parse_data_item_Agile, meta={'app_df': app_df}, dont_filter=True)
 
     def parse_data_item_Agile(self, response):
         app_df = response.meta['app_df']
@@ -386,27 +365,6 @@ class Agile_Scraper(Base_Scraper):
                             for column_index in range(n_columns):
                                 content_dict[column_names[column_index]].append(item.find_element(By.XPATH, f'./td[{column_index + 1}]/span').get_attribute('innerText').strip())
                             n_content += 1  # consultation table does not have multi-content in each row.  # int(content_dict[column_names[-1]][-1])
-                        """
-                        try:  # write data to csv file:
-                            for column_index in range(n_columns):
-                                content_dict[column_names[column_index]].append(item.find_element(By.XPATH, f'./td[{column_index + 1}]/span').get_attribute('innerText').strip())
-                            n_content += 1 # consultation table does not have multi-content in each row.  # int(content_dict[column_names[-1]][-1])
-                        except NoSuchElementException:  # save the current csv file:
-                            content_df = pd.DataFrame(content_dict)
-                            content_df.to_csv(f"{self.data_storage_path}{folder_name}/{csv_name}.csv", index=False)
-                            if csv_name == 'consultee':
-                                app_df.at['other_fields.n_comments_consultee_total_consulted'] = n_content
-                            else:  # if csv_name == 'neighbour':
-                                app_df.at['other_fields.n_comments_public_total_consulted'] += n_content
-                            print(f'    {csv_name}: {n_content} items.')
-                            # initialize for the next csv file:
-                            csv_name = item.find_element(By.XPATH, './td/a/strong').get_attribute('innerText').split('(')[0].lower()
-                            assert csv_name in ['consultee', 'neighbour', 'interested party']  # test
-                            content_dict = {}
-                            n_content = 0
-                            for column_index in range(n_columns):
-                                content_dict[column_names[column_index]] = []
-                        """
 
                     content_df = pd.DataFrame(content_dict)
                     content_df.to_csv(f'{self.data_storage_path}{folder_name}/{csv_name}.csv', index=False)
@@ -465,27 +423,6 @@ class Agile_Scraper(Base_Scraper):
                             for column_index in range(n_columns):
                                 content_dict[column_names[column_index]].append(item.find_element(By.XPATH, f'./td[{column_index + 1}]/span').get_attribute('innerText').strip())
                             n_content += int(content_dict[column_names[-1]][-1])
-                        """
-                        try: # write data to csv file:
-                            for column_index in range(n_columns):
-                                content_dict[column_names[column_index]].append(item.find_element(By.XPATH, f'./td[{column_index+1}]/span').get_attribute('innerText').strip())
-                            n_content += int(content_dict[column_names[-1]][-1])
-                        except NoSuchElementException: # save the current csv file:
-                            content_df = pd.DataFrame(content_dict)
-                            content_df.to_csv(f"{self.data_storage_path}{folder_name}/responses-{csv_name}.csv", index=False)
-                            if csv_name == 'consultee':
-                                app_df.at['other_fields.n_comments_consultee_responded'] = n_content
-                            else:  # if csv_name == 'neighbour':
-                                app_df.at['other_fields.n_comments_public_received'] += n_content
-                            print(f'    {csv_name}: {n_content} items.')
-                            # initialize for the next csv file:
-                            csv_name = item.find_element(By.XPATH, './td/a/strong').get_attribute('innerText').split('(')[0].lower()
-                            assert csv_name in ['consultee', 'neighbour', 'interested party'] # test
-                            content_dict = {}
-                            n_content = 0
-                            for column_index in range(n_columns):
-                                content_dict[column_names[column_index]] = []
-                        """
 
                     content_df = pd.DataFrame(content_dict)
                     content_df.to_csv(f'{self.data_storage_path}{folder_name}/responses-{csv_name}.csv', index=False)
