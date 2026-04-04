@@ -290,7 +290,8 @@ class Agile_Scraper(Base_Scraper):
             for row in group_rows:
                 button = row.find_element(By.XPATH, './td/a')
                 if 'right' in button.find_element(By.XPATH, './span[1]').get_attribute('class'):
-                    button.click()
+                    #button.click()
+                    driver.execute_script("arguments[0].click();", button)
                     time.sleep(2)
                     assert 'down' in button.find_element(By.XPATH, './span[1]').get_attribute('class')
 
