@@ -53,13 +53,30 @@ class Agile_Scraper(Base_Scraper):
         # All sub_classes of Base_Scraper should define their self.parse_func(s) in __init__
         if self.auth in ['Tonbridge']:
             self.url_check = True
-            self.url_preprocess = self.url_preprocess_Tonbridge
-            self.parse_func = self.parse_Tonbridge_search_page_Agile
+            self.url_preprocess = self.url_preprocess_Agile
+            #self.url_preprocess = self.url_preprocess_Tonbridge
+            #self.parse_func = self.parse_Tonbridge_search_page_Agile
             print('self.parse_Tonbridge_search_page_Agile')
         elif self.auth in ['YorkshireDales']:
             self.parse_func = self.parse_YorkshireDales_fix_page_Agile
         else:
             self.parse_func = self.parse_data_item_Agile
+
+    LA_url_dict = {'CannockChase': 'cannock',
+                   #'Exmoor': 'exmoor',
+                   'Flintshire': 'flintshire',
+                   'LakeDistrict': 'ldnpa',
+                   'Middlesbrough': 'middlesbrough',
+                   # 'MoleValley': '',
+                   'NewForestPark': 'nfnpa',
+                   'OldOakParkRoyal': 'opdc',
+                   'Pembrokeshire': 'pembrokeshire',
+                   'Redbridge': 'redbridge',
+                   'Rugby': 'rugby',
+                   'Slough': 'slough',
+                   'Staffordshire': 'staffordshire',
+                   'Tonbridge': 'tmbc',
+                   'YorkshireDales': 'yorkshiredales',}
 
     details_dict ={# 13: All except Exmoor and MoleValley
                    'Application reference number': 'uid',
@@ -194,13 +211,22 @@ class Agile_Scraper(Base_Scraper):
         item['session_cookies'] = cookies
         return item
 
+    def url_preprocess_Agile(self, url):
+        if url.startswith(f'https://planning.agileapplications.co.uk/{self.LA_url_dict[self.auth]}'):
+            self.parse_func = self.parse_data_item_Agile
+            return url
+        else:
+            self.parse_func = self.search_by_appID_Agile
+            return f'https://planning.agileapplications.co.uk/{self.LA_url_dict[self.auth]}/search-applications/'
+
+    # delete
     def url_preprocess_Tonbridge(self, url):
         if url.startswith('https://planning.agileapplications.co.uk/tmbc'):
             return url
         else:
             return 'https://planning.agileapplications.co.uk/tmbc/search-applications/'
         # https://planning.agileapplications.co.uk/yorkshiredales/search-applications/
-
+    # delete
     def parse_Tonbridge_search_page_Agile(self, response):
         app_df = response.meta['app_df']
         # url is correct, go to scraper.
