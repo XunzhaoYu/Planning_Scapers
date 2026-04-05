@@ -269,17 +269,14 @@ class Tascomi_Scaper(Base_Scraper):
                     for document_item in document_items:
                         n_documents += 1
                         print(f'    - - - Document {n_documents} - - -') if PRINT else None
-                        columns = document_item.find_elements(By.XPATH, './td')
-                        print('    len columns: ', len(columns)) if len(columns) != 5 else None
-                        assert len(columns) == 5
                         try:
-                            file_url = columns[4].find_element(By.XPATH, './a').get_attribute('href')
+                            file_url = document_item.find_element(By.XPATH, './td[@data-field-name="download"]/a').get_attribute('href')
                             print(f'    {file_url}') if PRINT else None
                             file_urls.append(file_url)
 
-                            document_type = columns[0].text.strip()
-                            document_description = columns[1].text.strip()
-                            document_date = columns[3].text.strip()
+                            document_type = document_item.find_element(By.XPATH, './td[@data-field-name="document_type"]').text.strip()
+                            document_description = document_item.find_element(By.XPATH, './td[@data-field-name="description"]').text.strip()
+                            document_date = document_item.find_element(By.XPATH, './td[@data-field-name="date_document_added"]').text.strip()
                             document_name = f'date={document_date}&type={document_type}&desc={document_description}&uid={n_documents}'
                             len_limitation = len(document_name) - max_file_name_len
                             print(f'    Doc {n_documents} len_limitation: {len_limitation}') if len_limitation > -5 else None
@@ -305,15 +302,13 @@ class Tascomi_Scaper(Base_Scraper):
                 if n_comments > 0:
                     # save representations / comments.
                     comment_columns = tab.find_elements(By.XPATH, './div/div[2]/table/thead/tr/th')
-                    assert len(comment_columns) == 4
                     # test for further re-organization.
                     #self.scrape_for_csv(csv_name='representations', table_columns=comment_columns, table_items=comment_items, folder_name=folder_name, path='td')
                     scrape_for_csv(csv_name='representations', table_columns=comment_columns, table_items=comment_items, data_storage_path=self.data_storage_path, folder_name=folder_name, path='td')
                     # download comment files (if have).
-                    comment_files = comment_list.find_elements(By.XPATH, './tr/td[4]')
-                    for comment_index, comment_file in enumerate(comment_files):
+                    for comment_index, comment_item in enumerate(comment_items):
                         try:
-                            file_url = comment_file.find_element(By.XPATH, './a').get_attribute('href')
+                            file_url = comment_item.find_element(By.XPATH, './/td[@data-field-name="file"]/a').get_attribute('href')
                             file_urls.append(file_url)
                             document_names.append(f'{self.data_upload_path}{folder_name}/representation_doc{comment_index + 1}')
                             print(f'    - - - Representation {comment_index + 1}: Exists - - -') if PRINT else None
