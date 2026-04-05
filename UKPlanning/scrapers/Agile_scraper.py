@@ -244,7 +244,10 @@ class Agile_Scraper(Base_Scraper):
         driver.execute_script('window.scrollTo(0, document.body.scrollHeight);')  # scroll down to the bottom of this page.
         for tries in range(3):  # Sometimes there has no search result even if the app is available, so we try 3 times.
             time.sleep(random.uniform(1., 1.5))
-            driver.find_element(By.ID, 'btnSearch').click()
+            try:
+                driver.find_element(By.ID, 'btnSearch').click()
+            except NoSuchElementException:
+                time.sleep(2)
             # click 'view' button.
             try:
                 view_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//table[@name='results']/tbody/tr")))
