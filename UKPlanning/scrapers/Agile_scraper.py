@@ -296,6 +296,13 @@ class Agile_Scraper(Base_Scraper):
                     assert 'down' in button.find_element(By.XPATH, './span[1]').get_attribute('class')
 
         tab_list = tab_panel.find_elements(By.XPATH, './div')
+        LOADING = True
+        while LOADING:
+            tab_name = tab_list[0].find_element(By.XPATH, './div/h4/a/span').text.strip()
+            if tab_name != 'APPLICATION.SECTIONS.SUMMARY':
+                LOADING = False
+            else:
+                time.sleep(3)
         for tab_index, tab in enumerate(tab_list):
             tab_name = tab.find_element(By.XPATH, './div/h4/a/span').text.strip()
             # check if the panel is opened, otherwise, data in this panel is not accessible.
@@ -304,6 +311,7 @@ class Agile_Scraper(Base_Scraper):
                 tab.find_element(By.XPATH, './div/h4/a').click()
                 time.sleep(2)
             # --- --- --- Summary (data + optional: csv) --- --- ---
+            # APPLICATION.SECTIONS.SUMMARY
             if 'summary' in tab_name.lower():
                 # summaryTab = tab.div[2]/div/summary/div
                 item_list = driver.find_elements(By.XPATH, '//*[@id="summaryTab"]/form/div')
@@ -415,7 +423,7 @@ class Agile_Scraper(Base_Scraper):
                             print(f'    {csv_name}: {n_content} items.')
                             # initialize for the next csv file:
                             csv_name = item.find_element(By.XPATH, './td/a/strong').get_attribute('innerText').split('(')[0].lower()
-                            assert csv_name in ['consultee', 'neighbour', 'interested party'] # test
+                            assert csv_name in ['consultee', 'neighbour', 'interested party', 'applicant', 'parish'] # test
                             content_dict = {}
                             n_content = 0
                             for column_index in range(n_columns):
