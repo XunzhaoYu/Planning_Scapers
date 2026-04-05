@@ -36,6 +36,10 @@ class Tascomi_Scaper(Base_Scraper):
     auth_id = 387(383), WalthamForest: https://builtenvironment.walthamforest.gov.uk/planning/index.html?fa=getApplication&id=23739
     auth_id = 389(385), Warrington: https://online.warrington.gov.uk/planning/index.html?fa=getApplication&id=167271
     auth_id = 415(411), Wirral: https://online.wirral.gov.uk/planning/index.html?fa=getApplication&id=160647
+    
+    was Ocella:
+    auth_id = 40, Breckland: https://publicportal.breckland.gov.uk/planning/index.html?fa=getApplication&id=136559
+    auth_id = 302(299), Rother: https://online.rother.gov.uk/planning/index.html?fa=getApplication&id=174816
     """
 
     # use pipelines_extension to obtain file extensions.
@@ -46,14 +50,18 @@ class Tascomi_Scaper(Base_Scraper):
         super().__init__(*args, **kwargs)
 
         # All sub_classes of Base_Scraper should define their self.parse_func(s) in __init__
-        if self.auth in ['Coventry']:
-            self.parse_func = self.parse_Conventry_search_page_Tascomi
-        elif self.auth in ['Harrow']:
-            self.parse_func = self.parse_Harrow_search_page_Tascomi
+        if self.auth in ['Coventry', 'Harrow', 'Breckland', 'Rother']:
+            self.url_check = True
+            self.url_preprocess = self.url_preprocess_Tascomi
         elif self.auth in ['Gwynedd']:
             self.parse_func = self.parse_Gwynedd_language_Tascomi
         else:
             self.parse_func = self.parse_data_item_Tascomi
+
+    LA_url_dict = {'Breckland': 'https://publicportal.breckland.gov.uk/planning/index',
+                   'Coventry': 'https://planandregulatory.coventry.gov.uk/planning/index',
+                   'Harrow':    'https://planningsearch.harrow.gov.uk/planning/index',
+                   'Rother':    'https://online.rother.gov.uk/planning/index', }
 
     # Note: these item names are ending with ':'.
     details_dict = {'Application Reference Number:': 'uid',
@@ -136,23 +144,14 @@ class Tascomi_Scaper(Base_Scraper):
         item['session_cookies'] = cookies
         return item
 
-    def parse_Conventry_search_page_Tascomi(self, response):
-        app_df = response.meta['app_df']
-        if app_df.at['url'].startswith('https://planandregulatory'):
-            # scrape application directly.
-            yield from self.parse_data_item_Tascomi(response)
-        else: # the key mechanism of Scrapy, Generator-based callbacks, prevents us from visiting the same url, need adding para: dont_filter=True.
-            url = 'https://planandregulatory.coventry.gov.uk/planning/index.html?fa=search'
-            yield SeleniumRequest(url=url, callback=self.search_by_appID_Tascomi, meta={'app_df': app_df}, dont_filter=True)
-
-    def parse_Harrow_search_page_Tascomi(self, response):
-        app_df = response.meta['app_df']
-        if app_df.at['url'].startswith('https://planningsearch.harrow.gov.uk/planning/index'):
-            # scrape application directly.
-            yield from self.parse_data_item_Tascomi(response)
-        else: # the key mechanism of Scrapy, Generator-based callbacks, prevents us from visiting the same url, need adding para: dont_filter=True.
-            url = 'https://planningsearch.harrow.gov.uk/planning/index.html?fa=search'
-            yield SeleniumRequest(url=url, callback=self.search_by_appID_Tascomi, meta={'app_df': app_df}, dont_filter=True)
+    def url_preprocess_Tascomi(self, url):
+        # if url is correct, run the scraper directly.
+        if url.startswith(f'{self.LA_url_dict[self.auth]}'):
+            self.parse_func = self.parse_data_item_Tascomi
+            return url
+        else:  # do pre-process.
+            self.parse_func = self.search_by_appID_Tascomi
+            return f'{self.LA_url_dict[self.auth]}.html?fa=search'
 
     # A module to search applications using their app_id.
     def search_by_appID_Tascomi(self, response):
@@ -209,7 +208,6 @@ class Tascomi_Scaper(Base_Scraper):
             print(f'new url with English pages: {new_url}') if PRINT else None
             app_df.at['url'] = new_url
             yield SeleniumRequest(url=app_df.at['url'], callback=self.parse_data_item_Tascomi, meta={'app_df': app_df}, dont_filter=True)
-
 
     def parse_data_item_Tascomi(self, response):
         app_df = response.meta['app_df']
@@ -276,7 +274,7 @@ class Tascomi_Scaper(Base_Scraper):
 
                             document_type = document_item.find_element(By.XPATH, './td[@data-field-name="document_type"]').text.strip()
                             document_description = document_item.find_element(By.XPATH, './td[@data-field-name="description"]').text.strip()
-                            document_date = document_item.find_element(By.XPATH, './td[@data-field-name="date_document_added"]').text.strip()
+                            document_date = document_item.find_element(By.XPATH, './td[@data-field-name="date_document_added"] | .//td[@data-field-name="document_date"]').text.strip()
                             document_name = f'date={document_date}&type={document_type}&desc={document_description}&uid={n_documents}'
                             len_limitation = len(document_name) - max_file_name_len
                             print(f'    Doc {n_documents} len_limitation: {len_limitation}') if len_limitation > -5 else None
