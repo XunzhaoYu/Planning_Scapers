@@ -177,6 +177,7 @@ class Tascomi_Scaper(Base_Scraper):
                 time.sleep(2)
             # click 'view' button.
             try:
+                # with a visible 'view' button.
                 view_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".btn.view_application")))
                 time.sleep(random.uniform(.5, 1.))
                 view_button.click()

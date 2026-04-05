@@ -250,9 +250,11 @@ class Agile_Scraper(Base_Scraper):
                 time.sleep(2)
             # click 'view' button.
             try:
-                view_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//table[@name='results']/tbody/tr")))
+                # without a visible 'view' button. The click anywhere within the whole <tr> row.
+                # It may be not clickable due to AngularJS. So check visibility and then use JS to click.
+                view_row = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, "//table[@name='results']/tbody/tr")))
                 time.sleep(random.uniform(.5, 1.))
-                view_button.click()
+                driver.execute_script("arguments[0].click();", view_row)
                 break
             except TimeoutException:
                 print(f'Timeout error - search result: Application {app_id} is not found.')
