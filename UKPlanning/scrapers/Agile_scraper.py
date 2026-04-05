@@ -51,7 +51,7 @@ class Agile_Scraper(Base_Scraper):
         super().__init__(*args, **kwargs)
 
         # All sub_classes of Base_Scraper should define their self.parse_func(s) in __init__
-        if self.auth in ['Tonbridge', 'YorkshireDales']:
+        if self.auth in ['LakeDistrict', 'Tonbridge', 'YorkshireDales']:
             self.url_check = True
             if self.auth == 'YorkshireDales':
                 self.url_preprocess = self.url_preprocess_YorkshireDales
