@@ -50,7 +50,7 @@ class Tascomi_Scaper(Base_Scraper):
         super().__init__(*args, **kwargs)
 
         # All sub_classes of Base_Scraper should define their self.parse_func(s) in __init__
-        if self.auth in ['Coventry', 'Dartmoor', 'Harrow', 'Wirral', 'Breckland', 'Rother']:
+        if self.auth in ['Coventry', 'Dartmoor', 'Harrow', 'NewcastleUponTyne', 'Wirral', 'Breckland', 'Rother']:
             self.url_check = True
             self.url_preprocess = self.url_preprocess_Tascomi
         elif self.auth in ['Gwynedd']:
@@ -62,6 +62,7 @@ class Tascomi_Scaper(Base_Scraper):
                    'Coventry':  'https://planandregulatory.coventry.gov.uk/planning/index',
                    'Dartmoor':  'https://dartmoor-online.tascomi.com/planning/index',
                    'Harrow':    'https://planningsearch.harrow.gov.uk/planning/index',
+                   'NewcastleUponTyne': 'https://portal.newcastle.gov.uk/planning/index',
                    'Rother':    'https://online.rother.gov.uk/planning/index',
                    'Wirral':    'https://online.wirral.gov.uk/planning/index'}
 
@@ -206,6 +207,10 @@ class Tascomi_Scaper(Base_Scraper):
         if 'language=en' in url:
             yield from SeleniumRequest(url=url, callback=self.parse_data_item_Tascomi, meta={'app_df': app_df}, dont_filter=True)
         else:  # language can be 'cymraeg' or 'cy', the Welsh word for the Welsh language.
+            # the current url may not be the original url, i.e.:
+            # https://diogel.gwynedd.llyw.cymru/swiftlg/apas/run/WPHAPPDETAIL.DisplayUrl?theApnID=C15/0937/14/R3
+            driver = response.request.meta['driver']
+            url = driver.current_url
             parsed = urlparse(url)
             params = parse_qs(parsed.query)  # parse the query parameters into a dict.
             params['language'] = ['en']  # set or replace the 'language' parameter as English.
