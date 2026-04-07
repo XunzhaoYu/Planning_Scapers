@@ -26,7 +26,8 @@ class Agile_Scraper(Base_Scraper):
                                     https://exmoor.planning-register.co.uk/Planning/Display?applicationNumber=62%2F41%2F08%2F005
                                     https://exmoor.planning-register.co.uk/Planning/Display?applicationNumber=EXM%2F26%2F084%2FFULL
     3.auth_id = 145(143), Flintshire: https://planning.agileapplications.co.uk/flintshire/application-details/28244
-    4.auth_id = 202(200), LakeDistrict: https://planning.agileapplications.co.uk/ldnpa/application-details/27229 (many apps are unavailable)
+    4.auth_id = 202(200), LakeDistrict: many applications with url error: https://www.lakedistrict.gov.uk/swiftlg/apas/run/WPHAPPDETAIL.DisplayUrl?theApnID=T%2F2019%2F0098
+                                        https://planning.agileapplications.co.uk/ldnpa/application-details/27229 
     5.auth_id = 229(227), Middlesbrough: https://planning.agileapplications.co.uk/middlesbrough/application-details/1781
     6.-auth_id = 236(234), MoleValley: url error.
                                         https://molevalley-publicportal.statmap.co.uk/horizonext
@@ -34,13 +35,14 @@ class Agile_Scraper(Base_Scraper):
     7.auth_id = 244(242), NewForestPark: https://planning.agileapplications.co.uk/nfnpa/application-details/44335
     8.auth_id = 275(272), OldOakParkRoyal: https://planning.agileapplications.co.uk/opdc/application-details/8807
     9.auth_id = 281(278), Pembrokeshire: https://planning.agileapplications.co.uk/pembrokeshire/application-details/24026
-    10.auth_id = 291(288), Redbridge: https://planning.agileapplications.co.uk/redbridge/application-details/110591
+    10.auth_id = 291(288), Redbridge: many applications with url error: https://planning.redbridge.gov.uk/swiftlg/apas/run/WPHAPPDETAIL.DisplayUrl?theApnID=0611%2F14
+                                        https://planning.agileapplications.co.uk/redbridge/application-details/110591
     11.auth_id = 304(301), Rugby: https://planning.agileapplications.co.uk/rugby/application-details/2777
     12.auth_id = 322(319), Slough: https://planning.agileapplications.co.uk/slough/application-details/11430
     13.auth_id = 346(343), Staffordshire: https://planning.agileapplications.co.uk/staffordshire/application-details/25518
-    14.auth_id = 377(373), Tonbridge:   url error since 2003. solved with url_preprocess_Tonbridge and parse_Tonbridge_search_page_Agile. 
+    14.auth_id = 377(373), Tonbridge:   url error since 2003.  
                                         https://planning.agileapplications.co.uk/tmbc/application-details/153514
-    15.auth_id = 427(423), YorkshireDales:  url error. see parse_YorkshireDales_search_page_Agile for details.
+    15.auth_id = 427(423), YorkshireDales:  multiple url errors. see url_preprocess_YorkshireDales. 
                                             https://planning.agileapplications.co.uk/yorkshiredales/application-details/41484
     """
 
@@ -51,7 +53,7 @@ class Agile_Scraper(Base_Scraper):
         super().__init__(*args, **kwargs)
 
         # All sub_classes of Base_Scraper should define their self.parse_func(s) in __init__
-        if self.auth in ['LakeDistrict', 'Tonbridge', 'YorkshireDales']:
+        if self.auth in ['LakeDistrict', 'Redbridge', 'Tonbridge', 'YorkshireDales']:
             self.url_check = True
             if self.auth == 'YorkshireDales':
                 self.url_preprocess = self.url_preprocess_YorkshireDales
