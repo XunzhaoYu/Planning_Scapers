@@ -49,12 +49,14 @@ class Ocella_Scraper(Base_Scraper):
                     'Status': 'other_fields.status',
                     'Proposal': 'description',
                     'Location': 'address',
-                    'Parish': 'other_fields.parish',
+                    'Ward': 'other_fields.ward_name',  # Havering
+                    'Parish': 'other_fields.parish',  # Arun, GreatYarmouth
                     'Case Officer': 'other_fields.case_officer',
                     'Received': 'other_fields.date_received',
                     'Validated': 'other_fields.date_validated',
                     'Decision By': 'other_fields.target_decision_date',
-                    'Comment By': 'other_fields.comment_expires_date',
+                    'Comment By': 'other_fields.comment_expires_date',  # Arun
+                    'Neighbours': 'other_fields.comment_expires_date',  # GreatYarmouth
                     'Decided': 'other_fields.decision_issued_date',
                     'Applicant': 'other_fields.applicant_name',
                     'Agent': 'other_fields.agent_name'}
@@ -81,7 +83,7 @@ class Ocella_Scraper(Base_Scraper):
         print(f'parse_data_item_Ocella, scraper name: {scraper_name}, max_file_name_len: {max_file_name_len}.')
 
         try:
-            tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '/html/body/table[1]')))
+            tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '/html/body/table[1]/tbody/tr | //*[@id="content"]/div/div/div[1]/table/tbody/tr')))
         except TimeoutException:
             # Planning Application details not available.
             note = response.xpath('//*[@id="main-content"]/article/h1/text()').get()
@@ -89,12 +91,59 @@ class Ocella_Scraper(Base_Scraper):
             return
 
         detail_list = driver.find_elements(By.XPATH, '/html/body/table[2]/tbody/tr')
+        # //*[@id="content"]/div/div/div[2]/table/tbody
         items = [detail.find_element(By.XPATH, './td[1]/strong') for detail in detail_list]
         item_values = [detail.find_element(By.XPATH, './td[2]') for detail in detail_list]
         n_items = len(items)
         print(f'\n1. Details Tab: {n_items} items.')
-        # test for further re-organization.
-        # app_df = self.scrape_data_items(app_df, items, item_values)
         app_df = scrape_data_items(app_df, items, item_values, self.details_dict, PRINT)
+
+        tab_list = driver.find_elements(By.XPATH, '/html/body/table[1]/tbody/tr/td')
+        n_tabs = len(tab_list)
+        for tab_index, tab in enumerate(tab_list):
+            tab_name = tab.find_element(By.XPATH, './form/input').get_attribute('value').strip()
+            # /html/body/table[1]/tbody/tr/td[1]/form/input
+            # --- --- --- Main Details (data) --- --- ---
+            if 'document' in tab_name.lower():
+                def get_documents():
+                    tab.click()
+                    time.sleep(2)
+                    file_urls, document_names = [], []
+                    document_items = driver.find_elements(By.XPATH, '/html/body/table[2]/tbody/tr')
+                    n_documents = len(document_items)
+                    app_df.at['other_fields.n_documents'] = n_documents
+                    print(f'\n2. Documents Tab: {n_documents} items.')
+                    if n_documents > 0:
+                        n_documents = 0  # , file_urls, document_names = 0, [], []
+                        for document_item in document_items:
+                            n_documents += 1
+                            print(f'    - - - Document {n_documents} - - -') if PRINT else None
+                            file_url = document_item.find_element(By.XPATH,'./td[1]/a').get_attribute('href')
+                            print(f'    {file_url}') if PRINT else None
+                            file_urls.append(file_url)
+                            #document_type = document_item.find_element(By.XPATH, './td[@data-field-name="document_type"]').text.strip()
+                            document_description = document_item.find_element(By.XPATH, './td[1]').text.strip()
+                            document_date = document_item.find_element(By.XPATH, './td[3]').text.strip()
+                            #document_name = f'date={document_date}&type={document_type}&desc={document_description}&uid={n_documents}'
+                            document_name = f'date={document_date}&desc={document_description}&uid={n_documents}'
+                            len_limitation = len(document_name) - max_file_name_len
+                            print(f'    Doc {n_documents} len_limitation: {len_limitation}') if len_limitation > -5 else None
+                            if len_limitation > 0:
+                                document_description = document_description[:-len_limitation]
+                                document_name = f'date={document_date}&desc={document_description}&uid={n_documents}'
+                            print(f'    Document {n_documents}: {document_name}') if PRINT else None
+
+                            document_name = replace_invalid_characters(document_name)
+                            # print('new: ', document_name) if PRINT else None
+                            document_names.append(f'{self.data_upload_path}{folder_name}/{document_name}')
+
+                    return file_urls, document_names
+                file_urls, document_names = get_documents()
+                item = self.create_item(driver, folder_name, file_urls, document_names)
+                yield item
+                break
+            else:
+                print(f'\n{tab_index + 1}. Unknown Tab: {tab_name}.')
+                assert 1 == 0
 
         self.ending(app_df)
