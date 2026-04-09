@@ -50,7 +50,7 @@ class Tascomi_Scaper(Base_Scraper):
         super().__init__(*args, **kwargs)
 
         # All sub_classes of Base_Scraper should define their self.parse_func(s) in __init__
-        if self.auth in ['Coventry', 'Dartmoor', 'Harrow', 'NewcastleUponTyne', 'Wirral', 'Breckland', 'Rother']:
+        if self.auth in ['Coventry', 'Dartmoor', 'Harrow', 'NewcastleUponTyne', 'Warrington', 'Wirral', 'Breckland', 'Rother']:
             self.url_check = True
             self.url_preprocess = self.url_preprocess_Tascomi
         elif self.auth in ['Gwynedd']:
@@ -64,6 +64,7 @@ class Tascomi_Scaper(Base_Scraper):
                    'Harrow':    'https://planningsearch.harrow.gov.uk/planning/index',
                    'NewcastleUponTyne': 'https://portal.newcastle.gov.uk/planning/index',
                    'Rother':    'https://online.rother.gov.uk/planning/index',
+                   'Warrington':'https://online.warrington.gov.uk/planning/index',
                    'Wirral':    'https://online.wirral.gov.uk/planning/index'}
 
     # Note: these item names are ending with ':'.
