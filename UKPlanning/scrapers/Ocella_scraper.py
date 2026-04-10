@@ -61,6 +61,24 @@ class Ocella_Scraper(Base_Scraper):
                     'Applicant': 'other_fields.applicant_name',
                     'Agent': 'other_fields.agent_name'}
 
+    tab_dict = {'Arun': '/html/body/table[1]/tbody/tr',
+                'GreatYarmouth': '',
+                'Havering': '//*[@id="content"]/div/div/div[1]/table/tbody/tr',
+                'Hillingdon': '',
+                'SouthHolland': '' }
+
+    data_dict = {'Arun': '/html/body/table[2]/tbody/tr',
+                'GreatYarmouth': '',
+                'Havering': '//*[@id="content"]/div/div/div[2]/table/tbody/tr',
+                'Hillingdon': '',
+                'SouthHolland': '' }
+
+    data2_dict = {'Arun': '',
+                'GreatYarmouth': '',
+                'Havering': '',
+                'Hillingdon': '',
+                'SouthHolland': '' }
+
     def create_item(self, driver, folder_name, file_urls, document_names):
         if not os.path.exists(self.failed_downloads_path + folder_name):
             os.mkdir(self.failed_downloads_path + folder_name)
@@ -83,26 +101,26 @@ class Ocella_Scraper(Base_Scraper):
         print(f'parse_data_item_Ocella, scraper name: {scraper_name}, max_file_name_len: {max_file_name_len}.')
 
         try:
-            tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '/html/body/table[1]/tbody/tr | //*[@id="content"]/div/div/div[1]/table/tbody/tr')))
+            tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, self.tab_dict[scraper_name])))
         except TimeoutException:
             # Planning Application details not available.
             note = response.xpath('//*[@id="main-content"]/article/h1/text()').get()
             print('note: ', note)
             return
 
-        detail_list = driver.find_elements(By.XPATH, '/html/body/table[2]/tbody/tr')
-        # //*[@id="content"]/div/div/div[2]/table/tbody
+        detail_list = driver.find_elements(By.XPATH, self.data_dict[scraper_name])
         items = [detail.find_element(By.XPATH, './td[1]/strong') for detail in detail_list]
         item_values = [detail.find_element(By.XPATH, './td[2]') for detail in detail_list]
         n_items = len(items)
         print(f'\n1. Details Tab: {n_items} items.')
         app_df = scrape_data_items(app_df, items, item_values, self.details_dict, PRINT)
 
-        tab_list = driver.find_elements(By.XPATH, '/html/body/table[1]/tbody/tr/td')
+        tab_list = driver.find_elements(By.XPATH, f'{self.tab_dict[scraper_name]}/td')
         n_tabs = len(tab_list)
         for tab_index, tab in enumerate(tab_list):
-            tab_name = tab.find_element(By.XPATH, './form/input').get_attribute('value').strip()
+            tab_name = tab.find_element(By.XPATH, './input').get_attribute('value').strip()
             # /html/body/table[1]/tbody/tr/td[1]/form/input
+            # //*[@id="content"]/div/div/div[1]/table/tbody/tr/td[1]/input
             # --- --- --- Main Details (data) --- --- ---
             if 'document' in tab_name.lower():
                 def get_documents():
