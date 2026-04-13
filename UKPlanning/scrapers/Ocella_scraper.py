@@ -37,7 +37,7 @@ class Ocella_Scraper(Base_Scraper):
     """
 
     # use pipelines_extension to obtain file extensions.
-    # custom_settings = {'ITEM_PIPELINES': {'UKPlanning.pipelines.pipelines_extension.DownloadFilesPipeline': 1, }}
+    custom_settings = {'ITEM_PIPELINES': {'UKPlanning.pipelines.pipelines_extension.DownloadFilesPipeline': 1, }}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -70,22 +70,22 @@ class Ocella_Scraper(Base_Scraper):
                     }
 
     tab_dict = {'Arun': '/html/body/table[1]/tbody/tr',
-                'GreatYarmouth': '',
+                'GreatYarmouth': '/html/body/div/table[1]/tbody/tr',
                 'Havering': '//*[@id="content"]/div/div/div[1]/table/tbody/tr',
                 'Hillingdon': '//*[@id="LBH_SandwichSource"]/table[1]/tbody/tr',
                 'SouthHolland': '//*[@id="main"]/table[1]/tbody/tr' }
 
     data_dict = {'Arun': '/html/body/table[2]/tbody/tr',
-                'GreatYarmouth': '',
+                'GreatYarmouth': '/html/body/div/table[2]/tbody/tr',
                 'Havering': '//*[@id="content"]/div/div/div[2]/table/tbody/tr',
                 'Hillingdon': '//*[@id="LBH_SandwichSource"]/table[2]/tbody/tr',
-                'SouthHolland': '//*[@id="main"]/table[2]/tbody/tr[1]' }
+                'SouthHolland': '//*[@id="main"]/table[2]/tbody/tr' }
 
-    data2_dict = {'Arun': '',
-                'GreatYarmouth': '',
-                'Havering': '',
-                'Hillingdon': '',
-                'SouthHolland': '' }
+    doc_url_dict = {'Arun': '',
+                    'GreatYarmouth': 'https://portal.great-yarmouth.gov.uk/civica/Resource/Civica/Handler.ashx/Doc/pagestream?cd=inline&pdf=true&docno=',
+                    'Havering': 'https://msp.havering.gov.uk/civica/Resource/Civica/Handler.ashx/Doc/pagestream?cd=inline&pdf=true&docno=',
+                    'Hillingdon': '',
+                    'SouthHolland': '' }
 
     def create_item(self, driver, folder_name, file_urls, document_names):
         if not os.path.exists(self.failed_downloads_path + folder_name):
@@ -129,8 +129,10 @@ class Ocella_Scraper(Base_Scraper):
             tab_name = tab.find_element(By.XPATH, './/input').get_attribute('value').strip()
             # --- --- --- View Documents (doc) --- --- ---
             if 'document' in tab_name.lower():
-                tab.click()
+                #tab.click()
+                tab.find_element(By.XPATH, './/input').click()
                 time.sleep(2)
+
                 def get_documents_from_table(n_documents, file_urls, document_names, document_items):
                     if 'no documents' in document_items[0].find_element(By.XPATH, './td[1]').text:
                         return n_documents, file_urls, document_names  # There are no documents for this section
@@ -144,76 +146,26 @@ class Ocella_Scraper(Base_Scraper):
                             document_type = document_item.find_element(By.XPATH, './td[1]').text.strip()
                             document_description = document_item.find_element(By.XPATH, './td[5]').text.strip()
                             document_date = document_item.find_element(By.XPATH, './td[3]').text.strip()
-                            document_extension = file_url.split('.')[-1].split('&')[0]
-                            document_name = f'date={document_date}&type={document_type}&desc={document_description}&uid={n_documents}.{document_extension}'
+                            #document_extension = file_url.split('.')[-1].split('&')[0]
+                            document_name = f'date={document_date}&type={document_type}&desc={document_description}&uid={n_documents}'#.{document_extension}'
                             len_limitation = len(document_name) - max_file_name_len
                             print(f'        Doc {n_documents} len_limitation: {len_limitation}') if len_limitation > -5 else None
                             if len_limitation > 0:
                                 document_description = document_description[:-len_limitation]
-                                document_name = f'date={document_date}&type={document_type}&desc={document_description}&uid={n_documents}.{document_extension}'
+                                document_name = f'date={document_date}&type={document_type}&desc={document_description}&uid={n_documents}'#.{document_extension}'
                             print(f'        Document {n_documents}: {document_name}') if PRINT else None
 
                             document_name = replace_invalid_characters(document_name)
                             # print('new: ', document_name) if PRINT else None
                             document_names.append(f'{self.data_upload_path}{folder_name}/{document_name}')
                         return n_documents, file_urls, document_names
-
+                # Single table
                 def get_documents_Arun():
                     n_documents, file_urls, document_names = 0, [], []
                     print(f'\n2. Documents Tab.')
                     document_items = driver.find_elements(By.XPATH, '/html/body/table[2]/tbody/tr')
                     n_documents, file_urls, document_names = get_documents_from_table(0, file_urls, document_names, document_items)
                     app_df.at['other_fields.n_documents'] = n_documents
-                    return file_urls, document_names
-
-                # Civica
-                def get_documents_Havering():
-                    app_tab = driver.current_window_handle
-                    all_tabs = driver.window_handles
-                    doc_tab = [x for x in all_tabs if x != app_tab][0]
-                    driver.switch_to.window(doc_tab)  # move to doc tab.
-
-                    file_urls, document_names = [], []
-                    document_list = driver.find_element(By.CLASS_NAME, 'civica-doclist')
-                    document_items = document_list.find_elements(By.XPATH, './ul/li')
-                    n_documents = len(document_items)
-                    app_df.at['other_fields.n_documents'] = n_documents
-                    print(f'\n2. Documents Tab: {n_documents} items.')
-                    if n_documents > 0:
-                        n_documents = 0
-                        for document_item in document_items:
-                            n_documents += 1
-                            print(f'    - - - Document {n_documents} - - -') if PRINT else None
-                            file_url = document_item.find_element(By.XPATH, './a').get_attribute('href')
-                            file_urls.append(response.urljoin(file_url))
-                            # print(file_url)
-
-                            item_identity = file_url.split('=')[-1]
-                            document_date = document_item.find_element(By.CLASS_NAME, 'civica-doclistdetail').text
-                            print('date: ', document_date) if PRINT else None
-                            document_description = document_item.find_element(By.CLASS_NAME, 'civica-doclisttitle').text
-                            print('description: ', document_description) if PRINT else None
-                            document_name = f"date={document_date}&desc={document_description}&uid={item_identity}"
-                            """
-                            file_url = document_item.find_element(By.XPATH, './td[1]/a').get_attribute('href')
-                            print(f'    {file_url}') if PRINT else None
-                            file_urls.append(file_url)
-                            # document_type = document_item.find_element(By.XPATH, './td[@data-field-name="document_type"]').text.strip()
-                            document_description = document_item.find_element(By.XPATH, './td[1]').text.strip()
-                            document_date = document_item.find_element(By.XPATH, './td[3]').text.strip()
-                            # document_name = f'date={document_date}&type={document_type}&desc={document_description}&uid={n_documents}'
-                            document_name = f'date={document_date}&desc={document_description}&uid={n_documents}'
-                            """
-                            len_limitation = len(document_name) - max_file_name_len
-                            print(f'    Doc {n_documents} len_limitation: {len_limitation}') if len_limitation > -5 else None
-                            if len_limitation > 0:
-                                document_description = document_description[:-len_limitation]
-                                document_name = f'date={document_date}&desc={document_description}&uid={n_documents}'
-                            print(f'    Document {n_documents}: {document_name}') if PRINT else None
-                            document_name = replace_invalid_characters(document_name)
-                            # print('new: ', document_name) if PRINT else None
-                            document_names.append(f'{self.data_upload_path}{folder_name}/{document_name}')
-
                     return file_urls, document_names
                 # Several tables: Hillingdon, SouthHolland
                 def get_documents_Hillingdon():
@@ -224,14 +176,68 @@ class Ocella_Scraper(Base_Scraper):
                     print(f'\n2. Documents Tab: {n_tables} tables.')
                     for table_index in range(n_tables):
                         table_name = table_names[table_index].text.strip()
-                        print(f'    - - - Document Table {table_index+1}: {table_name} - - -') if PRINT else None
-                        document_items = document_panel.find_elements(By.XPATH, f'./table[{table_index+1}]/tbody/tr')
+                        print(f'    - - - Document Table {table_index + 1}: {table_name} - - -') if PRINT else None
+                        document_items = document_panel.find_elements(By.XPATH,f'./table[{table_index + 1}]/tbody/tr')
                         n_documents, file_urls, document_names = get_documents_from_table(n_documents, file_urls, document_names, document_items)
                     app_df.at['other_fields.n_documents'] = n_documents
                     return file_urls, document_names
 
-                #file_urls, document_names = get_documents_Arun()
-                file_urls, document_names = get_documents_Hillingdon()
+                # Civica
+                def get_documents_Havering():
+                    app_tab = driver.current_window_handle
+                    all_tabs = driver.window_handles
+                    docs_tab = [x for x in all_tabs if x != app_tab][0]
+                    driver.switch_to.window(docs_tab)  # move to doc tab.
+
+                    file_urls, document_names = [], []
+                    try:
+                        document_list = driver.find_element(By.CLASS_NAME, 'civica-doclist')
+                        document_items = document_list.find_elements(By.XPATH, './ul/li')
+                        n_documents = len(document_items)
+                    except NoSuchElementException:
+                        n_documents = 0
+                    app_df.at['other_fields.n_documents'] = n_documents
+                    print(f'\n2. Documents Tab: {n_documents} items.')
+                    if n_documents > 0:
+                        n_documents = 0
+                        for document_item in document_items:
+                            n_documents += 1
+                            print(f'    - - - Document {n_documents} - - -') if PRINT else None
+                            # file_url = document_item.find_element(By.XPATH, './a').get_attribute('href')
+                            #print(f'    {response.urljoin(file_url)}') if PRINT else None
+                            #file_urls.append(response.urljoin(file_url))
+
+                            # https://portal.great-yarmouth.gov.uk/civica/Resource/Civica/Handler.ashx/Doc/pagestream?cd=inline&pdf=true&docno=5364454
+                            # https://msp.havering.gov.uk/civica/Resource/Civica/Handler.ashx/Doc/pagestream?cd=inline&pdf=true&docno=2571635
+                            file_id = document_item.find_element(By.XPATH, './a').get_attribute('href').split('?DocNo=')[1]
+                            file_url = f'{self.doc_url_dict[self.auth]}{file_id}'
+                            print(f'    {file_url}') if PRINT else None
+                            file_urls.append(file_url)
+
+                            document_date = document_item.find_element(By.CLASS_NAME, 'civica-doclistdetailtext').text.strip()
+                            document_description = document_item.find_element(By.CLASS_NAME, 'civica-doclisttitletext').text.strip()
+                            document_name = f"date={document_date}&desc={document_description}&uid={n_documents}"#.{item_extension}"
+
+                            len_limitation = len(document_name) - max_file_name_len
+                            print(f'    Doc {n_documents} len_limitation: {len_limitation}') if len_limitation > -5 else None
+                            if len_limitation > 0:
+                                document_description = document_description[:-len_limitation]
+                                document_name = f'date={document_date}&desc={document_description}&uid={n_documents}'
+                            print(f'    Document {n_documents}: {document_name}') if PRINT else None
+                            document_name = replace_invalid_characters(document_name)
+                            # print('new: ', document_name) if PRINT else None
+                            document_names.append(f'{self.data_upload_path}{folder_name}/{document_name}')
+
+                    driver.close()
+                    driver.switch_to.window(app_tab)
+                    return file_urls, document_names
+
+                if self.auth == 'Arun':
+                    file_urls, document_names = get_documents_Arun()
+                elif self.auth in ['Hillingdon', 'SouthHolland']:
+                    file_urls, document_names = get_documents_Hillingdon()
+                else:
+                    file_urls, document_names = get_documents_Havering()
                 if len(file_urls) > 0:
                     item = self.create_item(driver, folder_name, file_urls, document_names)
                     yield item
