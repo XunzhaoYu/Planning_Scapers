@@ -64,13 +64,13 @@ class Ocella_Scraper(Base_Scraper):
     tab_dict = {'Arun': '/html/body/table[1]/tbody/tr',
                 'GreatYarmouth': '',
                 'Havering': '//*[@id="content"]/div/div/div[1]/table/tbody/tr',
-                'Hillingdon': '',
+                'Hillingdon': '//*[@id="LBH_SandwichSource"]/table[1]/tbody/tr',
                 'SouthHolland': '' }
 
     data_dict = {'Arun': '/html/body/table[2]/tbody/tr',
                 'GreatYarmouth': '',
                 'Havering': '//*[@id="content"]/div/div/div[2]/table/tbody/tr',
-                'Hillingdon': '',
+                'Hillingdon': '//*[@id="LBH_SandwichSource"]/table[2]/tbody/tr',
                 'SouthHolland': '' }
 
     data2_dict = {'Arun': '',
@@ -118,14 +118,12 @@ class Ocella_Scraper(Base_Scraper):
         tab_list = driver.find_elements(By.XPATH, f'{self.tab_dict[scraper_name]}/td')
         n_tabs = len(tab_list)
         for tab_index, tab in enumerate(tab_list):
-            tab_name = tab.find_element(By.XPATH, './input').get_attribute('value').strip()
-            # /html/body/table[1]/tbody/tr/td[1]/form/input
-            # //*[@id="content"]/div/div/div[1]/table/tbody/tr/td[1]/input
-            # --- --- --- Main Details (data) --- --- ---
+            tab_name = tab.find_element(By.XPATH, './/input').get_attribute('value').strip()
+            # --- --- --- View Documents (doc) --- --- ---
             if 'document' in tab_name.lower():
-                def get_documents():
-                    tab.click()
-                    time.sleep(2)
+                tab.click()
+                time.sleep(2)
+                def get_documents_Arun():
                     file_urls, document_names = [], []
                     document_items = driver.find_elements(By.XPATH, '/html/body/table[2]/tbody/tr')
                     n_documents = len(document_items)
@@ -156,9 +154,98 @@ class Ocella_Scraper(Base_Scraper):
                             document_names.append(f'{self.data_upload_path}{folder_name}/{document_name}')
 
                     return file_urls, document_names
-                file_urls, document_names = get_documents()
-                item = self.create_item(driver, folder_name, file_urls, document_names)
-                yield item
+                # Civica
+                def get_documents_Havering():
+                    app_tab = driver.current_window_handle
+                    all_tabs = driver.window_handles
+                    doc_tab = [x for x in all_tabs if x != app_tab][0]
+                    driver.switch_to.window(doc_tab)  # move to doc tab.
+
+                    file_urls, document_names = [], []
+                    document_list = driver.find_element(By.CLASS_NAME, 'civica-doclist')
+                    document_items = document_list.find_elements(By.XPATH, './ul/li')
+                    n_documents = len(document_items)
+                    app_df.at['other_fields.n_documents'] = n_documents
+                    print(f'\n2. Documents Tab: {n_documents} items.')
+                    if n_documents > 0:
+                        n_documents = 0
+                        for document_item in document_items:
+                            n_documents += 1
+                            print(f'    - - - Document {n_documents} - - -') if PRINT else None
+                            file_url = document_item.find_element(By.XPATH, './a').get_attribute('href')
+                            file_urls.append(response.urljoin(file_url))
+                            # print(file_url)
+
+                            item_identity = file_url.split('=')[-1]
+                            document_date = document_item.find_element(By.CLASS_NAME, 'civica-doclistdetail').text
+                            print('date: ', document_date) if PRINT else None
+                            document_description = document_item.find_element(By.CLASS_NAME, 'civica-doclisttitle').text
+                            print('description: ', document_description) if PRINT else None
+                            document_name = f"date={document_date}&desc={document_description}&uid={item_identity}"
+                            """
+                            file_url = document_item.find_element(By.XPATH, './td[1]/a').get_attribute('href')
+                            print(f'    {file_url}') if PRINT else None
+                            file_urls.append(file_url)
+                            # document_type = document_item.find_element(By.XPATH, './td[@data-field-name="document_type"]').text.strip()
+                            document_description = document_item.find_element(By.XPATH, './td[1]').text.strip()
+                            document_date = document_item.find_element(By.XPATH, './td[3]').text.strip()
+                            # document_name = f'date={document_date}&type={document_type}&desc={document_description}&uid={n_documents}'
+                            document_name = f'date={document_date}&desc={document_description}&uid={n_documents}'
+                            """
+                            len_limitation = len(document_name) - max_file_name_len
+                            print(f'    Doc {n_documents} len_limitation: {len_limitation}') if len_limitation > -5 else None
+                            if len_limitation > 0:
+                                document_description = document_description[:-len_limitation]
+                                document_name = f'date={document_date}&desc={document_description}&uid={n_documents}'
+                            print(f'    Document {n_documents}: {document_name}') if PRINT else None
+                            document_name = replace_invalid_characters(document_name)
+                            # print('new: ', document_name) if PRINT else None
+                            document_names.append(f'{self.data_upload_path}{folder_name}/{document_name}')
+
+                    return file_urls, document_names
+                # Several tables
+                def get_documents_Hillingdon():
+                    file_urls, document_names = [], []
+                    document_panel = driver.find_element(By.XPATH, '//*[@id="LBH_SandwichSource"]')
+                    table_names = document_panel.find_elements(By.XPATH, './strong')
+                    n_tables = len(table_names)
+                    print(f'\n2. Documents Tab: {n_tables} tables.')
+                    n_documents = 0
+                    for table_index in range(n_tables):
+                        table_name = table_names[table_index].text.strip()
+                        print(f'    - - - Document Table: {table_name} - - -') if PRINT else None
+                        document_items = document_panel.find_elements(By.XPATH, f'./table[{table_index+1}]/tbody/tr')
+                        if 'no documents' in document_items[0].find_element(By.XPATH, './td[1]').text:
+                            continue # There are no documents for this section
+                        else:
+                            for document_item in document_items:
+                                n_documents += 1
+                                print(f'    - - - Document {n_documents} - - -') if PRINT else None
+                                file_url = document_item.find_element(By.XPATH, './td[1]/a').get_attribute('href')
+                                print(f'    {file_url}') if PRINT else None
+                                file_urls.append(file_url)
+                                document_type = document_item.find_element(By.XPATH, './td[1]').text.strip()
+                                document_description = document_item.find_element(By.XPATH, './td[5]').text.strip()
+                                document_date = document_item.find_element(By.XPATH, './td[3]').text.strip()
+                                document_extension = file_url.split('.')[-1].split('?')[0]
+                                document_name = f'date={document_date}&type={document_type}&desc={document_description}&uid={n_documents}.{document_extension}'
+                                len_limitation = len(document_name) - max_file_name_len
+                                print(f'    Doc {n_documents} len_limitation: {len_limitation}') if len_limitation > -5 else None
+                                if len_limitation > 0:
+                                    document_description = document_description[:-len_limitation]
+                                    document_name = f'date={document_date}&type={document_type}&desc={document_description}&uid={n_documents}.{document_extension}'
+                                print(f'    Document {n_documents}: {document_name}') if PRINT else None
+
+                                document_name = replace_invalid_characters(document_name)
+                                # print('new: ', document_name) if PRINT else None
+                                document_names.append(f'{self.data_upload_path}{folder_name}/{document_name}')
+                    app_df.at['other_fields.n_documents'] = n_documents
+                    return file_urls, document_names
+
+                file_urls, document_names = get_documents_Hillingdon()
+                if len(file_urls) > 0:
+                    item = self.create_item(driver, folder_name, file_urls, document_names)
+                    yield item
                 break
             else:
                 print(f'\n{tab_index + 1}. Unknown Tab: {tab_name}.')
