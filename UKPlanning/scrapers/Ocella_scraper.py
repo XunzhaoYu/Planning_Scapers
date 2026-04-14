@@ -191,7 +191,8 @@ class Ocella_Scraper(Base_Scraper):
 
                     file_urls, document_names = [], []
                     try:
-                        document_list = driver.find_element(By.CLASS_NAME, 'civica-doclist')
+                        document_list = WebDriverWait(driver, 3).until(EC.visibility_of_element_located((By.CLASS_NAME, 'civica-doclist')))
+                        #document_list = driver.find_element(By.CLASS_NAME, 'civica-doclist')
                         document_items = document_list.find_elements(By.XPATH, './ul/li')
                         n_documents = len(document_items)
                     except NoSuchElementException:
