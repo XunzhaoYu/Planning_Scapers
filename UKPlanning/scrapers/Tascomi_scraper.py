@@ -71,6 +71,7 @@ class Tascomi_Scaper(Base_Scraper):
     details_dict = {'Application Reference Number:': 'uid',
                     'Application Type:': 'other_fields.application_type',
                     'Proposal:': 'description',
+                    'Application Proposal:': 'description',  # Breckland
 
                     'Applicant:': 'other_fields.applicant_name',
                     'Agent:': 'other_fields.agent_name',
