@@ -72,7 +72,7 @@ class Base_Scraper(scrapy.Spider):
         if DEVELOPMENT_MODE:
             # sample one application of self.auth per year in the given range of years.
             # 在给定years的范围内对authority进行每年一个application的采样
-            test_index, test_year_from, test_year_end = 10, 4, 23  # Variables for test / development.
+            test_index, test_year_from, test_year_end = 10, 0, 3  # Variables for test / development.
             app_dfs = []
             filenames = get_filenames(f"{get_list_storage_path()}{self.auth}/")
             print(f"{self.auth}. number of files: {len(filenames)}")
@@ -120,6 +120,7 @@ class Base_Scraper(scrapy.Spider):
         self.index = -1
         self.failures = 0
         self.url_check = False
+        self.use_IP_proxies = False
 
         # record data
         self.result_storage_path = f"{self.data_storage_path}0.results/"
@@ -203,12 +204,15 @@ class Base_Scraper(scrapy.Spider):
                 print(f"\n{app_df.name}, start url: {url}")
             print(app_df) if PRINT else None
 
+            #url = 'https://planning.warrington.gov.uk/swiftlg/apas/run/WPHAPPDETAIL.DisplayUrl?theApnID=A00/40759'
             if self.url_check:
                 url = self.url_preprocess(url)
             # yield SeleniumRequest(url=url, callback=self.parse_data_item, meta={'app_df': app_df})
             # yield SeleniumRequest(url=url, callback=self.parse_func, meta={'app_df': app_df})  # para: dont_filter=True
-            yield SeleniumRequest(url=url, callback=self.parse_func, meta={'app_df': app_df}, dont_filter=True) # add dont_filter to ensure the search page is scraped.
-            # yield SeleniumRequest(url=url, callback=self.parse_func, meta={'app_df': app_df, 'valid_IPs': self.init_valid_IPs})
+            if self.use_IP_proxies:
+                yield SeleniumRequest(url=url, callback=self.parse_func, meta={'app_df': app_df, 'valid_IPs': self.init_valid_IPs}, dont_filter=True)
+            else: # add dont_filter to ensure the search page is scraped.
+                yield SeleniumRequest(url=url, callback=self.parse_func, meta={'app_df': app_df}, dont_filter=True)
         except IndexError:
             print("list is empty.")
             return
