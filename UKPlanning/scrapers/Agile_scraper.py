@@ -310,7 +310,7 @@ class Agile_Scraper(Base_Scraper):
         scraper_name = app_df.at['scraper_name']
         folder_name = self.setup_storage_path(app_df)
         max_file_name_len = self.max_folder_file_name_len - len(folder_name) - 5  # 5 chars for suffix/extension, such as .pdf
-        print(f'parse_data_item_newScraper, scraper name: {scraper_name}, max_file_name_len: {max_file_name_len}.')
+        print(f'parse_data_item_Agile, scraper name: {scraper_name}, max_file_name_len: {max_file_name_len}.')
 
         try:
             WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="header"]/sas-cookie-consent/section/section/div[1]/button[1]'))).click()
