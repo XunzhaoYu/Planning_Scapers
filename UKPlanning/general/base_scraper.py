@@ -210,7 +210,7 @@ class Base_Scraper(scrapy.Spider):
             # yield SeleniumRequest(url=url, callback=self.parse_data_item, meta={'app_df': app_df})
             # yield SeleniumRequest(url=url, callback=self.parse_func, meta={'app_df': app_df})  # para: dont_filter=True
             if self.use_IP_proxies:
-                yield SeleniumRequest(url=url, callback=self.parse_func, meta={'app_df': app_df, 'valid_IPs': self.init_valid_IPs}, dont_filter=True)
+                yield SeleniumRequest(url=url, callback=self.parse_func, meta={'app_df': app_df, 'valid_IPs': self.valid_IPs_for_data}, dont_filter=True)
             else: # add dont_filter to ensure the search page is scraped.
                 yield SeleniumRequest(url=url, callback=self.parse_func, meta={'app_df': app_df}, dont_filter=True)
         except IndexError:

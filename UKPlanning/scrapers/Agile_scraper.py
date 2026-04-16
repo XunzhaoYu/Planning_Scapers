@@ -16,6 +16,7 @@ from general.document_utils import replace_invalid_characters, get_documents, ge
 from general.items import DownloadFilesItem
 from general.utils import unique_columns, scrape_data_items, scrape_for_csv, scrape_multi_tables_for_csv  # test for further re-organization.
 from general.utils import get_IP_storage_path  # for IP rotation
+from tools.IP_proxy import IP_list
 
 class Agile_Scraper(Base_Scraper):
     name = 'Agile_Scraper'
@@ -48,7 +49,7 @@ class Agile_Scraper(Base_Scraper):
 
     # use pipelines_extension to obtain file extensions.
     # custom_settings = {'ITEM_PIPELINES': {'UKPlanning.pipelines.pipelines_extension.DownloadFilesPipeline': 1, }}
-    custom_settings = {'ITEM_PIPELINES': {'UKPlanning.pipelines.pipelines_IP.DownloadFilePipeline': 1},
+    custom_settings = {'ITEM_PIPELINES': {'UKPlanning.pipelines.pipelines_IP.DownloadFilesPipeline': 1},
                        'DOWNLOADER_MIDDLEWARES': {'UKPlanning.middlewares.middlewares_IP.SeleniumMiddleware': 1}}
 
     def __init__(self, *args, **kwargs):
@@ -60,10 +61,19 @@ class Agile_Scraper(Base_Scraper):
         if os.path.exists(valid_IP_proxy_path):
             valid_IPs_df = pd.read_csv(valid_IP_proxy_path)
             self.init_valid_IPs = valid_IPs_df.iloc[:, 0].tolist()
-            self.n_init_valid_IPs = len(self.init_valid_IPs)
         else:
-            self.init_valid_IPs = None
-            self.n_init_valid_IPs = 0
+            self.init_valid_IPs = IP_list
+        self.n_init_valid_IPs = len(self.init_valid_IPs)
+        if self.n_init_valid_IPs <= 1:
+            self.n_valid_IPs_for_data = self.n_init_valid_IPs
+            self.valid_IPs_for_data = self.init_valid_IPs
+            self.n_valid_IPs_for_docs = self.n_init_valid_IPs
+            self.valid_IPs_for_docs = self.init_valid_IPs
+        else:
+            self.n_valid_IPs_for_data =  self.n_init_valid_IPs // 2
+            self.valid_IPs_for_data = self.init_valid_IPs[:self.n_valid_IPs_for_data]
+            self.n_valid_IPs_for_docs = self.n_init_valid_IPs - self.n_valid_IPs_for_data
+            self.valid_IPs_for_docs = self.init_valid_IPs[-self.n_valid_IPs_for_docs:]
         # """ # end of IP rotation
 
         # All sub_classes of Base_Scraper should define their self.parse_func(s) in __init__
@@ -222,13 +232,9 @@ class Agile_Scraper(Base_Scraper):
 
         # """ for IP rotation
         if self.use_IP_proxies:
-            if self.init_valid_IPs is None:
-                item['IP_index'] = [-1]
-            else:
-                n_half_valid_IPs = self.n_init_valid_IPs // 2
-                valid_IPs_for_docs = self.init_valid_IPs[-n_half_valid_IPs:] if n_half_valid_IPs > 0 else self.init_valid_IPs
-                item['IP_index'] = valid_IPs_for_docs
-                print(f'{self.n_init_valid_IPs - n_half_valid_IPs} IPs for data: {self.init_valid_IPs[0]} to {self.init_valid_IPs[-n_half_valid_IPs - 1]}, current IP index: {IP_index}, {n_half_valid_IPs} IPs for docs: {valid_IPs_for_docs[0]} to {valid_IPs_for_docs[-1]}')
+            item['IP_index'] = self.valid_IPs_for_docs
+            print(f'{self.n_valid_IPs_for_data} IPs for data: {self.valid_IPs_for_data[0]} to {self.valid_IPs_for_data[-1]},'
+                  f'{self.n_valid_IPs_for_docs} IPs for docs: {self.valid_IPs_for_docs[0]} to {self.valid_IPs_for_docs[-1]}')
         # """ # end of IP rotation
 
         cookies = driver.get_cookies()
