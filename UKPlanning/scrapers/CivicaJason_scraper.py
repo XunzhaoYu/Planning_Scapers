@@ -18,7 +18,11 @@ from general.utils import unique_columns, scrape_data_items, scrape_for_csv, scr
 class CivicaJason_Scraper(Base_Scraper):
     name = 'CivicaJason_Scraper'
     """
-    125 similar, 4 minor different, 3 major different, 6 completely different
+    1/2/5(11 display:None) similar: <div/div/div class=civica-keyobject-basicdetails> + <div detail tab> + <div detail panel/div/div class=civica-keyobject-fulldetails> 
+    4 minor different (no detail tab): <div/div/div class=civica-keyobject-basicdetails> + <div/div/div class=civica-keyobject-fulldetails>  
+    3 major different (no basic detail): <div/div/div class=civica-keyobject-fulldetails>  
+    6 completely different
+    
     1.auth_id = 13, Ashfield: https://planning.ashfield.gov.uk/planning-applications/planning-application/?RefType=GFPlanning&KeyNo=194603
     2.auth_id = 99, Denbighshire: url error. https://planning.denbighshire.gov.uk/planning/planning-application?RefType=PBDC&KeyNo=11872
       cymraeg                       search page: https://planning.denbighshire.gov.uk/planning/ 
@@ -107,7 +111,7 @@ class CivicaJason_Scraper(Base_Scraper):
         max_file_name_len = self.max_folder_file_name_len - len(folder_name) - 5  # 5 chars for suffix/extension, such as .pdf
         print(f'parse_data_item_CivicaJason, scraper name: {scraper_name}, max_file_name_len: {max_file_name_len}.')
 
-        try:
+        try: # class = col-md-9 col-sm-9
             content = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, "//div[@role='tablist']/div/div")))
             """
             1 //*[@id="applicationviewer"]/div/div/div
@@ -125,6 +129,14 @@ class CivicaJason_Scraper(Base_Scraper):
         tab_list = content.find_elements(By.XPATH, "./div[@role='tab']")
         tab_panel_list = content.find_elements(By.XPATH, "./div[@role='tab-panel']")
 
+        # tab_panel_list/div/div/div[@class='civicadetail']
+        #
+        item_list = content.find_elements(By.XPATH, "./div/div/div[@class='civica-keyobject-fulldetails']/div[@class='civicadetail']")
+        print(f'\n1. Details Tab: {len(item_list)} items.')
+        items = [item.find_element(By.XPATH, './div[1]') for item in item_list]
+        item_values = [item.find_element(By.XPATH, './div[2]') for item in item_list]
+        app_df = scrape_data_items(app_df, items, item_values, self.details_dict, PRINT)
+
         for tab_index, tab in enumerate(tab_list):
             tab_name = tab.find_element(By.XPATH, './div').text.strip()
             if 'false' in tab.get_attribute('aria-expanded'):
@@ -133,6 +145,7 @@ class CivicaJason_Scraper(Base_Scraper):
                 time.sleep(2)
             # --- --- --- Details (data) --- --- ---
             if 'detail' in tab_name.lower():
+                #item_list = tab_panel_list[tab_index].find_elements(By.XPATH, '')
                 pass
             # --- --- --- Documents (doc) --- --- ---
             elif 'document' in tab_name.lower():
