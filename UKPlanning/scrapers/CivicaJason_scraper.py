@@ -135,6 +135,8 @@ class CivicaJason_Scraper(Base_Scraper):
         print(f'\n1. Details Tab: {len(item_list)} items.')
         items = [item.find_element(By.XPATH, './div[1]') for item in item_list]
         item_values = [item.find_element(By.XPATH, './div[2]') for item in item_list]
+        print(items[0].text.strip())
+        print(items[0].get_attribute('innerText').strip())
         app_df = scrape_data_items(app_df, items, item_values, self.details_dict, PRINT)
 
         for tab_index, tab in enumerate(tab_list):
