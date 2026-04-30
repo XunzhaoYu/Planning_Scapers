@@ -90,6 +90,15 @@ class CivicaJason_Scraper(Base_Scraper):
                     'Appeal Status': 'other_fields.appeal_status', # Denbighshire, Eastbourne, StAlbans, Waverley
                     }
 
+    doc_url_dict = {'Ashfield': 'https://planning.ashfield.gov.uk/my-requests/document-viewer?DocNo=',
+                    'Denbighshire': 'https://planning.denbighshire.gov.uk/my-requests/document-viewer?DocNo=',
+                    # 'https://planning.denbighshire.gov.uk/w2webparts/Resource/Civica/Handler.ashx/Doc/pagestream?cd=inline&pdf=true&docno=',
+                    'Eastbourne': 'https://www.lewes-eastbourne.gov.uk/2088/?DocNo=',
+                    'StAlbans': 'https://planningapplications.stalbans.gov.uk/planning/search-applications#DOC?DocNo=',
+                    # url: https://planning360.waverley.gov.uk:4443/planning/search-applications?civica.query.FullTextSearch=WA%2F2020%2F0069%20#VIEW?RefType=GFPlanning&KeyNo=497728&KeyText=Subject
+                    'Waverley': 'https://planning360.waverley.gov.uk:4443/planning/search-applications?civica.query.FullTextSearch=WA%2F2020%2F0069%20#DOC?DocNo=',
+                    'Wrexham': ''}
+
     def create_item(self, driver, folder_name, file_urls, document_names):
         if not os.path.exists(self.failed_downloads_path + folder_name):
             os.mkdir(self.failed_downloads_path + folder_name)
@@ -135,8 +144,6 @@ class CivicaJason_Scraper(Base_Scraper):
         print(f'\n1. Details Tab: {len(item_list)} items.')
         items = [item.find_element(By.XPATH, './div[1]') for item in item_list]
         item_values = [item.find_element(By.XPATH, './div[2]') for item in item_list]
-        print(items[0].text.strip())
-        print(items[0].get_attribute('innerText').strip())
         app_df = scrape_data_items(app_df, items, item_values, self.details_dict, PRINT)
 
         for tab_index, tab in enumerate(tab_list):
@@ -151,7 +158,44 @@ class CivicaJason_Scraper(Base_Scraper):
                 pass
             # --- --- --- Documents (doc) --- --- ---
             elif 'document' in tab_name.lower():
-                pass
+                def get_documents():
+                    file_urls, document_names = [], []
+                    try:
+                        document_list = WebDriverWait(driver, 3).until(EC.visibility_of_element_located((By.CLASS_NAME, 'civica-doclist')))
+                        document_items = document_list.find_elements(By.XPATH, './ul/li')
+                        n_documents = len(document_items)
+                    except NoSuchElementException:
+                        n_documents = 0
+                    app_df.at['other_fields.n_documents'] = n_documents
+                    print(f'\n2. Documents Tab: {n_documents} items.')
+                    if n_documents > 0:
+                        n_documents = 0
+                        for document_item in document_items:
+                            n_documents += 1
+                            print(f'    - - - Document {n_documents} - - -') if PRINT else None
+                            file_id = document_item.find_element(By.XPATH, './a').get_attribute('href').split('?DocNo=')[1]
+                            file_url = f'{self.doc_url_dict[self.auth]}{file_id}'
+                            print(f'    {file_url}') if PRINT else None
+                            file_urls.append(file_url)
+
+                            document_date = document_item.find_element(By.CLASS_NAME, 'civica-doclistdetailtext').text.strip()
+                            document_description = document_item.find_element(By.CLASS_NAME, 'civica-doclisttitletext').text.strip()
+                            document_name = f"date={document_date}&desc={document_description}&uid={n_documents}"  # .{item_extension}"
+
+                            len_limitation = len(document_name) - max_file_name_len
+                            print(f'    Doc {n_documents} len_limitation: {len_limitation}') if len_limitation > -5 else None
+                            if len_limitation > 0:
+                                document_description = document_description[:-len_limitation]
+                                document_name = f'date={document_date}&desc={document_description}&uid={n_documents}'
+                            print(f'    Document {n_documents}: {document_name}') if PRINT else None
+                            document_name = replace_invalid_characters(document_name)
+                            # print('new: ', document_name) if PRINT else None
+                            document_names.append(f'{self.data_upload_path}{folder_name}/{document_name}')
+                    return file_urls, document_names
+                file_urls, document_names = get_documents()
+                if len(file_urls) > 0:
+                    item = self.create_item(driver, folder_name, file_urls, document_names)
+                    yield item
             # --- --- --- Comments () --- --- ---
             elif 'comment' in tab_name.lower():
                 pass
