@@ -40,7 +40,7 @@ class CivicaJason_Scraper(Base_Scraper):
     """
 
     # use pipelines_extension to obtain file extensions.
-    # custom_settings = {'ITEM_PIPELINES': {'UKPlanning.pipelines.pipelines_extension.DownloadFilesPipeline': 1, }}
+    custom_settings = {'ITEM_PIPELINES': {'UKPlanning.pipelines.pipelines_extension.DownloadFilesPipeline': 1, }}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -136,7 +136,7 @@ class CivicaJason_Scraper(Base_Scraper):
             return
 
         tab_list = content.find_elements(By.XPATH, "./div[@role='tab']")
-        tab_panel_list = content.find_elements(By.XPATH, "./div[@role='tab-panel']")
+        tab_panel_list = content.find_elements(By.XPATH, "./div[@role='tabpanel']")
 
         # tab_panel_list/div/div/div[@class='civicadetail']
         #
@@ -167,7 +167,7 @@ class CivicaJason_Scraper(Base_Scraper):
                     except NoSuchElementException:
                         n_documents = 0
                     app_df.at['other_fields.n_documents'] = n_documents
-                    print(f'\n2. Documents Tab: {n_documents} items.')
+                    print(f'\n{tab_index+1}. Documents Tab: {n_documents} items.')
                     if n_documents > 0:
                         n_documents = 0
                         for document_item in document_items:
@@ -198,7 +198,13 @@ class CivicaJason_Scraper(Base_Scraper):
                     yield item
             # --- --- --- Comments () --- --- ---
             elif 'comment' in tab_name.lower():
-                pass
+                n_objections_comments = tab_panel_list[tab_index].find_element(By.XPATH, ".//div[contains(@class, 'commentsobjections')]").get_attribute('innerText').strip()
+                n_supporting_comments = tab_panel_list[tab_index].find_element(By.XPATH, ".//div[contains(@class, 'commentssupporting')]").get_attribute('innerText').strip()
+                n_neither_comments = tab_panel_list[tab_index].find_element(By.XPATH, ".//div[contains(@class, 'commentsneither')]").get_attribute('innerText').strip()
+                print(f'\n{tab_index+1}. Comments Tab: {n_objections_comments} objections, {n_supporting_comments} supporting, {n_neither_comments} neither.')
+                app_df['other_fields.n_comments_public_objections'] = n_objections_comments
+                app_df['other_fields.n_comments_public_supporting'] = n_supporting_comments
+                app_df['other_fields.n_comments_public_received'] = n_objections_comments + n_supporting_comments + n_neither_comments
             else:
                 print(f'\n{tab_index + 1}. Unknown Tab: {tab_name}.')
                 assert 1 == 0
