@@ -40,7 +40,7 @@ class CivicaJason_Scraper(Base_Scraper):
     """
 
     # use pipelines_extension to obtain file extensions.
-    custom_settings = {'ITEM_PIPELINES': {'UKPlanning.pipelines.pipelines_extension.DownloadFilesPipeline': 1, }}
+    # custom_settings = {'ITEM_PIPELINES': {'UKPlanning.pipelines.pipelines_extension.DownloadFilesPipeline': 1, }}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -90,13 +90,18 @@ class CivicaJason_Scraper(Base_Scraper):
                     'Appeal Status': 'other_fields.appeal_status', # Denbighshire, Eastbourne, StAlbans, Waverley
                     }
 
-    doc_url_dict = {'Ashfield': 'https://planning.ashfield.gov.uk/my-requests/document-viewer?DocNo=',
-                    'Denbighshire': 'https://planning.denbighshire.gov.uk/my-requests/document-viewer?DocNo=',
-                    # 'https://planning.denbighshire.gov.uk/w2webparts/Resource/Civica/Handler.ashx/Doc/pagestream?cd=inline&pdf=true&docno=',
-                    'Eastbourne': 'https://www.lewes-eastbourne.gov.uk/2088/?DocNo=',
-                    'StAlbans': 'https://planningapplications.stalbans.gov.uk/planning/search-applications#DOC?DocNo=',
+    doc_url_dict = {#'Ashfield': 'https://planning.ashfield.gov.uk/my-requests/document-viewer?DocNo=',
+                    'Ashfield': '/civica/Resource/Civica/Handler.ashx/doc/pagestream?DocNo=17916248&pdf=true&filename=Delegated%20Report%20(R).pdf',
+                    #'Denbighshire': 'https://planning.denbighshire.gov.uk/my-requests/document-viewer?DocNo=', # auto redirect to doc page.
+                    'Denbighshire': 'https://planning.denbighshire.gov.uk/w2webparts/Resource/Civica/Handler.ashx/Doc/pagestream?cd=inline&pdf=true&docno=',
+                    #'Eastbourne': 'https://www.lewes-eastbourne.gov.uk/2088/?DocNo=',
+                    'Eastbourne': 'https://gtest.lewes-eastbourne.gov.uk/civica/Resource/Civica/Handler.ashx/doc/pagestream?DocNo=15277571&pdf=true&filename=Decision%20notice%20EBC%20PCAS%20(public).pdf',
+                    #'StAlbans': 'https://planningapplications.stalbans.gov.uk/planning/search-applications#DOC?DocNo=', # auto redirect to doc page.
+                    'StAlbans': 'https://planningapplications.stalbans.gov.uk/w2webparts/Resource/Civica/Handler.ashx/Doc/pagestream?cd=inline&pdf=true&docno=',
+                    #
                     # url: https://planning360.waverley.gov.uk:4443/planning/search-applications?civica.query.FullTextSearch=WA%2F2020%2F0069%20#VIEW?RefType=GFPlanning&KeyNo=497728&KeyText=Subject
                     'Waverley': 'https://planning360.waverley.gov.uk:4443/planning/search-applications?civica.query.FullTextSearch=WA%2F2020%2F0069%20#DOC?DocNo=',
+                    #            https://planning360.waverley.gov.uk:4443/w2webparts/Resource/Civica/Handler.ashx/Doc/pagestream?cd=inline&pdf=true&docno=8097044
                     'Wrexham': ''}
 
     def create_item(self, driver, folder_name, file_urls, document_names):
