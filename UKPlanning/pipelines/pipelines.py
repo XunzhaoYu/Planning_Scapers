@@ -51,7 +51,7 @@ class DownloadFilesPipeline(FilesPipeline):
         for index in range(len(file_urls)):
             # payload = csrf
             # requests.append(Request(file_urls[index], headers=header, method="POST", body=json.dumps(payload)))
-            requests.append(Request(file_urls[index], method="GET", cookies=cookies, meta={'document_name': document_names[index], 'download_timeout': 60}))
+            requests.append(Request(file_urls[index], method="GET", cookies=cookies, meta={'document_name': document_names[index], 'download_timeout': 180}))
             #requests.append(FormRequest(file_urls[index], method="POST", formdata=payloads[index], cookies=cookies, meta={'document_name': document_names[index], 'download_timeout': 60}))
             #requests.append(Request(file_urls[index], method="GET", cookies=cookies, meta={'proxy': IP_proxy, 'document_name': document_names[index], 'download_timeout': 60}))
         return requests

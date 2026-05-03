@@ -41,12 +41,12 @@ def get_filenames(src_path, ending=0):
 
 
 # --- --- --- utils for scraping basic data --- --- ---
-# Used in CCED, Custom, Tascomi:
+# Used in CCED, Custom, Tascomi, Ocella, CivicaJason:
 def scrape_data_items(app_df, items, item_values, details_dict, PRINT):
     for item, value in zip(items, item_values):
-        item_name = item.text.strip()
+        item_name = item.get_attribute('innerText').strip()  #item.text.strip() # modified on 29-April-2026 for CivicaJason.
         data_name = details_dict[item_name]
-        item_value = value.text.strip()
+        item_value = value.get_attribute('innerText').strip()  #value.text.strip()
         # print(i, item_name, item_value, type(item_name))
         try:
             app_df.at[data_name] = item_value
