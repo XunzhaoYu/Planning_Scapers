@@ -3,6 +3,7 @@ import pandas as pd
 
 from scrapy_selenium import SeleniumRequest
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.expected_conditions import element_to_be_clickable
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -20,15 +21,15 @@ class CivicaJason_Scraper(Base_Scraper):
     """
     1/2/5(11 display:None) similar: <div/div/div class=civica-keyobject-basicdetails> + <div detail tab> + <div detail panel/div/div class=civica-keyobject-fulldetails> 
     4 minor different (no detail tab): <div/div/div class=civica-keyobject-basicdetails> + <div/div/div class=civica-keyobject-fulldetails>  
-    3 major different (no basic detail): <div/div/div class=civica-keyobject-fulldetails>  
+    3 major different + need choosing portal (no basic detail): <div/div/div class=civica-keyobject-fulldetails>  
     6 completely different
     
     1.auth_id = 13, Ashfield: https://planning.ashfield.gov.uk/planning-applications/planning-application/?RefType=GFPlanning&KeyNo=194603
-    2.auth_id = 99, Denbighshire: url error. https://planning.denbighshire.gov.uk/planning/planning-application?RefType=PBDC&KeyNo=11872
+    2.auth_id = 99, Denbighshire: url error? https://planning.denbighshire.gov.uk/planning/planning-application?RefType=PBDC&KeyNo=11872
       cymraeg                       search page: https://planning.denbighshire.gov.uk/planning/ 
                                     app page: https://planning.denbighshire.gov.uk/planning/planning-application?RefType=PBDC&KeyNo=28889
     3.auth_id = 115(114), Eastbourne: url error. https://www.lewes-eastbourne.gov.uk/planning/application-summary?RefType=APPPlanCase&KeyText=190026
-                                    search page: https://www.lewes-eastbourne.gov.uk/planning
+      cloudflare                    search page: https://www.lewes-eastbourne.gov.uk/planning
                                     app page: https://www.lewes-eastbourne.gov.uk/article/2087/?RefType=APPPlanCase&KeyText=190026
     4.auth_id = 348(345), StAlbans: https://planningapplications.stalbans.gov.uk/planning/search-applications#VIEW?RefType=PBDC&KeyNo=109235
     5.auth_id = 393(389), Waverley: url error. http://planning360.waverley.gov.uk/planning/planning-application?RefType=GFPlanning&KeyNo=410184
@@ -46,7 +47,11 @@ class CivicaJason_Scraper(Base_Scraper):
         super().__init__(*args, **kwargs)
 
         # All sub_classes of Base_Scraper should define their self.parse_func(s) in __init__
-        self.parse_func = self.parse_data_item_CivicaJason
+        if self.auth in ['Eastbourne']:
+            self.url_check = True
+            self.url_preprocess = self.url_preprocess_Eastbourne
+        else:
+            self.parse_func = self.parse_data_item_CivicaJason
 
     details_dict = {'Reference Number': 'uid', # StAlbans
                     'Case No': 'uid', # Waverley
@@ -55,14 +60,16 @@ class CivicaJason_Scraper(Base_Scraper):
                     'Proposal': 'description',  # Waverley
                     'Application Type': 'other_fields.application_type',  # Denbighshire, Eastbourne, StAlbans, Waverley
 
-                    'Premises Address': 'address', # Ashfield, Denbighshire, Eastbourne
+                    'Premises Address': 'address', # Ashfield, Denbighshire
+                    'Premises address': 'address',  # Eastbourne
                     'Gaz Address': 'address', # Waverley
                     'Location': 'address', # StAlbans
 
                     'Applicant Name': 'other_fields.applicant_name', # Ashfield, StAlbans, Waverley
                     'Applicant': 'other_fields.applicant_name', # Denbighshire, Eastbourne
                     'Agent': 'other_fields.agent_name',  # All
-                    'Case Officer': 'other_fields.case_officer',  # All
+                    'Case Officer': 'other_fields.case_officer',  # All but Eastbourne
+                    'Case officer': 'other_fields.case_officer', # Eastbourne
 
                     'Ward': 'ther_fields.ward_name',  # All
                     'Parish': 'other_fields.parish',  # All
@@ -70,14 +77,16 @@ class CivicaJason_Scraper(Base_Scraper):
                     'Decision': 'other_fields.decision',  # All
 
                     'Received Date': 'other_fields.date_received', # StAlbans
-                    'Date Valid': 'other_fields.date_validated', # Ashfield, Denbighshire, Eastbourne, StAlbans
+                    'Date Valid': 'other_fields.date_validated', # Ashfield, Denbighshire, StAlbans
+                    'Date valid': 'other_fields.date_validated', # Eastbourne
                     'Date Advertised': 'other_fields.last_advertised_date', # StAlbans
                     #'Application Site Visit Date': '', # StAlbans
                     'Stage': 'other_fields.status', # Denbighshire, Eastbourne
                     'Committee Date': 'other_fields.meeting_date', # StAlbans
                     'Target Determination Date': 'other_fields.determination_date', # Eastbourne
                     'Decision Due By': 'other_fields.decision_due_date', # Ashfield, Denbighshire, Waverley
-                    'Please Comment By': 'other_fields.comment_expires_date', # Denbighshire, Eastbourne, StAlbans
+                    'Please Comment By': 'other_fields.comment_expires_date', # Denbighshire, StAlbans
+                    'Please comment by': 'other_fields.comment_expires_date',  # Eastbourne
                     'Comments due by date': 'other_fields.comment_expires_date', # Waverley
                     'Expiry Date': 'other_fields.application_expires_date', # StAlbans
                     'Decision Level': 'other_fields.expected_decision_level', # StAlbans
@@ -87,15 +96,18 @@ class CivicaJason_Scraper(Base_Scraper):
                     'Appeal Reference': 'other_fields.appeal_reference', # StAlbans
                     #'Appeal Method': '', # StAlbans
                     'Appeal Decision Date': 'other_fields.appeal_decision_date', # StAlbans
-                    'Appeal Status': 'other_fields.appeal_status', # Denbighshire, Eastbourne, StAlbans, Waverley
+                    'Appeal Status': 'other_fields.appeal_status', # Denbighshire, StAlbans, Waverley
+                    'Appeal status': 'other_fields.appeal_status', # Eastbourne
                     }
 
     doc_url_dict = {#'Ashfield': 'https://planning.ashfield.gov.uk/my-requests/document-viewer?DocNo=',
-                    'Ashfield': '/civica/Resource/Civica/Handler.ashx/doc/pagestream?DocNo=17916248&pdf=true&filename=Delegated%20Report%20(R).pdf',
+                    #'Ashfield': '/civica/Resource/Civica/Handler.ashx/doc/pagestream?DocNo=17916248&pdf=true&filename=Delegated%20Report%20(R).pdf',
+                    'Ashfield': 'https://planning.ashfield.gov.uk/civica/Resource/Civica/Handler.ashx/Doc/pagestream?cd=inline&pdf=true&docno=',
                     #'Denbighshire': 'https://planning.denbighshire.gov.uk/my-requests/document-viewer?DocNo=', # auto redirect to doc page.
                     'Denbighshire': 'https://planning.denbighshire.gov.uk/w2webparts/Resource/Civica/Handler.ashx/Doc/pagestream?cd=inline&pdf=true&docno=',
                     #'Eastbourne': 'https://www.lewes-eastbourne.gov.uk/2088/?DocNo=',
-                    'Eastbourne': 'https://gtest.lewes-eastbourne.gov.uk/civica/Resource/Civica/Handler.ashx/doc/pagestream?DocNo=15277571&pdf=true&filename=Decision%20notice%20EBC%20PCAS%20(public).pdf',
+                    #'Eastbourne': 'https://gtest.lewes-eastbourne.gov.uk/civica/Resource/Civica/Handler.ashx/doc/pagestream?DocNo=15277571&pdf=true&filename=Decision%20notice%20EBC%20PCAS%20(public).pdf',
+                    'Eastbourne': 'https://gtest.lewes-eastbourne.gov.uk/civica/Resource/Civica/Handler.ashx/Doc/pagestream?cd=inline&pdf=true&docno=',
                     #'StAlbans': 'https://planningapplications.stalbans.gov.uk/planning/search-applications#DOC?DocNo=', # auto redirect to doc page.
                     'StAlbans': 'https://planningapplications.stalbans.gov.uk/w2webparts/Resource/Civica/Handler.ashx/Doc/pagestream?cd=inline&pdf=true&docno=',
                     #
@@ -117,6 +129,26 @@ class CivicaJason_Scraper(Base_Scraper):
         item['session_cookies'] = cookies
         return item
 
+    def url_preprocess_CivicaJason(self, url):
+        # if url is correct, run the scraper directly.
+        if url.startswith(f'https://planning.agileapplications.co.uk/{self.LA_url_dict[self.auth]}'):
+            self.parse_func = self.parse_data_item_CivicaJason
+            return url
+        else: # do pre-process.
+            self.parse_func = self.search_by_appID_CivicaJason
+            return f'https://planning.agileapplications.co.uk/{self.LA_url_dict[self.auth]}/search-applications/'
+
+    def url_preprocess_Eastbourne(self, url):
+        if url.startswith('https://www.lewes-eastbourne.gov.uk/article'):
+            self.parse_func = self.parse_data_item_CivicaJason
+            return url
+        else:
+            self.parse_func = self.parse_data_item_CivicaJason
+            app_id = url.split('=')[-1]
+            new_url = f'https://www.lewes-eastbourne.gov.uk/article/2087/?RefType=APPPlanCase&KeyText={app_id}'
+            print('correct url :', new_url)
+            return new_url
+
     def parse_data_item_CivicaJason(self, response):
         app_df = response.meta['app_df']
         driver = response.request.meta['driver']
@@ -124,6 +156,37 @@ class CivicaJason_Scraper(Base_Scraper):
         folder_name = self.setup_storage_path(app_df)
         max_file_name_len = self.max_folder_file_name_len - len(folder_name) - 5  # 5 chars for suffix/extension, such as .pdf
         print(f'parse_data_item_CivicaJason, scraper name: {scraper_name}, max_file_name_len: {max_file_name_len}.')
+
+        if scraper_name == 'Eastbourne':
+            try:
+                # Lewes District Council or Eastbourne Council or both
+                if 'Choose or change your council' in driver.find_element(By.XPATH, '//*[@id="localisation-prompt__header"]').text:
+                    #choose_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="localisation-prompt-form"]/div/button[2]')))
+                    close_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="localisation-prompt"]/div/button')))
+                    close_button.click()
+                    print('choose or change your council button clicked.')
+                    time.sleep(5)
+            except NoSuchElementException:
+                print('NO buttons.')
+
+            cloudflare = True
+            while cloudflare:
+                try:
+                    if 'www.lewes-eastbourne.gov.uk' in driver.find_element(By.XPATH,'/html/body/div[1]/div/div[1]/h1').text:
+                        """
+                        try:
+                            input = WebDriverWait(driver, 20).until(element_to_be_clickable((By.XPATH, '//*[@id="nqtI3"]/div/label/input')))
+                            print('found cloudflare button.')
+                            time.sleep(30)
+                            #input.click() # //*[@id="nqtI3"]/div/label/input
+                            print('click cloudflare button.')
+                        except TimeoutException:
+                            print('did not find cloudflare button.')
+                        time.sleep(5)
+                        """
+                        time.sleep(60)
+                except NoSuchElementException:
+                    cloudflare = False
 
         try: # class = col-md-9 col-sm-9
             content = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, "//div[@role='tablist']/div/div")))
@@ -166,10 +229,10 @@ class CivicaJason_Scraper(Base_Scraper):
                 def get_documents():
                     file_urls, document_names = [], []
                     try:
-                        document_list = WebDriverWait(driver, 3).until(EC.visibility_of_element_located((By.CLASS_NAME, 'civica-doclist')))
+                        document_list = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CLASS_NAME, 'civica-doclist')))
                         document_items = document_list.find_elements(By.XPATH, './ul/li')
                         n_documents = len(document_items)
-                    except NoSuchElementException:
+                    except TimeoutException:
                         n_documents = 0
                     app_df.at['other_fields.n_documents'] = n_documents
                     print(f'\n{tab_index+1}. Documents Tab: {n_documents} items.')
@@ -185,13 +248,13 @@ class CivicaJason_Scraper(Base_Scraper):
 
                             document_date = document_item.find_element(By.CLASS_NAME, 'civica-doclistdetailtext').text.strip()
                             document_description = document_item.find_element(By.CLASS_NAME, 'civica-doclisttitletext').text.strip()
-                            document_name = f"date={document_date}&desc={document_description}&uid={n_documents}"  # .{item_extension}"
+                            document_name = f"date={document_date}&desc={document_description}&uid={n_documents}.pdf"  # .{item_extension}"
 
                             len_limitation = len(document_name) - max_file_name_len
                             print(f'    Doc {n_documents} len_limitation: {len_limitation}') if len_limitation > -5 else None
                             if len_limitation > 0:
                                 document_description = document_description[:-len_limitation]
-                                document_name = f'date={document_date}&desc={document_description}&uid={n_documents}'
+                                document_name = f'date={document_date}&desc={document_description}&uid={n_documents}.pdf'
                             print(f'    Document {n_documents}: {document_name}') if PRINT else None
                             document_name = replace_invalid_characters(document_name)
                             # print('new: ', document_name) if PRINT else None
