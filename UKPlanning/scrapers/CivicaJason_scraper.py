@@ -80,7 +80,7 @@ class CivicaJason_Scraper(Base_Scraper):
                     'Date Valid': 'other_fields.date_validated', # Ashfield, Denbighshire, StAlbans
                     'Date valid': 'other_fields.date_validated', # Eastbourne
                     'Date Advertised': 'other_fields.last_advertised_date', # StAlbans
-                    #'Application Site Visit Date': '', # StAlbans
+                    'Application Site Visit Date': 'other_fields.application_site_visit_date', # StAlbans
                     'Stage': 'other_fields.status', # Denbighshire, Eastbourne
                     'Committee Date': 'other_fields.meeting_date', # StAlbans
                     'Target Determination Date': 'other_fields.determination_date', # Eastbourne
@@ -91,10 +91,10 @@ class CivicaJason_Scraper(Base_Scraper):
                     'Expiry Date': 'other_fields.application_expires_date', # StAlbans
                     'Decision Level': 'other_fields.expected_decision_level', # StAlbans
 
-                    #'Appeal Date': '', # Waverley
+                    'Appeal Date': 'other_fields.appeal_date', # Waverley
                     'Appeal Lodged Date': 'other_fields.appeal_lodged_date', # StAlbans
                     'Appeal Reference': 'other_fields.appeal_reference', # StAlbans
-                    #'Appeal Method': '', # StAlbans
+                    'Appeal Method': 'other_fields.appeal_method', # StAlbans
                     'Appeal Decision Date': 'other_fields.appeal_decision_date', # StAlbans
                     'Appeal Status': 'other_fields.appeal_status', # Denbighshire, StAlbans, Waverley
                     'Appeal status': 'other_fields.appeal_status', # Eastbourne
