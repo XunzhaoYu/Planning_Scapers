@@ -229,7 +229,9 @@ class CivicaJason_Scraper(Base_Scraper):
                 def get_documents():
                     file_urls, document_names = [], []
                     try:
-                        document_list = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CLASS_NAME, 'civica-doclist')))
+                        #document_list = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CLASS_NAME, 'civica-doclist')))
+                        document_list = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CLASS_NAME, 'civicadocumentlist')))
+                        document_list = document_list.find_element(By.XPATH, './div/div/div')
                         document_items = document_list.find_elements(By.XPATH, './ul/li')
                         n_documents = len(document_items)
                     except TimeoutException:
