@@ -255,7 +255,8 @@ class Agile_Scraper(Base_Scraper):
         new_url = re.sub(r'yorkshiredale(?![s])', 'yorkshiredales', url)
         return self.url_preprocess_Agile(new_url)
 
-    # A module to search applications using their app_id.
+    # A module to search applications using their app_id
+    # without a visible 'view' button. The click anywhere within the whole <tr> row.
     def search_by_appID_Agile(self, response):
         driver = response.request.meta['driver']
         app_df = response.meta['app_df']

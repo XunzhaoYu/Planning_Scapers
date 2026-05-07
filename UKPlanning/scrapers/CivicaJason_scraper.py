@@ -32,6 +32,7 @@ class CivicaJason_Scraper(Base_Scraper):
       cloudflare                    search page: https://www.lewes-eastbourne.gov.uk/planning
                                     app page: https://www.lewes-eastbourne.gov.uk/article/2087/?RefType=APPPlanCase&KeyText=190026
     4.auth_id = 348(345), StAlbans: https://planningapplications.stalbans.gov.uk/planning/search-applications#VIEW?RefType=PBDC&KeyNo=109235
+      An error occured retrieving the item you specified.
     5.auth_id = 393(389), Waverley: url error. http://planning360.waverley.gov.uk/planning/planning-application?RefType=GFPlanning&KeyNo=410184
                                     search page: https://planning360.waverley.gov.uk:4443/planning
                                     app page: https://planning360.waverley.gov.uk:4443/planning/search-applications?civica.query.FullTextSearch=WA%2F2020%2F0069%20#VIEW?RefType=GFPlanning&KeyNo=497728&KeyText=Subject
@@ -47,9 +48,12 @@ class CivicaJason_Scraper(Base_Scraper):
         super().__init__(*args, **kwargs)
 
         # All sub_classes of Base_Scraper should define their self.parse_func(s) in __init__
-        if self.auth in ['Eastbourne']:
+        if self.auth in ['Eastbourne', 'Waverley']:
             self.url_check = True
-            self.url_preprocess = self.url_preprocess_Eastbourne
+            if self.auth == 'Eastbourne':
+                self.url_preprocess = self.url_preprocess_Eastbourne
+            else:
+                self.url_preprocess = self.url_preprocess_Waverley
         else:
             self.parse_func = self.parse_data_item_CivicaJason
 
@@ -149,6 +153,53 @@ class CivicaJason_Scraper(Base_Scraper):
             print('correct url :', new_url)
             return new_url
 
+    def url_preprocess_Waverley(self, url):
+        if url.startswith(' http://planning360.waverley.gov.uk/planning'):
+            self.parse_func = self.parse_data_item_CivicaJason
+            return url
+        else:
+            self.parse_func = self.search_by_appID_CivicaJason
+            return 'https://planning360.waverley.gov.uk:4443/planning'
+
+    # A module to search applications using their app_id, for Waverley LA.
+    def search_by_appID_CivicaJason(self, response):
+        driver = response.request.meta['driver']
+        app_df = response.meta['app_df']
+        url = response.request.url
+        print(f'search page url: {url}') if PRINT else None
+
+        # use app_id to search and view the application page.
+        app_id = app_df.at['uid']
+        input_reference = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//input[@class="searchbox"]')))
+        input_reference.click()
+        input_reference.send_keys(app_id)
+        # click 'search' button.
+        driver.execute_script('window.scrollTo(0, document.body.scrollHeight);')  # scroll down to the bottom of this page.
+        for tries in range(3):  # Sometimes there has no search result even if the app is available, so we try 3 times.
+            time.sleep(random.uniform(1., 1.5))
+            try:
+                driver.find_element(By.XPATH, '//button[@class="searchbutton"]').click()
+                #search_button = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//button[@class="searchbutton"]')))
+                #search_button.click()
+            except NoSuchElementException:
+                time.sleep(2)
+            # click 'view' button.
+            try:
+                search_result = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//div[@class='civica-keyobject-basicdetails']/a")))
+                search_result.click()
+                break
+            except TimeoutException:
+                print(f'Timeout error - search result: Application {app_id} is not found.')
+                if tries == 2:
+                    return
+        time.sleep(random.uniform(4., 5.))
+
+        app_df.at['url'] = driver.current_url
+        print(f'correct url: {driver.current_url}')
+
+        # scrape application
+        yield from self.parse_data_item_Agile(response)
+
     def parse_data_item_CivicaJason(self, response):
         app_df = response.meta['app_df']
         driver = response.request.meta['driver']
@@ -230,6 +281,7 @@ class CivicaJason_Scraper(Base_Scraper):
                     file_urls, document_names = [], []
                     try:
                         #document_list = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CLASS_NAME, 'civica-doclist')))
+                        #time.sleep(30)
                         document_list = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CLASS_NAME, 'civicadocumentlist')))
                         document_list = document_list.find_element(By.XPATH, './div/div/div')
                         document_items = document_list.find_elements(By.XPATH, './ul/li')
