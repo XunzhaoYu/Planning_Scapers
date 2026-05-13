@@ -198,7 +198,7 @@ class CivicaJason_Scraper(Base_Scraper):
         print(f'correct url: {driver.current_url}')
 
         # scrape application
-        yield from self.parse_data_item_Agile(response)
+        yield from self.parse_data_item_CivicaJason(response)
 
     def parse_data_item_CivicaJason(self, response):
         app_df = response.meta['app_df']
