@@ -258,9 +258,25 @@ class CivicaJason_Scraper(Base_Scraper):
         tab_panel_list = content.find_elements(By.XPATH, "./div[@role='tabpanel']")
 
         # tab_panel_list/div/div/div[@class='civicadetail']
-        #
+        time.sleep(10)
         item_list = content.find_elements(By.XPATH, "./div/div/div[@class='civica-keyobject-fulldetails']/div[@class='civicadetail']")
         print(f'\n1. Details Tab: {len(item_list)} items.')
+        for index, item in enumerate(item_list):
+            print(index, item.rect)
+            dimensions = driver.execute_script("""
+                var el = arguments[0];
+                var rect = el.getBoundingClientRect();
+                return {
+                    width: rect.width,
+                    height: rect.height,
+                    top: rect.top,
+                    left: rect.left
+                };
+            """, item)
+
+            print(f"真实尺寸: {dimensions['width']} x {dimensions['height']}")
+        item_list = [item for item in item_list if item.is_displayed()]
+        print(f'\n1. Details Tab: {len(item_list)} valid items.')
         items = [item.find_element(By.XPATH, './div[1]') for item in item_list]
         item_values = [item.find_element(By.XPATH, './div[2]') for item in item_list]
         app_df = scrape_data_items(app_df, items, item_values, self.details_dict, PRINT)
