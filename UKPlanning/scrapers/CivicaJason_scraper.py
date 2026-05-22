@@ -257,36 +257,23 @@ class CivicaJason_Scraper(Base_Scraper):
         tab_list = content.find_elements(By.XPATH, "./div[@role='tab']")
         tab_panel_list = content.find_elements(By.XPATH, "./div[@role='tabpanel']")
 
-        # tab_panel_list/div/div/div[@class='civicadetail']
-        time.sleep(10)
-        item_list = content.find_elements(By.XPATH, "./div/div/div[@class='civica-keyobject-fulldetails']/div[@class='civicadetail']")
-        print(f'\n1. Details Tab: {len(item_list)} items.')
-        for index, item in enumerate(item_list):
-            print(index, item.rect)
-            dimensions = driver.execute_script("""
-                var el = arguments[0];
-                var rect = el.getBoundingClientRect();
-                return {
-                    width: rect.width,
-                    height: rect.height,
-                    top: rect.top,
-                    left: rect.left
-                };
-            """, item)
-
-            print(f"真实尺寸: {dimensions['width']} x {dimensions['height']}")
-        item_list = [item for item in item_list if item.is_displayed()]
-        print(f'\n1. Details Tab: {len(item_list)} valid items.')
-        items = [item.find_element(By.XPATH, './div[1]') for item in item_list]
-        item_values = [item.find_element(By.XPATH, './div[2]') for item in item_list]
-        app_df = scrape_data_items(app_df, items, item_values, self.details_dict, PRINT)
-
         for tab_index, tab in enumerate(tab_list):
             tab_name = tab.find_element(By.XPATH, './div').text.strip()
             if 'false' in tab.get_attribute('aria-expanded'):
                 print(f'panel {tab_name} expanded: false.')
                 tab.click()
                 time.sleep(2)
+            if tab_index == 0:
+                # tab_panel_list/div/div/div[@class='civicadetail']
+                item_list = content.find_elements(By.XPATH, "./div/div/div[@class='civica-keyobject-fulldetails']/div[@class='civicadetail']")
+                print(f'\n1. Details Tab: {len(item_list)} items.')
+                #for index, item in enumerate(item_list):
+                #    print(index, type(item.rect), item.rect)
+                item_list = [item for item in item_list if item.rect['height']>0]
+                print(f'\n1. Details Tab: {len(item_list)} valid items.')
+                items = [item.find_element(By.XPATH, './div[1]') for item in item_list]
+                item_values = [item.find_element(By.XPATH, './div[2]') for item in item_list]
+                app_df = scrape_data_items(app_df, items, item_values, self.details_dict, PRINT)
             # --- --- --- Details (data) --- --- ---
             if 'detail' in tab_name.lower():
                 #item_list = tab_panel_list[tab_index].find_elements(By.XPATH, '')
