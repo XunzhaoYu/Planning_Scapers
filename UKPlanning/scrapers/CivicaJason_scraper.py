@@ -115,9 +115,8 @@ class CivicaJason_Scraper(Base_Scraper):
                     #'StAlbans': 'https://planningapplications.stalbans.gov.uk/planning/search-applications#DOC?DocNo=', # auto redirect to doc page.
                     'StAlbans': 'https://planningapplications.stalbans.gov.uk/w2webparts/Resource/Civica/Handler.ashx/Doc/pagestream?cd=inline&pdf=true&docno=',
                     #
-                    # url: https://planning360.waverley.gov.uk:4443/planning/search-applications?civica.query.FullTextSearch=WA%2F2020%2F0069%20#VIEW?RefType=GFPlanning&KeyNo=497728&KeyText=Subject
-                    'Waverley': 'https://planning360.waverley.gov.uk:4443/planning/search-applications?civica.query.FullTextSearch=WA%2F2020%2F0069%20#DOC?DocNo=',
-                    #            https://planning360.waverley.gov.uk:4443/w2webparts/Resource/Civica/Handler.ashx/Doc/pagestream?cd=inline&pdf=true&docno=8097044
+                    #'Waverley': 'https://planning360.waverley.gov.uk:4443/planning/search-applications?civica.query.FullTextSearch=WA%2F2020%2F0069%20#DOC?DocNo=',
+                    'Waverley': 'https://planning360.waverley.gov.uk:4443/w2webparts/Resource/Civica/Handler.ashx/Doc/pagestream?cd=inline&pdf=true&docno=',
                     'Wrexham': ''}
 
     def create_item(self, driver, folder_name, file_urls, document_names):
@@ -263,14 +262,16 @@ class CivicaJason_Scraper(Base_Scraper):
                 print(f'panel {tab_name} expanded: false.')
                 tab.click()
                 time.sleep(2)
-            if tab_index == 0:
+            if tab_index == 0: # data scraper.
+                # StAlbans has no detail tab, so we put data scraper here to be compatible with StAlbans.
+                # Waverley has multiple invisible data items (size 0x0), it is necessary to open detail tab and check size of data items, we put data scraper here to ensure detail tab (if have) is opened.
                 # tab_panel_list/div/div/div[@class='civicadetail']
                 item_list = content.find_elements(By.XPATH, "./div/div/div[@class='civica-keyobject-fulldetails']/div[@class='civicadetail']")
-                print(f'\n1. Details Tab: {len(item_list)} items.')
+                n_total_items = len(item_list)
                 #for index, item in enumerate(item_list):
                 #    print(index, type(item.rect), item.rect)
                 item_list = [item for item in item_list if item.rect['height']>0]
-                print(f'\n1. Details Tab: {len(item_list)} valid items.')
+                print(f'\n1. Details Tab: {n_total_items} items, {len(item_list)} valid items.')
                 items = [item.find_element(By.XPATH, './div[1]') for item in item_list]
                 item_values = [item.find_element(By.XPATH, './div[2]') for item in item_list]
                 app_df = scrape_data_items(app_df, items, item_values, self.details_dict, PRINT)
