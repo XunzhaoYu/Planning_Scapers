@@ -42,7 +42,7 @@ class CivicaJason_Scraper(Base_Scraper):
     """
 
     # use pipelines_extension to obtain file extensions.
-    # custom_settings = {'ITEM_PIPELINES': {'UKPlanning.pipelines.pipelines_extension.DownloadFilesPipeline': 1, }}
+    custom_settings = {'ITEM_PIPELINES': {'UKPlanning.middlewares.middlewares_uc.SeleniumMiddleware': 1, }}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -297,6 +297,7 @@ class CivicaJason_Scraper(Base_Scraper):
                     if n_documents > 0:
                         n_documents = 0
                         for document_item in document_items:
+                            time.sleep(random.uniform(2, 5))
                             n_documents += 1
                             print(f'    - - - Document {n_documents} - - -') if PRINT else None
                             file_id = document_item.find_element(By.XPATH, './a').get_attribute('href').split('?DocNo=')[1]
@@ -335,3 +336,8 @@ class CivicaJason_Scraper(Base_Scraper):
                 print(f'\n{tab_index + 1}. Unknown Tab: {tab_name}.')
                 assert 1 == 0
         self.ending(app_df)
+
+        driver.delete_all_cookies()
+        driver.refresh()
+        driver.get("https://www.lewes-eastbourne.gov.uk/planning")
+        time.sleep(2)
