@@ -54,6 +54,8 @@ class CivicaJason_Scraper(Base_Scraper):
                 self.url_preprocess = self.url_preprocess_Eastbourne
             else:
                 self.url_preprocess = self.url_preprocess_Waverley
+        elif self.auth in ['Wrexham']: # Not a CivicaJason scraper.
+            self.parse_func = self.parse_data_item_Wrexham
         else:
             self.parse_func = self.parse_data_item_CivicaJason
 
@@ -341,3 +343,13 @@ class CivicaJason_Scraper(Base_Scraper):
         driver.refresh()
         driver.get("https://www.lewes-eastbourne.gov.uk/planning")
         time.sleep(2)
+
+    def parse_data_item_Wrexham(self, response):
+        app_df = response.meta['app_df']
+        driver = response.request.meta['driver']
+        scraper_name = app_df.at['scraper_name']
+        folder_name = self.setup_storage_path(app_df)
+        max_file_name_len = self.max_folder_file_name_len - len(folder_name) - 5  # 5 chars for suffix/extension, such as .pdf
+        print(f'parse_data_item_CivicaJason, scraper name: {scraper_name}, max_file_name_len: {max_file_name_len}.')
+
+        self.ending(app_df)
