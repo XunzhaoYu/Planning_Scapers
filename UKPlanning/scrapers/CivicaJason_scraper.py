@@ -36,13 +36,10 @@ class CivicaJason_Scraper(Base_Scraper):
     5.auth_id = 393(389), Waverley: url error. http://planning360.waverley.gov.uk/planning/planning-application?RefType=GFPlanning&KeyNo=410184
                                     search page: https://planning360.waverley.gov.uk:4443/planning
                                     app page: https://planning360.waverley.gov.uk:4443/planning/search-applications?civica.query.FullTextSearch=WA%2F2020%2F0069%20#VIEW?RefType=GFPlanning&KeyNo=497728&KeyText=Subject
-    6.auth_id = 421(417), Wrexham: url error. https://planning.wrexham.gov.uk/planning/planning-application?RefType=GFPlanning&KeyNo=69899
-      cymraeg                       search page: https://register.wrexham.gov.uk/pr/s/register-view?c__r=Arcus_BE_Public_Register&language=en_GB
-      quite different               app page: https://register.wrexham.gov.uk/pr/s/detail/a0lJ7000000TviIIAS?c__r=Arcus_BE_Public_Register&language=en_GB
     """
 
     # use pipelines_extension to obtain file extensions.
-    custom_settings = {'ITEM_PIPELINES': {'UKPlanning.middlewares.middlewares_uc.SeleniumMiddleware': 1, }}
+    #custom_settings = {'ITEM_PIPELINES': {'UKPlanning.middlewares.middlewares_uc.SeleniumMiddleware': 1, }}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -54,8 +51,6 @@ class CivicaJason_Scraper(Base_Scraper):
                 self.url_preprocess = self.url_preprocess_Eastbourne
             else:
                 self.url_preprocess = self.url_preprocess_Waverley
-        elif self.auth in ['Wrexham']: # Not a CivicaJason scraper.
-            self.parse_func = self.parse_data_item_Wrexham
         else:
             self.parse_func = self.parse_data_item_CivicaJason
 
@@ -109,17 +104,20 @@ class CivicaJason_Scraper(Base_Scraper):
     doc_url_dict = {#'Ashfield': 'https://planning.ashfield.gov.uk/my-requests/document-viewer?DocNo=',
                     #'Ashfield': '/civica/Resource/Civica/Handler.ashx/doc/pagestream?DocNo=17916248&pdf=true&filename=Delegated%20Report%20(R).pdf',
                     'Ashfield': 'https://planning.ashfield.gov.uk/civica/Resource/Civica/Handler.ashx/Doc/pagestream?cd=inline&pdf=true&docno=',
+
                     #'Denbighshire': 'https://planning.denbighshire.gov.uk/my-requests/document-viewer?DocNo=', # auto redirect to doc page.
                     'Denbighshire': 'https://planning.denbighshire.gov.uk/w2webparts/Resource/Civica/Handler.ashx/Doc/pagestream?cd=inline&pdf=true&docno=',
+
                     #'Eastbourne': 'https://www.lewes-eastbourne.gov.uk/2088/?DocNo=',
                     #'Eastbourne': 'https://gtest.lewes-eastbourne.gov.uk/civica/Resource/Civica/Handler.ashx/doc/pagestream?DocNo=15277571&pdf=true&filename=Decision%20notice%20EBC%20PCAS%20(public).pdf',
                     'Eastbourne': 'https://gtest.lewes-eastbourne.gov.uk/civica/Resource/Civica/Handler.ashx/Doc/pagestream?cd=inline&pdf=true&docno=',
+
                     #'StAlbans': 'https://planningapplications.stalbans.gov.uk/planning/search-applications#DOC?DocNo=', # auto redirect to doc page.
                     'StAlbans': 'https://planningapplications.stalbans.gov.uk/w2webparts/Resource/Civica/Handler.ashx/Doc/pagestream?cd=inline&pdf=true&docno=',
-                    #
+
                     #'Waverley': 'https://planning360.waverley.gov.uk:4443/planning/search-applications?civica.query.FullTextSearch=WA%2F2020%2F0069%20#DOC?DocNo=',
                     'Waverley': 'https://planning360.waverley.gov.uk:4443/w2webparts/Resource/Civica/Handler.ashx/Doc/pagestream?cd=inline&pdf=true&docno=',
-                    'Wrexham': ''}
+                    }
 
     def create_item(self, driver, folder_name, file_urls, document_names):
         if not os.path.exists(self.failed_downloads_path + folder_name):
@@ -133,15 +131,6 @@ class CivicaJason_Scraper(Base_Scraper):
         print(f'cookies:, {cookies}') if PRINT else None
         item['session_cookies'] = cookies
         return item
-
-    def url_preprocess_CivicaJason(self, url):
-        # if url is correct, run the scraper directly.
-        if url.startswith(f'https://planning.agileapplications.co.uk/{self.LA_url_dict[self.auth]}'):
-            self.parse_func = self.parse_data_item_CivicaJason
-            return url
-        else: # do pre-process.
-            self.parse_func = self.search_by_appID_CivicaJason
-            return f'https://planning.agileapplications.co.uk/{self.LA_url_dict[self.auth]}/search-applications/'
 
     def url_preprocess_Eastbourne(self, url):
         if url.startswith('https://www.lewes-eastbourne.gov.uk/article'):
@@ -343,13 +332,3 @@ class CivicaJason_Scraper(Base_Scraper):
         driver.refresh()
         driver.get("https://www.lewes-eastbourne.gov.uk/planning")
         time.sleep(2)
-
-    def parse_data_item_Wrexham(self, response):
-        app_df = response.meta['app_df']
-        driver = response.request.meta['driver']
-        scraper_name = app_df.at['scraper_name']
-        folder_name = self.setup_storage_path(app_df)
-        max_file_name_len = self.max_folder_file_name_len - len(folder_name) - 5  # 5 chars for suffix/extension, such as .pdf
-        print(f'parse_data_item_CivicaJason, scraper name: {scraper_name}, max_file_name_len: {max_file_name_len}.')
-
-        self.ending(app_df)
