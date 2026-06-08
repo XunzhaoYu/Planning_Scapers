@@ -57,11 +57,12 @@ class Wrexham_Scraper(Base_Scraper):
         print(f'parse_data_item_Wrexham, scraper name: {scraper_name}, max_file_name_len: {max_file_name_len}.')
 
         try:
-            tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="content"]/div/section')))
+            content = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="contentStart"]/div')))
         except TimeoutException:
             # Planning Application details not available.
             note = response.xpath('//*[@id="main-content"]/article/h1/text()').get()
             print('note: ', note)
             return
+        header_details = content.find_elements(By.XPATH, '//*[@id="contentStart"]/div/div[1]/arcuscommunity-pr_record-banner/div[2]/div')
 
         self.ending(app_df)
