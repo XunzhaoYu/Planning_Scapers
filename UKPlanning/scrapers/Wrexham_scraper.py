@@ -33,7 +33,26 @@ class Wrexham_Scraper(Base_Scraper):
         # All sub_classes of Base_Scraper should define their self.parse_func(s) in __init__
         self.parse_func = self.parse_data_item_Wrexham
 
-    # details_dict
+    details_dict = {'Description': 'description',
+                    'Site Address': 'address',
+                    # Details
+                    'Application type': 'other_fields.application_type',
+                    'Status': 'other_fields.status',
+                    'Officer': 'other_fields.case_officer',
+                    # Decision
+                    'Decision': 'other_fields.decision',
+                    'Decision date': 'other_fields.decision_issued_date',
+                    'Decision notice sent date': 'other_fields.decision_notice_date',
+                    'Determination level': 'other_fields.expected_decision_level',
+                    # Application Life Cycle
+                    'Received date': 'other_fields.date_received',
+                    'Valid date': 'other_fields.date_validated',
+                    'Date of committee': 'other_fields.meeting_date',
+                    'Application expiry date': 'other_fields.application_expires_date',
+                    # Communities and Wards
+                    'Communities': 'other_fields.community_council',
+                    'Wards': 'other_fields.ward_name',
+                    }
 
     def create_item(self, driver, folder_name, file_urls, document_names):
         if not os.path.exists(self.failed_downloads_path + folder_name):

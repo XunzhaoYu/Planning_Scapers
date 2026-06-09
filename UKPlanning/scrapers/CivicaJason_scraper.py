@@ -72,7 +72,7 @@ class CivicaJason_Scraper(Base_Scraper):
                     'Case Officer': 'other_fields.case_officer',  # All but Eastbourne
                     'Case officer': 'other_fields.case_officer', # Eastbourne
 
-                    'Ward': 'ther_fields.ward_name',  # All
+                    'Ward': 'other_fields.ward_name',  # All
                     'Parish': 'other_fields.parish',  # All
                     'Decision Date': 'other_fields.decision_issued_date', # All
                     'Decision': 'other_fields.decision',  # All
