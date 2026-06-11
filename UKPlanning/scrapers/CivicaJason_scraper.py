@@ -144,7 +144,7 @@ class CivicaJason_Scraper(Base_Scraper):
             return new_url
 
     def url_preprocess_Waverley(self, url):
-        if url.startswith(' http://planning360.waverley.gov.uk/planning'):
+        if url.startswith('http://planning360.waverley.gov.uk/planning'):
             self.parse_func = self.parse_data_item_CivicaJason
             return url
         else:

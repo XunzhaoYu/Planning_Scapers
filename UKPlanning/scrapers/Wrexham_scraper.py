@@ -31,6 +31,8 @@ class Wrexham_Scraper(Base_Scraper):
         super().__init__(*args, **kwargs)
 
         # All sub_classes of Base_Scraper should define their self.parse_func(s) in __init__
+        self.url_check = True
+        self.url_preprocess = self.url_preprocess_Wrexham
         self.parse_func = self.parse_data_item_Wrexham
 
     details_dict = {'Description': 'description',
@@ -67,6 +69,21 @@ class Wrexham_Scraper(Base_Scraper):
         item['session_cookies'] = cookies
         return item
 
+    def url_preprocess_Wrexham(self, url):
+        if url.startswith('https://register.wrexham.gov.uk/pr'):
+            self.parse_func = self.parse_data_item_Wrexham
+            return url
+        else:
+            self.parse_func = self.search_by_appID_Wrexham
+            return 'https://register.wrexham.gov.uk/pr/s/register-view?c__r=Arcus_BE_Public_Register&language=en_GB'
+
+    def search_by_appID_Wrexham(self, response):
+        driver = response.request.meta['driver']
+        app_df = response.meta['app_df']
+        url = response.request.url
+
+
+
     def parse_data_item_Wrexham(self, response):
         app_df = response.meta['app_df']
         driver = response.request.meta['driver']
@@ -83,5 +100,9 @@ class Wrexham_Scraper(Base_Scraper):
             print('note: ', note)
             return
         header_details = content.find_elements(By.XPATH, '//*[@id="contentStart"]/div/div[1]/arcuscommunity-pr_record-banner/div[2]/div')
+        items = [item.find_element(By.XPATH, './dl/div/dt') for item in header_details]
+        item_values = [item.find_element(By.XPATH, './dl/div/dd') for item in header_details]
+        print(items[0].get_attribute('innerHTML'))
+        print(item_values[0].get_attribute('innerHTML'))
 
         self.ending(app_df)
