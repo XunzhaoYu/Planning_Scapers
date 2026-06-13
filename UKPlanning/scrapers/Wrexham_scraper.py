@@ -81,8 +81,13 @@ class Wrexham_Scraper(Base_Scraper):
         driver = response.request.meta['driver']
         app_df = response.meta['app_df']
         url = response.request.url
+        print(f'search page url: {url}') if PRINT else None
 
-
+        # use app_id to search and view the application page.
+        app_id = app_df.at['uid']
+        input_reference = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//input[@class="slds-input"]')))
+        input_reference.click()
+        input_reference.send_keys(app_id)
 
     def parse_data_item_Wrexham(self, response):
         app_df = response.meta['app_df']
