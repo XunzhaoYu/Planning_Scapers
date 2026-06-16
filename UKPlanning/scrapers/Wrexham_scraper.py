@@ -88,6 +88,13 @@ class Wrexham_Scraper(Base_Scraper):
         input_reference = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//input[@class="slds-input"]')))
         input_reference.click()
         input_reference.send_keys(app_id)
+        # click 'search' button.
+        time.sleep(random.uniform(1., 1.5))
+        driver.find_element(By.XPATH, '//button[@title="Search"]').click()
+        # //*[@id="contentStart"]/div/div/arcuscommunity-pr_search/div/section[3]/div/div/c-pr_result[3]/div/div[3]/div/c-pr_articles/div/div[1]/div[1]/c-pr_formatted-output/div/div/lightning-formatted-url/a
+        search_result = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//div[@class='civica-keyobject-basicdetails']/a")))
+        search_result.click()
+
 
     def parse_data_item_Wrexham(self, response):
         app_df = response.meta['app_df']
