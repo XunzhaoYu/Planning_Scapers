@@ -96,6 +96,7 @@ class Wrexham_Scraper(Base_Scraper):
         search_result.click()
 
 
+
     def parse_data_item_Wrexham(self, response):
         app_df = response.meta['app_df']
         driver = response.request.meta['driver']
