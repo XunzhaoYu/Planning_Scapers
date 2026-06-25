@@ -90,10 +90,23 @@ class Wrexham_Scraper(Base_Scraper):
         input_reference.send_keys(app_id)
         # click 'search' button.
         time.sleep(random.uniform(1., 1.5))
-        driver.find_element(By.XPATH, '//button[@title="Search"]').click()
-        # //*[@id="contentStart"]/div/div/arcuscommunity-pr_search/div/section[3]/div/div/c-pr_result[3]/div/div[3]/div/c-pr_articles/div/div[1]/div[1]/c-pr_formatted-output/div/div/lightning-formatted-url/a
-        search_result = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//div[@class='civica-keyobject-basicdetails']/a")))
-        search_result.click()
+        #driver.find_element(By.XPATH, '//button[@title="Search"]').click()
+        WebDriverWait(driver, timeout=10).until(EC.element_to_be_clickable((By.XPATH, '//button[@title="Search"]'))).click()
+        # search result:
+        # //*[@id="contentStart"]/div/div/arcuscommunity-pr_search/div/section[3]/div/div/c-pr_result[3]/div/div[3]/div  # find a result.
+        # //*[@id="contentStart"]/div/div/arcuscommunity-pr_search/div/section[3]/div/div/c-pr_result[3]/div/div[3]/p  # No result.
+        try:
+            search_result = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//*[@id='contentStart']/div/div/arcuscommunity-pr_search/div/section[3]/div/div/c-pr_result[3]/div/div[3]/div/c-pr_articles/div/div[1]/div[1]/c-pr_formatted-output/div/div/lightning-formatted-url/a")))
+            search_result.click()
+        except TimeoutException:
+            print(driver.find_element(By.XPATH, '//*[@id="contentStart"]/div/div/arcuscommunity-pr_search/div/section[3]/div/div/c-pr_result[2]/div/div[3]/p').get_attribute('innerHTML'))
+            return
+
+        time.sleep(random.uniform(4., 5.))
+        app_df.at['url'] = driver.current_url
+        print(f'correct url: {driver.current_url}')
+        # scrape application
+        yield from self.parse_data_item_Wrexham(response)
 
 
 
