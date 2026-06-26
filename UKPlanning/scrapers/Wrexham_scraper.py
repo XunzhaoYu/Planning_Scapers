@@ -114,7 +114,6 @@ class Wrexham_Scraper(Base_Scraper):
         yield from self.parse_data_item_Wrexham(response)
 
 
-
     def parse_data_item_Wrexham(self, response):
         app_df = response.meta['app_df']
         driver = response.request.meta['driver']
@@ -133,7 +132,8 @@ class Wrexham_Scraper(Base_Scraper):
         header_details = content.find_elements(By.XPATH, '//*[@id="contentStart"]/div/div[1]/arcuscommunity-pr_record-banner/div[2]/div')
         items = [item.find_element(By.XPATH, './dl/div/dt') for item in header_details]
         item_values = [item.find_element(By.XPATH, './dl/div/dd') for item in header_details]
-        print(items[0].get_attribute('innerHTML'))
-        print(item_values[0].get_attribute('innerHTML'))
+        app_df = scrape_data_items(app_df, items, item_values, self.details_dict, PRINT)
+        #print(items[0].get_attribute('innerHTML'))
+        #print(item_values[0].get_attribute('innerHTML'))
 
         self.ending(app_df)
