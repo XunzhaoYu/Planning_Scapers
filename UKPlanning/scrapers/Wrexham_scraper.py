@@ -129,11 +129,13 @@ class Wrexham_Scraper(Base_Scraper):
             note = response.xpath('//*[@id="main-content"]/article/h1/text()').get()
             print('note: ', note)
             return
-        header_details = content.find_elements(By.XPATH, '//*[@id="contentStart"]/div/div[1]/arcuscommunity-pr_record-banner/div[2]/div')
+        #header_details = content.find_elements(By.XPATH, '//*[@id="contentStart"]/div/div[1]/arcuscommunity-pr_record-banner/div[2]/div')
+        header_details = content.find_elements(By.XPATH, './div[1]/arcuscommunity-pr_record-banner/div[2]/div')
         items = [item.find_element(By.XPATH, './dl/div/dt') for item in header_details]
         item_values = [item.find_element(By.XPATH, './dl/div/dd') for item in header_details]
         app_df = scrape_data_items(app_df, items, item_values, self.details_dict, PRINT)
         #print(items[0].get_attribute('innerHTML'))
         #print(item_values[0].get_attribute('innerHTML'))
+        tab_panels = content.find_element(By.XPATH, './div[2]/div')
 
         self.ending(app_df)
