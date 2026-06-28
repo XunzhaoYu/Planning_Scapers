@@ -17,7 +17,7 @@ from general.utils import unique_columns, scrape_data_items, scrape_for_csv, scr
 
 class Wrexham_Scraper(Base_Scraper):
     name = 'Wrexham_Scraper'
-    """
+    """ Framework: LWC&Aura / Salesforce Lightning. Features: 1>data-aura-rendered-by, 2> HTML labels with prefix 'c-'
     auth_id = 421(417), Wrexham: was CivicaJason scraper, but is quite different from CivicaJason scrapers now.
         url error.              https://planning.wrexham.gov.uk/planning/planning-application?RefType=GFPlanning&KeyNo=69899
         cymraeg search page:    https://register.wrexham.gov.uk/pr/s/register-view?c__r=Arcus_BE_Public_Register&language=en_GB
@@ -129,13 +129,38 @@ class Wrexham_Scraper(Base_Scraper):
             note = response.xpath('//*[@id="main-content"]/article/h1/text()').get()
             print('note: ', note)
             return
-        #header_details = content.find_elements(By.XPATH, '//*[@id="contentStart"]/div/div[1]/arcuscommunity-pr_record-banner/div[2]/div')
+
         header_details = content.find_elements(By.XPATH, './div[1]/arcuscommunity-pr_record-banner/div[2]/div')
         items = [item.find_element(By.XPATH, './dl/div/dt') for item in header_details]
         item_values = [item.find_element(By.XPATH, './dl/div/dd') for item in header_details]
         app_df = scrape_data_items(app_df, items, item_values, self.details_dict, PRINT)
-        #print(items[0].get_attribute('innerHTML'))
-        #print(item_values[0].get_attribute('innerHTML'))
-        tab_panels = content.find_element(By.XPATH, './div[2]/div')
+
+        # Salesforce Lightning framework: Click tab button to load DOM contents (sections).
+        tab_list = content.find_elements(By.XPATH, './/div[@role="tablist"]/ul/li/a') # './div[2]/div/div[@role="tablist"]/ul/li')
+        print(f'tab list: {len(tab_list)}')
+        for tab_index, tab in enumerate(tab_list):
+            tab_name = tab.get_attribute('innerText').strip()
+            print(f'Tab {tab_index+1}: {tab_name}.')
+            #tab_panel_list = content.find_elements(By.XPATH, './/section[@role="tabpanel"]') # './div[2]/div/section[@role="tabpanel"]')
+            tab_panel = content.find_element(By.XPATH, './/section[@role="tabpanel"]') # './div[2]/div/section[@role="tabpanel"]')
+
+            # Details tab:
+            if 'details' in tab_name.lower():
+                #items = tab_panel_list[0].find_elements(By.XPATH, './/dt[@class="pr-summary-list__key"]')
+                #item_values = tab_panel_list[0].find_elements(By.XPATH, './/dd[@class="pr-summary-list__value"]')
+                items = tab_panel.find_elements(By.XPATH, './/dt[@class="pr-summary-list__key"]')
+                item_values = tab_panel.find_elements(By.XPATH, './/dd[@class="pr-summary-list__value"]')
+                app_df = scrape_data_items(app_df, items, item_values, self.details_dict, PRINT)
+            # Comments tab:
+            elif 'comments' in tab_name.lower():
+                pass
+            # Files tab:
+            elif 'files' in tab_name.lower():
+                file_panel = tab_panel.find_element(By.XPATH, './div/div/arcuscommunity-pr_files-list/div/c-pr_filter/div/div[2 and @class="pr-filter-layout__content"]')
+                # //*[@id="473:0"]/div/div/arcuscommunity-pr_files-list/div/c-pr_filter/div/div[2]
+                # show details button:
+                show_details_button = file_panel.find_element(By.XPATH, './div[1]/div[2]/div/slot/lightning-button[1]/button')
+                # //*[@id="473:0"]/div/div/arcuscommunity-pr_files-list/div/c-pr_filter/div/div[2]/div[1]/div[2]/div/slot/lightning-button[1]/button
+                print(show_details_button.get_attribute('innerHTML'))
 
         self.ending(app_df)
