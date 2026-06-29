@@ -137,12 +137,15 @@ class Wrexham_Scraper(Base_Scraper):
 
         # Salesforce Lightning framework: Click tab button to load DOM contents (sections).
         tab_list = content.find_elements(By.XPATH, './/div[@role="tablist"]/ul/li/a') # './div[2]/div/div[@role="tablist"]/ul/li')
-        print(f'tab list: {len(tab_list)}')
+        n_tabs = len(tab_list)
         for tab_index, tab in enumerate(tab_list):
             tab_name = tab.get_attribute('innerText').strip()
-            print(f'Tab {tab_index+1}: {tab_name}.')
+            tab.click()
+            time.sleep(random.uniform(1., 1.5))
+            print(f'Tab {tab_index+1}/{n_tabs}: {tab_name}.')
             #tab_panel_list = content.find_elements(By.XPATH, './/section[@role="tabpanel"]') # './div[2]/div/section[@role="tabpanel"]')
-            tab_panel = content.find_element(By.XPATH, './/section[@role="tabpanel"]') # './div[2]/div/section[@role="tabpanel"]')
+            #tab_panel = content.find_element(By.XPATH, './/section[@role="tabpanel"]') # './div[2]/div/section[@role="tabpanel"]')
+            tab_panel = WebDriverWait(driver, timeout=10).until(EC.visibility_of_element_located((By.XPATH, '//section[@role="tabpanel"]')))
 
             # Details tab:
             if 'details' in tab_name.lower():
@@ -156,11 +159,18 @@ class Wrexham_Scraper(Base_Scraper):
                 pass
             # Files tab:
             elif 'files' in tab_name.lower():
-                file_panel = tab_panel.find_element(By.XPATH, './div/div/arcuscommunity-pr_files-list/div/c-pr_filter/div/div[2 and @class="pr-filter-layout__content"]')
-                # //*[@id="473:0"]/div/div/arcuscommunity-pr_files-list/div/c-pr_filter/div/div[2]
-                # show details button:
-                show_details_button = file_panel.find_element(By.XPATH, './div[1]/div[2]/div/slot/lightning-button[1]/button')
-                # //*[@id="473:0"]/div/div/arcuscommunity-pr_files-list/div/c-pr_filter/div/div[2]/div[1]/div[2]/div/slot/lightning-button[1]/button
-                print(show_details_button.get_attribute('innerHTML'))
+                n_documents = 0
+                try:
+                    file_panel = tab_panel.find_element(By.XPATH, './div/div/arcuscommunity-pr_files-list/div/c-pr_filter/div/div[2]') # and @class="pr-filter-layout__content"]')
+                    print(tab_panel.find_element(By.XPATH, '//*[@id="pagination-label-23"]/p[2]/b[3]').get_attribute('innerHTML').strip())
+                    n_documents = int(tab_panel.find_element(By.XPATH, '//*[@id="pagination-label-23"]/p[2]/b[3]').get_attribute('innerHTML').strip())
+                except NoSuchElementException:
+                    print(tab_panel.find_element(By.XPATH, './div/div/arcuscommunity-pr_files-list/div/div').get_attribute('innerHTML').strip())
+                    # //*[@id="473:0"]/div/div/arcuscommunity-pr_files-list/div/div
+                app_df.at['other_fields.n_documents'] = n_documents
+                if n_documents > 0:
+                    # show details button:
+                    show_details_button = file_panel.find_element(By.XPATH, './div[1]/div[2]/div/slot/lightning-button[1]/button')
+                    print(show_details_button.get_attribute('innerHTML'))
 
         self.ending(app_df)
