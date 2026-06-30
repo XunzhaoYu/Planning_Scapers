@@ -169,13 +169,14 @@ class Wrexham_Scraper(Base_Scraper):
                 print(tab_panel.find_element(By.XPATH, './div/div/arcuscommunity-pr_comments/div/div/c-pr_filter/div/div[2]/div[2]/slot/p').get_attribute('innerHTML'))
             # Files tab:
             elif 'files' in tab_name.lower():
-                n_documents = 0
+                n_documents, n_document_pages = 0, 1
                 try:
                     file_panel = tab_panel.find_element(By.XPATH, './div/div/arcuscommunity-pr_files-list/div/c-pr_filter/div/div[2]') # and @class="pr-filter-layout__content"]')
                     # click 'show details' button:
                     buttons = file_panel.find_elements(By.XPATH, './div[1]//button')
                     buttons[1].click()
                     time.sleep(random.uniform(1., 1.5))
+
                     # get document items:
                     document_items = file_panel.find_elements(By.XPATH, './div[2]//tr[@class="pr-table__row"]')
                     #columns = document_items[0].find_elements(By.XPATH, './th')
@@ -185,34 +186,45 @@ class Wrexham_Scraper(Base_Scraper):
                         # file_panel. /div[2]/slot/c-pr_pagination/nav/p[2] (pr-pagination__results)/b[3]
                         n_documents = int(file_panel.find_element(By.XPATH, './/p[@class="pr-pagination__results"]/b[3]').get_attribute('innerHTML').strip())
 
+                        # file_panel. /div[2]/slot/c-pr_pagination/nav/ul (pr-pagination__list)/li
+                        page_nav_buttons = file_panel.find_elements(By.XPATH, './/ul[@class="pr-pagination__list"]/li')
+                        n_document_pages = len(page_nav_buttons)-1
+                        next_button = page_nav_buttons[-1]
                     print(f'Tab {tab_index + 1}/{n_tabs}: Files. {n_documents} files.')
                 except NoSuchElementException:
                     print(tab_panel.find_element(By.XPATH, './div/div/arcuscommunity-pr_files-list/div/div').get_attribute('innerHTML').strip())
                 app_df.at['other_fields.n_documents'] = n_documents
                 if n_documents > 0: # get file urls and doc names.
-                    file_urls, document_names, doc_no = [], [], 0
-                    for document_item in document_items[1:]:
-                        doc_no += 1
-                        print(f'    - - - Document {doc_no} - - -') if PRINT else None
-                        file_url = document_item.find_element(By.XPATH, './td[5]/a').get_attribute('href')
-                        print(f'    {file_url}') if PRINT else None
-                        file_urls.append(file_url)
+                    file_urls, document_names, doc_no, page_no = [], [], 0, 0
+                    while page_no < n_document_pages:
+                        page_no += 1
+                        for document_item in document_items[1:]:
+                            doc_no += 1
+                            print(f'    - - - Document {doc_no} - - -') if PRINT else None
+                            file_url = document_item.find_element(By.XPATH, './td[5]/a').get_attribute('href')
+                            print(f'    {file_url}') if PRINT else None
+                            file_urls.append(file_url)
 
-                        document_date = document_item.find_element(By.XPATH, './td[1]').text.strip()
-                        document_type = document_item.find_element(By.XPATH, './td[2]').text.strip()
-                        document_description = document_item.find_element(By.XPATH, './td[4]').text.strip()
-                        document_extension = document_item.find_element(By.XPATH, './td[5]').text.strip().split(',')[0][10:].lower()
-                        document_name = f"date={document_date}&type={document_type}&desc={document_description}&uid={doc_no}.{document_extension}"
+                            document_date = document_item.find_element(By.XPATH, './td[1]').text.strip()
+                            document_type = document_item.find_element(By.XPATH, './td[2]').text.strip()
+                            document_description = document_item.find_element(By.XPATH, './td[4]').text.strip()
+                            document_extension = document_item.find_element(By.XPATH, './td[5]').text.strip().split(',')[0][10:].lower()
+                            document_name = f"date={document_date}&type={document_type}&desc={document_description}&uid={doc_no}.{document_extension}"
 
-                        len_limitation = len(document_name) - max_file_name_len
-                        print(f'    Doc {doc_no} len_limitation: {len_limitation}') if len_limitation > -5 else None
-                        if len_limitation > 0:
-                            document_description = document_description[:-len_limitation]
-                            document_name = f'date={document_date}&type={document_type}&desc={document_description}&uid={doc_no}.{document_extension}'
-                        print(f'    Document {doc_no}: {document_name}') if PRINT else None
-                        document_name = replace_invalid_characters(document_name)
-                        # print('new: ', document_name) if PRINT else None
-                        document_names.append(f'{self.data_upload_path}{folder_name}/{document_name}')
+                            len_limitation = len(document_name) - max_file_name_len
+                            print(f'    Doc {doc_no} len_limitation: {len_limitation}') if len_limitation > -5 else None
+                            if len_limitation > 0:
+                                document_description = document_description[:-len_limitation]
+                                document_name = f'date={document_date}&type={document_type}&desc={document_description}&uid={doc_no}.{document_extension}'
+                            print(f'    Document {doc_no}: {document_name}') if PRINT else None
+                            document_name = replace_invalid_characters(document_name)
+                            # print('new: ', document_name) if PRINT else None
+                            document_names.append(f'{self.data_upload_path}{folder_name}/{document_name}')
+                        if page_no < n_document_pages:
+                            next_button.click()
+                            time.sleep(random.uniform(1., 1.5))
+                            document_items = file_panel.find_elements(By.XPATH, './div[2]//tr[@class="pr-table__row"]')
+
                     item = self.create_item(driver, folder_name, file_urls, document_names)
                     yield item
 
