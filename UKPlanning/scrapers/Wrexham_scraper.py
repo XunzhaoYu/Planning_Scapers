@@ -17,7 +17,12 @@ from general.utils import unique_columns, scrape_data_items, scrape_for_csv, scr
 
 class Wrexham_Scraper(Base_Scraper):
     name = 'Wrexham_Scraper'
-    """ Framework: LWC&Aura / Salesforce Lightning. Features: 1>data-aura-rendered-by, 2> HTML labels with prefix 'c-'
+    """ 
+    Framework: LWC&Aura / Salesforce Lightning. Features: 1>data-aura-rendered-by, 2> HTML labels with prefix 'c-'
+    Note:
+    Have temp ids (i.e.: [@id="473:0"]), do not use these temp ids to locate elements in Salesforce.
+    For elements 'arcuscommunity-pr...', it could be shadow DOM and could be not accessible via XPATH. Execute script to access.
+    
     auth_id = 421(417), Wrexham: was CivicaJason scraper, but is quite different from CivicaJason scrapers now.
         url error.              https://planning.wrexham.gov.uk/planning/planning-application?RefType=GFPlanning&KeyNo=69899
         cymraeg search page:    https://register.wrexham.gov.uk/pr/s/register-view?c__r=Arcus_BE_Public_Register&language=en_GB
@@ -142,10 +147,13 @@ class Wrexham_Scraper(Base_Scraper):
             tab_name = tab.get_attribute('innerText').strip()
             tab.click()
             time.sleep(random.uniform(1., 1.5))
-            print(f'Tab {tab_index+1}/{n_tabs}: {tab_name}.')
+            #print(f'Tab {tab_index+1}/{n_tabs}: {tab_name}.')
             #tab_panel_list = content.find_elements(By.XPATH, './/section[@role="tabpanel"]') # './div[2]/div/section[@role="tabpanel"]')
-            #tab_panel = content.find_element(By.XPATH, './/section[@role="tabpanel"]') # './div[2]/div/section[@role="tabpanel"]')
-            tab_panel = WebDriverWait(driver, timeout=10).until(EC.visibility_of_element_located((By.XPATH, '//section[@role="tabpanel"]')))
+            #print('tab_panel_list: ', len(tab_panel_list))
+            #tab_panel_list2 = driver.find_elements(By.XPATH, '//*[@id="contentStart"]/div//section[@role="tabpanel"]')
+            #print('tab_panel_list2: ', len(tab_panel_list2))
+            tab_panel = content.find_elements(By.XPATH, './/section[@role="tabpanel"]')[-1] # './div[2]/div/section[@role="tabpanel"]')
+            #tab_panel = WebDriverWait(driver, timeout=10).until(EC.presence_of_element_located((By.XPATH, '//section[@role="tabpanel"]')))
 
             # Details tab:
             if 'details' in tab_name.lower():
@@ -153,24 +161,59 @@ class Wrexham_Scraper(Base_Scraper):
                 #item_values = tab_panel_list[0].find_elements(By.XPATH, './/dd[@class="pr-summary-list__value"]')
                 items = tab_panel.find_elements(By.XPATH, './/dt[@class="pr-summary-list__key"]')
                 item_values = tab_panel.find_elements(By.XPATH, './/dd[@class="pr-summary-list__value"]')
+                print(f'Tab {tab_index + 1}/{n_tabs}: Details. {len(items)} items.')
                 app_df = scrape_data_items(app_df, items, item_values, self.details_dict, PRINT)
             # Comments tab:
             elif 'comments' in tab_name.lower():
-                pass
+                print(f'Tab {tab_index + 1}/{n_tabs}: Comments.')
+                print(tab_panel.find_element(By.XPATH, './div/div/arcuscommunity-pr_comments/div/div/c-pr_filter/div/div[2]/div[2]/slot/p').get_attribute('innerHTML'))
             # Files tab:
             elif 'files' in tab_name.lower():
                 n_documents = 0
                 try:
                     file_panel = tab_panel.find_element(By.XPATH, './div/div/arcuscommunity-pr_files-list/div/c-pr_filter/div/div[2]') # and @class="pr-filter-layout__content"]')
-                    print(tab_panel.find_element(By.XPATH, '//*[@id="pagination-label-23"]/p[2]/b[3]').get_attribute('innerHTML').strip())
-                    n_documents = int(tab_panel.find_element(By.XPATH, '//*[@id="pagination-label-23"]/p[2]/b[3]').get_attribute('innerHTML').strip())
+                    # click 'show details' button:
+                    buttons = file_panel.find_elements(By.XPATH, './div[1]//button')
+                    buttons[1].click()
+                    time.sleep(random.uniform(1., 1.5))
+                    # get document items:
+                    document_items = file_panel.find_elements(By.XPATH, './div[2]//tr[@class="pr-table__row"]')
+                    #columns = document_items[0].find_elements(By.XPATH, './th')
+                    #print(f'columns: {len(columns)}')
+                    n_documents = len(document_items)-1  # the first item is thead.
+                    if n_documents == 20:  # have more file pages.
+                        # file_panel. /div[2]/slot/c-pr_pagination/nav/p[2] (pr-pagination__results)/b[3]
+                        n_documents = int(file_panel.find_element(By.XPATH, './/p[@class="pr-pagination__results"]/b[3]').get_attribute('innerHTML').strip())
+
+                    print(f'Tab {tab_index + 1}/{n_tabs}: Files. {n_documents} files.')
                 except NoSuchElementException:
                     print(tab_panel.find_element(By.XPATH, './div/div/arcuscommunity-pr_files-list/div/div').get_attribute('innerHTML').strip())
-                    # //*[@id="473:0"]/div/div/arcuscommunity-pr_files-list/div/div
                 app_df.at['other_fields.n_documents'] = n_documents
-                if n_documents > 0:
-                    # show details button:
-                    show_details_button = file_panel.find_element(By.XPATH, './div[1]/div[2]/div/slot/lightning-button[1]/button')
-                    print(show_details_button.get_attribute('innerHTML'))
+                if n_documents > 0: # get file urls and doc names.
+                    file_urls, document_names, doc_no = [], [], 0
+                    for document_item in document_items[1:]:
+                        doc_no += 1
+                        print(f'    - - - Document {doc_no} - - -') if PRINT else None
+                        file_url = document_item.find_element(By.XPATH, './td[5]/a').get_attribute('href')
+                        print(f'    {file_url}') if PRINT else None
+                        file_urls.append(file_url)
+
+                        document_date = document_item.find_element(By.XPATH, './td[1]').text.strip()
+                        document_type = document_item.find_element(By.XPATH, './td[2]').text.strip()
+                        document_description = document_item.find_element(By.XPATH, './td[4]').text.strip()
+                        document_extension = document_item.find_element(By.XPATH, './td[5]').text.strip().split(',')[0][10:].lower()
+                        document_name = f"date={document_date}&type={document_type}&desc={document_description}&uid={doc_no}.{document_extension}"
+
+                        len_limitation = len(document_name) - max_file_name_len
+                        print(f'    Doc {doc_no} len_limitation: {len_limitation}') if len_limitation > -5 else None
+                        if len_limitation > 0:
+                            document_description = document_description[:-len_limitation]
+                            document_name = f'date={document_date}&type={document_type}&desc={document_description}&uid={doc_no}.{document_extension}'
+                        print(f'    Document {doc_no}: {document_name}') if PRINT else None
+                        document_name = replace_invalid_characters(document_name)
+                        # print('new: ', document_name) if PRINT else None
+                        document_names.append(f'{self.data_upload_path}{folder_name}/{document_name}')
+                    item = self.create_item(driver, folder_name, file_urls, document_names)
+                    yield item
 
         self.ending(app_df)
