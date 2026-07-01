@@ -147,18 +147,10 @@ class Wrexham_Scraper(Base_Scraper):
             tab_name = tab.get_attribute('innerText').strip()
             tab.click()
             time.sleep(random.uniform(1., 1.5))
-            #print(f'Tab {tab_index+1}/{n_tabs}: {tab_name}.')
-            #tab_panel_list = content.find_elements(By.XPATH, './/section[@role="tabpanel"]') # './div[2]/div/section[@role="tabpanel"]')
-            #print('tab_panel_list: ', len(tab_panel_list))
-            #tab_panel_list2 = driver.find_elements(By.XPATH, '//*[@id="contentStart"]/div//section[@role="tabpanel"]')
-            #print('tab_panel_list2: ', len(tab_panel_list2))
             tab_panel = content.find_elements(By.XPATH, './/section[@role="tabpanel"]')[-1] # './div[2]/div/section[@role="tabpanel"]')
-            #tab_panel = WebDriverWait(driver, timeout=10).until(EC.presence_of_element_located((By.XPATH, '//section[@role="tabpanel"]')))
 
             # Details tab:
             if 'details' in tab_name.lower():
-                #items = tab_panel_list[0].find_elements(By.XPATH, './/dt[@class="pr-summary-list__key"]')
-                #item_values = tab_panel_list[0].find_elements(By.XPATH, './/dd[@class="pr-summary-list__value"]')
                 items = tab_panel.find_elements(By.XPATH, './/dt[@class="pr-summary-list__key"]')
                 item_values = tab_panel.find_elements(By.XPATH, './/dd[@class="pr-summary-list__value"]')
                 print(f'Tab {tab_index + 1}/{n_tabs}: Details. {len(items)} items.')
