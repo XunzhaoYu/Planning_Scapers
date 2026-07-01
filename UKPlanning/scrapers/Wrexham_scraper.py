@@ -169,7 +169,7 @@ class Wrexham_Scraper(Base_Scraper):
                 print(tab_panel.find_element(By.XPATH, './div/div/arcuscommunity-pr_comments/div/div/c-pr_filter/div/div[2]/div[2]/slot/p').get_attribute('innerHTML'))
             # Files tab:
             elif 'files' in tab_name.lower():
-                n_documents, n_document_pages = 0, 1
+                n_documents, n_document_pages, next_button = 0, 1, None
                 try:
                     file_panel = tab_panel.find_element(By.XPATH, './div/div/arcuscommunity-pr_files-list/div/c-pr_filter/div/div[2]') # and @class="pr-filter-layout__content"]')
                     # click 'show details' button:
@@ -183,15 +183,19 @@ class Wrexham_Scraper(Base_Scraper):
                     #print(f'columns: {len(columns)}')
                     n_documents = len(document_items)-1  # the first item is thead.
                     if n_documents == 20:  # have more file pages.
-                        # file_panel. /div[2]/slot/c-pr_pagination/nav/p[2] (pr-pagination__results)/b[3]
-                        n_documents = int(file_panel.find_element(By.XPATH, './/p[@class="pr-pagination__results"]/b[3]').get_attribute('innerHTML').strip())
+                        try: # n_documents > 20
+                            # file_panel. /div[2]/slot/c-pr_pagination/nav/p[2] (pr-pagination__results)/b[3]
+                            n_documents = int(file_panel.find_element(By.XPATH, './/p[@class="pr-pagination__results"]/b[3]').get_attribute('innerHTML').strip())
 
-                        # file_panel. /div[2]/slot/c-pr_pagination/nav/ul (pr-pagination__list)/li
-                        page_nav_buttons = file_panel.find_elements(By.XPATH, './/ul[@class="pr-pagination__list"]/li')
-                        n_document_pages = len(page_nav_buttons)-1
-                        next_button = page_nav_buttons[-1]
+                            # file_panel. /div[2]/slot/c-pr_pagination/nav/ul (pr-pagination__list)/li
+                            page_nav_buttons = file_panel.find_elements(By.XPATH, './/ul[@class="pr-pagination__list"]/li')
+                            n_document_pages = len(page_nav_buttons)-1
+                            next_button = page_nav_buttons[-1]
+                        except NoSuchElementException: # n_documents == 20
+                            pass
                     print(f'Tab {tab_index + 1}/{n_tabs}: Files. {n_documents} files.')
                 except NoSuchElementException:
+                    print(f'Tab {tab_index + 1}/{n_tabs}: Files. {n_documents} files.')
                     print(tab_panel.find_element(By.XPATH, './div/div/arcuscommunity-pr_files-list/div/div').get_attribute('innerHTML').strip())
                 app_df.at['other_fields.n_documents'] = n_documents
                 if n_documents > 0: # get file urls and doc names.
@@ -227,5 +231,7 @@ class Wrexham_Scraper(Base_Scraper):
 
                     item = self.create_item(driver, folder_name, file_urls, document_names)
                     yield item
-
+            else:
+                print(f'\n{tab_index + 1}. Unknown Tab: {tab_name}.')
+                assert 1 == 0
         self.ending(app_df)
