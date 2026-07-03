@@ -21,8 +21,7 @@ class CivicaJason_Scraper(Base_Scraper):
     """
     1/2/5(11 display:None) similar: <div/div/div class=civica-keyobject-basicdetails> + <div detail tab> + <div detail panel/div/div class=civica-keyobject-fulldetails> 
     4 minor different (no detail tab): <div/div/div class=civica-keyobject-basicdetails> + <div/div/div class=civica-keyobject-fulldetails>  
-    3 major different + need choosing portal (no basic detail): <div/div/div class=civica-keyobject-fulldetails>  
-    6 completely different
+    3 major different + need choosing portal (no basic detail): <div/div/div class=civica-keyobject-fulldetails>   
     
     1.auth_id = 13, Ashfield: https://planning.ashfield.gov.uk/planning-applications/planning-application/?RefType=GFPlanning&KeyNo=194603
     2.auth_id = 99, Denbighshire: url error? https://planning.denbighshire.gov.uk/planning/planning-application?RefType=PBDC&KeyNo=11872
@@ -101,6 +100,13 @@ class CivicaJason_Scraper(Base_Scraper):
                     'Appeal status': 'other_fields.appeal_status', # Eastbourne
                     }
 
+    basic_detail_bool_dict = {'Ashfield': True,
+                              'Denbighshire': True,
+                              'Eastbourne': False,
+                              'StAlbans': True,
+                              'Waverley': True,
+                              }
+
     doc_url_dict = {#'Ashfield': 'https://planning.ashfield.gov.uk/my-requests/document-viewer?DocNo=',
                     #'Ashfield': '/civica/Resource/Civica/Handler.ashx/doc/pagestream?DocNo=17916248&pdf=true&filename=Delegated%20Report%20(R).pdf',
                     'Ashfield': 'https://planning.ashfield.gov.uk/civica/Resource/Civica/Handler.ashx/Doc/pagestream?cd=inline&pdf=true&docno=',
@@ -175,7 +181,7 @@ class CivicaJason_Scraper(Base_Scraper):
                 time.sleep(2)
             # click 'view' button.
             try:
-                search_result = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//div[@class='civica-keyobject-basicdetails']/a")))
+                search_result = WebDriverWait (driver, 10).until(EC.presence_of_element_located((By.XPATH, "//div[@class='civica-keyobject-basicdetails']/a")))
                 search_result.click()
                 break
             except TimeoutException:
@@ -237,6 +243,15 @@ class CivicaJason_Scraper(Base_Scraper):
             3 //*[@id="applicationSummary"]/div/div/div
             4 //*[@id="civica-planningsearchandview"]/div/div[2]/div/div/div/div
             5 //*[@id="civica-planningsearchandview"]/div/div[2]/div/div/div/div
+            framework:
+            content
+            |--- div: civica-keyobject-basicdetail
+            |--- div, role=tab: civica-keyobject-fulldetails
+            |--- div, role=tabpanel: civica-keyobject-fulldetails
+            |--- div, role=tab: Documents
+            |--- div, role=tabpanel: Documents 
+            |--- div, role=tab: Comments
+            |--- div, role=tabpanel: Comments 
             """
         except TimeoutException:
             # Planning Application details not available.
@@ -256,6 +271,14 @@ class CivicaJason_Scraper(Base_Scraper):
             if tab_index == 0: # data scraper.
                 # StAlbans has no detail tab, so we put data scraper here to be compatible with StAlbans.
                 # Waverley has multiple invisible data items (size 0x0), it is necessary to open detail tab and check size of data items, we put data scraper here to ensure detail tab (if have) is opened.
+                if self.basic_detail_bool_dict[self.auth]: # scrape basic details.
+                    item_list = content.find_elements(By.XPATH, "./div/div/div[@class='civica-keyobject-basicdetails']/div[@class='civicadetail']")
+                    print('basic details: ', len(item_list))
+                    item_list = [item for item in item_list if item.rect['height'] > 0]
+                    print('new basic details: ', len(item_list))
+                    assert len(item_list) == 2
+                    app_df.at['Proposal'] = item_list[-1].find_element(By.XPATH, './div').get_attribute('innerText').strip()
+                    print(f'    <Proposal> scraped: {app_df.at["Proposal"]}') if PRINT else None
                 # tab_panel_list/div/div/div[@class='civicadetail']
                 item_list = content.find_elements(By.XPATH, "./div/div/div[@class='civica-keyobject-fulldetails']/div[@class='civicadetail']")
                 n_total_items = len(item_list)
