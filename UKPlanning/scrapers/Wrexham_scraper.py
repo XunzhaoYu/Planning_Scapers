@@ -157,6 +157,9 @@ class Wrexham_Scraper(Base_Scraper):
                 app_df = scrape_data_items(app_df, items, item_values, self.details_dict, PRINT)
             # Comments tab:
             elif 'comments' in tab_name.lower():
+                # https://register.wrexham.gov.uk/pr/s/detail/a0lJ7000000TuwhIAC?c__r=Arcus_BE_Public_Register&language=en_GB
+                # https://register.wrexham.gov.uk/pr/s/detail/a0lJ7000000TuyfIAC?c__r=Arcus_BE_Public_Register&language=en_GB
+                # https://register.wrexham.gov.uk/pr/s/detail/a0lJ7000000Tut8IAC?c__r=Arcus_BE_Public_Register&language=en_GB
                 print(f'Tab {tab_index + 1}/{n_tabs}: Comments.')
                 print(tab_panel.find_element(By.XPATH, './div/div/arcuscommunity-pr_comments/div/div/c-pr_filter/div/div[2]/div[2]/slot/p').get_attribute('innerHTML'))
             # Files tab:
