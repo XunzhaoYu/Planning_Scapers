@@ -273,9 +273,9 @@ class CivicaJason_Scraper(Base_Scraper):
                 # Waverley has multiple invisible data items (size 0x0), it is necessary to open detail tab and check size of data items, we put data scraper here to ensure detail tab (if have) is opened.
                 if self.basic_detail_bool_dict[self.auth]: # scrape basic details.
                     item_list = content.find_elements(By.XPATH, "./div/div/div[@class='civica-keyobject-basicdetails']/div[@class='civicadetail']")
-                    print('basic details: ', len(item_list))
+                    n_basic_details = len(item_list)
                     item_list = [item for item in item_list if item.rect['height'] > 0]
-                    print('new basic details: ', len(item_list))
+                    print(f'\n0. Basic Details: {n_basic_details} items, {len(item_list)} valid items.')
                     assert len(item_list) == 2
                     app_df.at['Proposal'] = item_list[-1].find_element(By.XPATH, './div').get_attribute('innerText').strip()
                     print(f'    <Proposal> scraped: {app_df.at["Proposal"]}') if PRINT else None
@@ -351,7 +351,9 @@ class CivicaJason_Scraper(Base_Scraper):
                 assert 1 == 0
         self.ending(app_df)
 
+        """
         driver.delete_all_cookies()
         driver.refresh()
         driver.get("https://www.lewes-eastbourne.gov.uk/planning")
         time.sleep(2)
+        """
