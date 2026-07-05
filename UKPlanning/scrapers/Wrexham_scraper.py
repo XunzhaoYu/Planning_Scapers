@@ -1,4 +1,5 @@
 import os, time, random
+import numpy as np
 import pandas as pd
 
 from scrapy_selenium import SeleniumRequest
@@ -109,7 +110,7 @@ class Wrexham_Scraper(Base_Scraper):
             search_result = planning_application_result_block.find_element(By.XPATH, "./div/c-pr_articles/div/div[1]/div[1]/c-pr_formatted-output/div/div/lightning-formatted-url/a")
             driver.execute_script("arguments[0].click();", search_result)
         except TimeoutException:
-            print(planning_application_result_block.find_element(By.XPATH, './p').get_attribute('innerHTML'))
+            print(planning_application_result_block.find_element(By.XPATH, './p').get_attribute('innerText'))
             return
 
         time.sleep(random.uniform(4., 5.))
@@ -140,6 +141,7 @@ class Wrexham_Scraper(Base_Scraper):
         item_values = [item.find_element(By.XPATH, './dl/div/dd') for item in header_details]
         app_df = scrape_data_items(app_df, items, item_values, self.details_dict, PRINT)
 
+        WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="contentStart"]/div//div[@role="tablist"]/ul/li/a')))
         # Salesforce Lightning framework: Click tab button to load DOM contents (sections).
         tab_list = content.find_elements(By.XPATH, './/div[@role="tablist"]/ul/li/a') # './div[2]/div/div[@role="tablist"]/ul/li')
         n_tabs = len(tab_list)
@@ -157,11 +159,21 @@ class Wrexham_Scraper(Base_Scraper):
                 app_df = scrape_data_items(app_df, items, item_values, self.details_dict, PRINT)
             # Comments tab:
             elif 'comments' in tab_name.lower():
-                # https://register.wrexham.gov.uk/pr/s/detail/a0lJ7000000TuwhIAC?c__r=Arcus_BE_Public_Register&language=en_GB
-                # https://register.wrexham.gov.uk/pr/s/detail/a0lJ7000000TuyfIAC?c__r=Arcus_BE_Public_Register&language=en_GB
-                # https://register.wrexham.gov.uk/pr/s/detail/a0lJ7000000Tut8IAC?c__r=Arcus_BE_Public_Register&language=en_GB
-                print(f'Tab {tab_index + 1}/{n_tabs}: Comments.')
-                print(tab_panel.find_element(By.XPATH, './div/div/arcuscommunity-pr_comments/div/div/c-pr_filter/div/div[2]/div[2]/slot/p').get_attribute('innerHTML'))
+                try:
+                    comment_note = tab_panel.find_element(By.XPATH, './div/div/arcuscommunity-pr_comments/div/div/c-pr_filter/div/div[2]/div[2]/slot/p').get_attribute('innerText')
+                    print(f'Tab {tab_index + 1}/{n_tabs}: Comments.')
+                    print(comment_note)
+                except NoSuchElementException:
+                    # https://register.wrexham.gov.uk/pr/s/detail/a0lJ7000000TuwhIAC?c__r=Arcus_BE_Public_Register&language=en_GB
+                    # https://register.wrexham.gov.uk/pr/s/detail/a0lJ7000000TuyfIAC?c__r=Arcus_BE_Public_Register&language=en_GB
+                    # https://register.wrexham.gov.uk/pr/s/detail/a0lJ7000000Tut8IAC?c__r=Arcus_BE_Public_Register&language=en_GB
+                    comment_items = tab_panel.find_elements(By.XPATH, './/span[@class="pr-comment__metadata-item"]')
+                    app_df.at['other_fields.n_comments'] = len(comment_items)
+                    print(f'Tab {tab_index + 1}/{n_tabs}: Comments. {len(comment_items)} comments.')
+                    comment_dict = {}
+                    comment_dict['Comment left on'] = [comment.find_element(By.XPATH, './dd').get_attribute('innerText').strip() for comment in comment_items]
+                    comment_dict = pd.DataFrame(comment_dict)
+                    comment_dict.to_csv(f'{self.data_storage_path}{folder_name}/Comments.csv', index=False)
             # Files tab:
             elif 'files' in tab_name.lower():
                 n_documents, n_document_pages, next_button = 0, 1, None
@@ -180,18 +192,17 @@ class Wrexham_Scraper(Base_Scraper):
                     if n_documents == 20:  # have more file pages.
                         try: # n_documents > 20
                             # file_panel. /div[2]/slot/c-pr_pagination/nav/p[2] (pr-pagination__results)/b[3]
-                            n_documents = int(file_panel.find_element(By.XPATH, './/p[@class="pr-pagination__results"]/b[3]').get_attribute('innerHTML').strip())
-
+                            n_documents = int(file_panel.find_element(By.XPATH, './/p[@class="pr-pagination__results"]/b[3]').get_attribute('innerText').strip())
                             # file_panel. /div[2]/slot/c-pr_pagination/nav/ul (pr-pagination__list)/li
                             page_nav_buttons = file_panel.find_elements(By.XPATH, './/ul[@class="pr-pagination__list"]/li')
-                            n_document_pages = len(page_nav_buttons)-1
+                            n_document_pages = np.ceil(n_documents/20)
                             next_button = page_nav_buttons[-1]
                         except NoSuchElementException: # n_documents == 20
                             pass
-                    print(f'Tab {tab_index + 1}/{n_tabs}: Files. {n_documents} files.')
+                    print(f'Tab {tab_index + 1}/{n_tabs}: Files. {n_documents} files. {n_document_pages} doc pages.')
                 except NoSuchElementException:
                     print(f'Tab {tab_index + 1}/{n_tabs}: Files. {n_documents} files.')
-                    print(tab_panel.find_element(By.XPATH, './div/div/arcuscommunity-pr_files-list/div/div').get_attribute('innerHTML').strip())
+                    print(tab_panel.find_element(By.XPATH, './div/div/arcuscommunity-pr_files-list/div/div').get_attribute('innerText').strip())
                 app_df.at['other_fields.n_documents'] = n_documents
                 if n_documents > 0: # get file urls and doc names.
                     file_urls, document_names, doc_no, page_no = [], [], 0, 0
