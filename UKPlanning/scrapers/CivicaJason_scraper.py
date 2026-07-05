@@ -254,8 +254,11 @@ class CivicaJason_Scraper(Base_Scraper):
             |--- div, role=tabpanel: Comments 
             """
         except TimeoutException:
-            # Planning Application details not available.
-            note = response.xpath('//*[@id="main-content"]/article/h1/text()').get()
+            # Planning Application details not available. i.e.:https://planning.denbighshire.gov.uk/planning/planning-application?RefType=PBDC&KeyNo=34945
+            try:
+                note = driver.find_element(By.XPATH, '//*[@id="applicationviewer"]/div/div/div/div/div/div/span').get_attribute('innerText').strip()
+            except NoSuchElementException:
+                note = response.xpath('//*[@id="applicationviewer"]/div/div/div/div/div/div/span/text()').get()
             print('note: ', note)
             return
 
