@@ -30,7 +30,7 @@ class CivicaJason_Scraper(Base_Scraper):
     3.auth_id = 115(114), Eastbourne: url error. https://www.lewes-eastbourne.gov.uk/planning/application-summary?RefType=APPPlanCase&KeyText=190026
       cloudflare                    search page: https://www.lewes-eastbourne.gov.uk/planning
                                     app page: https://www.lewes-eastbourne.gov.uk/article/2087/?RefType=APPPlanCase&KeyText=190026
-    4.auth_id = 348(345), StAlbans: https://planningapplications.stalbans.gov.uk/planning/search-applications#VIEW?RefType=PBDC&KeyNo=109235
+    4.auth_id = 348(345), StAlbans: https://planningapplications.stalbans.gov.uk/planning/search-applications#VIEW?RefType=PBDC&KeyNo=109235 
       An error occured retrieving the item you specified.
     5.auth_id = 393(389), Waverley: url error. http://planning360.waverley.gov.uk/planning/planning-application?RefType=GFPlanning&KeyNo=410184
                                     search page: https://planning360.waverley.gov.uk:4443/planning
@@ -39,6 +39,7 @@ class CivicaJason_Scraper(Base_Scraper):
 
     # use pipelines_extension to obtain file extensions.
     #custom_settings = {'ITEM_PIPELINES': {'UKPlanning.middlewares.middlewares_uc.SeleniumMiddleware': 1, }}
+    #custom_settings = {'SELENIUM_DRIVER_ARGUMENTS': []} # for StAlbans
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -285,8 +286,6 @@ class CivicaJason_Scraper(Base_Scraper):
                 # tab_panel_list/div/div/div[@class='civicadetail']
                 item_list = content.find_elements(By.XPATH, "./div/div/div[@class='civica-keyobject-fulldetails']/div[@class='civicadetail']")
                 n_total_items = len(item_list)
-                #for index, item in enumerate(item_list):
-                #    print(index, type(item.rect), item.rect)
                 item_list = [item for item in item_list if item.rect['height']>0]
                 print(f'\n1. Details Tab: {n_total_items} items, {len(item_list)} valid items.')
                 items = [item.find_element(By.XPATH, './div[1]') for item in item_list]
@@ -294,7 +293,6 @@ class CivicaJason_Scraper(Base_Scraper):
                 app_df = scrape_data_items(app_df, items, item_values, self.details_dict, PRINT)
             # --- --- --- Details (data) --- --- ---
             if 'detail' in tab_name.lower():
-                #item_list = tab_panel_list[tab_index].find_elements(By.XPATH, '')
                 pass
             # --- --- --- Documents (doc) --- --- ---
             elif 'document' in tab_name.lower():
