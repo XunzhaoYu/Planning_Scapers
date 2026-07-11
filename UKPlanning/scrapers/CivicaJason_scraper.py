@@ -37,9 +37,11 @@ class CivicaJason_Scraper(Base_Scraper):
                                     app page: https://planning360.waverley.gov.uk:4443/planning/search-applications?civica.query.FullTextSearch=WA%2F2020%2F0069%20#VIEW?RefType=GFPlanning&KeyNo=497728&KeyText=Subject
     """
 
-    # use pipelines_extension to obtain file extensions.
-    #custom_settings = {'ITEM_PIPELINES': {'UKPlanning.middlewares.middlewares_uc.SeleniumMiddleware': 1, }}
-    #custom_settings = {'SELENIUM_DRIVER_ARGUMENTS': []} # for StAlbans
+    # use custom_settings to load different middlewares or pipelines:
+    # custom_settings = {'ITEM_PIPELINES': {'UKPlanning.middlewares.middlewares_uc.SeleniumMiddleware': 1, }}
+    # custom_settings = {'SELENIUM_DRIVER_ARGUMENTS': []} # for StAlbans
+    # set 'download_timeout': 180 in pipeline.py for all CivicaJason scrapers. Many applications have hundreds of documents with a slow response speed.
+    # *Eastbourne is not working for now. Need handle with cloudfare issues.
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -352,7 +354,7 @@ class CivicaJason_Scraper(Base_Scraper):
                 assert 1 == 0
         self.ending(app_df)
 
-        """
+        """ for Eastbourne, cloudfare issue.
         driver.delete_all_cookies()
         driver.refresh()
         driver.get("https://www.lewes-eastbourne.gov.uk/planning")
