@@ -274,11 +274,34 @@ class Idox_Scraper(Base_Scraper):
         print(f'parse_data_item_IdoxScraper, scraper name: {scraper_name}, max_file_name_len: {max_file_name_len}.')
 
         try:
-            tab_panel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="content"]/div/section')))
+            content = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="pa"]/div[5]/div[3]')))
         except TimeoutException:
             # Planning Application details not available.
             note = response.xpath('//*[@id="main-content"]/article/h1/text()').get()
             print('note: ', note)
             return
 
+        tabs = content.find_elements(By.XPATH, "./ul[@class='tabs']/li")  # ”./ul/li"
+        sub_tabs = tabs[1].find_elements(By.XPATH, "./ul[@class='subtabs']/li/a")
+        print(len(tabs), len(sub_tabs))
+        tab_container = content.find_element(By.XPATH, "./div[@class='tabcontainer']")   #  ”./div[3]“
+
+        # Details/Summary: tabs[1]/subtabs[1]
+        items = tab_container.find_elements(By.XPATH, "./table[@id='simpleDetailsTable']/tbody/tr/th")
+        item_values = tab_container.find_elements(By.XPATH, "./table[@id='simpleDetailsTable']/tbody/tr/td")
+        print(f'    Details/Summary: {len(items)} items.')
+        app_df = scrape_data_items(app_df, items, item_values, self.summary_dict, PRINT)
+
+        # Details/Further Information: tabs[1]/subtabs[2]
+        sub_tabs[2].click()
+        tbody = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//table[@id='applicationDetails']/tbody")))
+        items = tbody.find_elements(By.XPATH, './tr/th')
+        item_values = tbody.find_elements(By.XPATH, './tr/td')
+        print(f'    Details/Further Information: {len(items)} items.')
+        app_df = scrape_data_items(app_df, items, item_values, self.details_dict, PRINT)
+
+        # Details/Contacts
+
+
+        # Details/Important Dates.
         self.ending(app_df)
