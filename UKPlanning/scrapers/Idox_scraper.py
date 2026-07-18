@@ -30,7 +30,11 @@ class Idox_Scraper(Base_Scraper):
         super().__init__(*args, **kwargs)
 
         # All sub_classes of Base_Scraper should define their self.parse_func(s) in __init__
-        self.parse_func = self.parse_data_item_Idox
+        if self.auth in ['Bolton']:
+            self.url_check = True
+            self.url_preprocess = self.url_preprocess_Bolton
+        else:
+            self.parse_func = self.parse_data_item_Idox
 
     # details_dict
     # self.app_df 81 - 19 + 8 = 70
@@ -215,6 +219,51 @@ class Idox_Scraper(Base_Scraper):
         print(f'cookies:, {cookies}') if PRINT else None
         item['session_cookies'] = cookies
         return item
+
+    def url_preprocess_Bolton(self, url):
+        if url.startswith('https://paplanning.bolton.gov.uk/online-applications/applicationDetails.do?'):
+            self.parse_func = self.parse_data_item_Idox
+            return url
+        else:
+            self.parse_func = self.search_by_appID_Idox
+            return 'https://paplanning.bolton.gov.uk/online-applications/search.do?action=simple&searchType=Application'
+
+    def search_by_appID_Idox(self, response):
+        driver = response.request.meta['driver']
+        app_df = response.meta['app_df']
+        url = response.request.url
+        print(f'search page url: {url}') if PRINT else None
+
+        # use app_id to search and view the application page.
+        app_id = app_df.at['uid']
+        input_reference = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//input[@id="simpleSearchString"]')))
+        input_reference.click()
+        input_reference.send_keys(app_id)
+        # click 'search' button.
+        driver.execute_script('window.scrollTo(0, document.body.scrollHeight);')  # scroll down to the bottom of this page.
+        for tries in range(3):  # Sometimes there has no search result even if the app is available, so we try 3 times.
+            time.sleep(random.uniform(1., 1.5))
+            try:
+                driver.find_element(By.XPATH, '//input[@type="submit"]').click()
+                #search_button = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//button[@class="searchbutton"]')))
+                #search_button.click()
+            except NoSuchElementException:
+                time.sleep(2)
+        # will re-direct to the application pages automatically, just wait...
+        while driver.current_url == url:
+            time.sleep(random.uniform(4., 5.))
+        """
+        the url we get from search page is a temp url, not a factual url we can use in the future:    
+        https://paplanning.bolton.gov.uk/online-applications/simpleSearchResults.do?action=firstPage
+        """
+        # get the factual url:
+        summary_tab = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="subtab_summary"]')))
+        url = summary_tab.get_attribute('href')
+        app_df.at['url'] = response.urljoin(url)
+        print(f"correct url: {app_df.at['url']}")
+
+        # scrape application
+        yield from self.parse_data_item_Idox(response)
 
     def parse_data_item_Idox(self, response):
         app_df = response.meta['app_df']
