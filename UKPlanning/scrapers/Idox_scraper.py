@@ -18,6 +18,7 @@ from general.utils import unique_columns, scrape_data_items, scrape_for_csv, scr
 class Idox_Scraper(Base_Scraper):
     name = 'Idox_Scraper'
     """
+    auth_id = 31, Blackpool page:   https://idoxpa.blackpool.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=_BLCKP_DCAPR_23433
     auth_id = 34, Bolton:   search: https://paplanning.bolton.gov.uk/online-applications/search.do?action=simple&searchType=Application
                             page:   https://paplanning.bolton.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=ZZZPEGDEPM788
     auth_id = 
@@ -274,7 +275,7 @@ class Idox_Scraper(Base_Scraper):
         print(f'parse_data_item_IdoxScraper, scraper name: {scraper_name}, max_file_name_len: {max_file_name_len}.')
 
         try:
-            content = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="pa"]/div[5]/div[3]')))
+            content = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="pa"]/div[@class="container"]/div[@class="content"]')))
         except TimeoutException:
             # Planning Application details not available.
             note = response.xpath('//*[@id="main-content"]/article/h1/text()').get()
@@ -282,26 +283,59 @@ class Idox_Scraper(Base_Scraper):
             return
 
         tabs = content.find_elements(By.XPATH, "./ul[@class='tabs']/li")  # ”./ul/li"
-        sub_tabs = tabs[1].find_elements(By.XPATH, "./ul[@class='subtabs']/li/a")
-        print(len(tabs), len(sub_tabs))
+        #sub_tabs = tabs[0].find_elements(By.XPATH, "./ul[@class='subtabs']/li")
         tab_container = content.find_element(By.XPATH, "./div[@class='tabcontainer']")   #  ”./div[3]“
 
-        # Details/Summary: tabs[1]/subtabs[1]
+        def scrape_data(app_df, items, item_values, dictionary):
+            for item, value in zip(items, item_values):
+                item_name = item.get_attribute('innerText').strip()
+                data_name = dictionary[item_name]
+                item_value = value.get_attribute('innerText').strip()
+                try:
+                    if pd.isnull(app_df.at[data_name]):
+                        app_df.at[data_name] = item_value
+                        print(f'    <{item_name}> scraped: {app_df.at[data_name]}') if PRINT else None
+                    elif app_df.at[data_name].lower() == 'see source':
+                        app_df.at[data_name] = item_value
+                        print(f'    <{item_name}> source scraped: {app_df.at[data_name]}') if PRINT else None
+                    else:
+                        print(f"    <{item_name}> filled: {app_df.at[data_name]}") if PRINT else None
+                except KeyError:
+                    app_df[data_name] = item_value
+                    print(f'    <{item_name}> scraped (new): {app_df.at[data_name]}') if PRINT else None
+            return app_df
+
+        # Details/Summary: tabs[0]/subtabs[0]
         items = tab_container.find_elements(By.XPATH, "./table[@id='simpleDetailsTable']/tbody/tr/th")
         item_values = tab_container.find_elements(By.XPATH, "./table[@id='simpleDetailsTable']/tbody/tr/td")
-        print(f'    Details/Summary: {len(items)} items.')
-        app_df = scrape_data_items(app_df, items, item_values, self.summary_dict, PRINT)
+        print(f'\nDetails/Summary: {len(items)} items.')
+        #app_df = scrape_data_items(app_df, items, item_values, self.summary_dict, PRINT)
+        app_df = scrape_data(app_df, items, item_values, self.summary_dict)
 
-        # Details/Further Information: tabs[1]/subtabs[2]
-        sub_tabs[2].click()
+        # Details/Further Information: tabs[0]/subtabs[1]
+        #time.sleep(random.uniform(10, 15))
+        #sub_tabs[1].find_element(By.XPATH, './a').click()
+        driver.find_element(By.XPATH, '//*[@id="subtab_details"]').click()
         tbody = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//table[@id='applicationDetails']/tbody")))
         items = tbody.find_elements(By.XPATH, './tr/th')
         item_values = tbody.find_elements(By.XPATH, './tr/td')
-        print(f'    Details/Further Information: {len(items)} items.')
-        app_df = scrape_data_items(app_df, items, item_values, self.details_dict, PRINT)
+        print(f'\nDetails/Further Information: {len(items)} items.')
+        #app_df = scrape_data_items(app_df, items, item_values, self.details_dict, PRINT)
+        app_df = scrape_data(app_df, items, item_values, self.details_dict)
 
-        # Details/Contacts
+        # Details/Contacts: tabs[0]/subtabs[2]
 
 
-        # Details/Important Dates.
+        # Details/Important Dates: tabs[0]/subtabs[3]
+        #time.sleep(random.uniform(10, 15))
+        #sub_tabs[3].find_element(By.XPATH, './a').click()
+        driver.find_element(By.XPATH, '//*[@id="subtab_dates"]').click()
+        tbody = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//table[@id='simpleDetailsTable']/tbody")))
+        items = tbody.find_elements(By.XPATH, './tr/th')
+        item_values = tbody.find_elements(By.XPATH, './tr/td')
+        print(f'\nDetails/Important Dates: {len(items)} items.')
+        # app_df = scrape_data_items(app_df, items, item_values, self.dates_dict, PRINT)
+        app_df = scrape_data(app_df, items, item_values, self.dates_dict)
+
+        time.sleep(1000)
         self.ending(app_df)
