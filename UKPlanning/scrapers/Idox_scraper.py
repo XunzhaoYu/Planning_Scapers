@@ -337,5 +337,22 @@ class Idox_Scraper(Base_Scraper):
         # app_df = scrape_data_items(app_df, items, item_values, self.dates_dict, PRINT)
         app_df = scrape_data(app_df, items, item_values, self.dates_dict)
 
+
+        # Comments
+        driver.find_element(By.XPATH, '//*[@id="tab_neighbourComments"]').click()
+
+
+        # Constraints
+        driver.find_element(By.XPATH, '//*[@id="tab_constraints"]').click()
+
+
+        # Documents
+        driver.find_element(By.XPATH, '//*[@id="tab_documents"]').click()
+
+
+        # Related Cases:
+        driver.find_element(By.XPATH, '//*[@id="tab_relatedCases"]').click()
+
+
         time.sleep(1000)
         self.ending(app_df)
