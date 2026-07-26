@@ -47,9 +47,11 @@ def append_by_year(start_dir=1, end_dir=424):
         first_year = first_filename.split('=')[1][:4]
         last_year = csv_files[-1].split('=')[1][:4]
         print(f"first year: {first_year}, last year: {last_year}")
-        auth = first_filename.split('/')[-2]
+        #auth = first_filename.split('/')[-2]
+        auth = first_filename.split('/')[-2].split(' ')[0]
 
         storage_path = f"{get_list_storage_path()}{auth}/"
+        #storage_path = f"{get_list_storage_path()}/"
         print(f"storage path: {storage_path}")
         if not os.path.exists(storage_path):
             os.mkdir(storage_path)
