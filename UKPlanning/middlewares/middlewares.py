@@ -11,6 +11,7 @@ from scrapy_selenium.http import SeleniumRequest
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
+import undetected_chromedriver as uc
 
 class SeleniumMiddleware:
     @classmethod
@@ -79,6 +80,19 @@ class SeleniumMiddleware:
         #driver_options.add_argument('--disable-blink-features=AutomationControlled')  # for reCAPTCHA
         driver_options.add_argument("--ignore-certificate-errors")  # added on 05-06-2024
         driver_options.add_argument('--ignore-ssl-errors=yes')  # added on 05-06-2024
+        # --- --- --- 强制浏览器语言为英文，避免继承系统/容器的中文语言设置 --- --- ---
+        # 新建的 Chrome profile 默认继承运行环境(OS)的 UI 语言。
+        # 如果爬虫运行的机器/容器系统语言是中文，navigator.language 就会变成 'zh-CN'，
+        # 导致 Idox 页面里用 JS 生成"星期/月份缩写"时，查不到对应的中文翻译 key，
+        # A freshly created Chrome profile inherits the OS/container's UI
+        # language by default. If the scraping machine's system language is Chinese,
+        # navigator.language becomes 'zh-CN', so the site's client-side JS (which
+        # generates weekday/month abbreviations) fails to find a Chinese translation
+        # entry and falls back to "???".
+        driver_options.add_argument('--lang=en-GB')
+        driver_options.add_experimental_option(
+            'prefs', {'intl.accept_languages': 'en-GB,en-US,en'}
+        )
 
         # set webdriver, works with Selenium 4+ and Chrome only
         #from selenium import webdriver
