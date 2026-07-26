@@ -9,11 +9,11 @@ def get_project_root() -> Path:
 
 def get_list_storage_path():
     return f'{Path(get_project_root()).parent}/Lists/'
-    #return f'{Path(get_project_root()).parent}/Lists_Summary/'
+    #return f'{Path(get_project_root()).parent}/Lists/'
 
 def get_data_storage_path():
     return f'{Path(get_project_root()).parent}/ScrapedApplications/'
-    #return f'{Path(get_project_root()).parent}/Lists_Temp23/'
+    #return f'{Path(get_project_root()).parent}/Lists_25/'
 
 def get_IP_storage_path():
     return f'{Path(get_project_root()).parent}'
