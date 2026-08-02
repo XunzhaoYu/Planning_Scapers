@@ -1,4 +1,5 @@
 import os, re
+from datetime import datetime
 from pathlib import Path
 import pandas as pd
 from selenium.webdriver.common.by import By
@@ -125,9 +126,61 @@ def replace_invalid_characters(name):
     #return name
     return re.sub(r'[<>:"/\\|?*\n\r]+', '_', name)
 
-def is_empty(cell):
-    return pd.isnull(cell)
 
+def is_empty(value):
+    """ updated on 02-08-2026
+    判断 app_df 中某个字段是否"尚未填充"。
+    Check whether a field in app_df is still unfilled / empty.
+    """
+    if pd.isnull(value):
+        return True
+    text = str(value).strip().lower()
+    return text in ('', 'nan')
+
+# --- --- --- 日期字符串匹配规则 --- --- ---
+# Date string matching pattern
+# 匹配形如 "Thu 02 Mar 2000" / "02 Mar 2000" / "02 March 2000" 的日期字符串。
+# 星期几部分是可选的（不参与后续转换，只是允许它出现在字符串开头）。
+# Matches date strings like "Thu 02 Mar 2000" / "02 Mar 2000" / "02 March 2000".
+# The weekday part is optional and ignored during conversion — it's only
+# allowed to appear at the start of the string.
+DATE_PATTERN = re.compile(
+    r'^\s*(?:[A-Za-z]{3,9}\s+)?'   # 可选星期几，如 Thu / Thursday / 周四(若有中文误判需求可另加) / optional weekday
+    r'(\d{1,2})\s+'                # 日 (1或2位数字) / day (1-2 digits)
+    r'([A-Za-z]{3,9})\s+'          # 月份英文缩写或全称 / month name, abbreviated or full
+    r'(\d{4})\s*$'                 # 4位年份 / 4-digit year
+)
+
+def convert_date(text: str) -> str:
+    """
+    将英文日期字符串（如 "Thu 02 Mar 2000" 或 "02 March 2000"）转换为 "yyyy-mm-dd" 格式。
+    若输入不符合日期格式，或日期本身不合法（如 30 Feb），则原样返回输入内容，并打印警告方便排查。
+    Convert an English date string (e.g. "Thu 02 Mar 2000" or "02 March 2000") into "yyyy-mm-dd" format.
+    If the input doesn't match the date pattern, or represents an invalid calendar date (e.g. 30 Feb), the original text is returned unchanged, with a warning printed for debugging.
+    """
+    if not isinstance(text, str):
+        return text
+
+    match = DATE_PATTERN.match(text.strip())
+    if not match:
+        return text  # 不是日期格式，原样返回 / not a date pattern, return unchanged
+
+    day, month_str, year = match.groups()
+    # 依次尝试 "月份缩写"(Jan/Feb/...) 和 "月份全称"(January/February/...) 两种格式
+    # Try both abbreviated (Jan/Feb/...) and full (January/February/...) month names
+    for fmt in ('%d %b %Y', '%d %B %Y'):
+        try:
+            dt = datetime.strptime(f'{day} {month_str} {year}', fmt)
+            return dt.strftime('%Y-%m-%d')
+        except ValueError:
+            continue
+
+    # 格式对了但日期不合法，或月份拼写有误（比如语言异常导致的损坏值）
+    # Pattern matched but the date is invalid, or the month name is malformed (e.g. corrupted due to a locale issue).
+    print(f'[convert_date] unparsable date string: "{text}"')
+    return text
+
+""" replaced by convert_date() on 02-08-2026 
 def convert_date(date_string):
     strs = date_string.split(' ')
     if len(strs) > 2:
@@ -169,3 +222,4 @@ def Month_Eng_to_Digit(month):
         return '11'  # Nov
     else:
         return '12'  # Dec
+"""
