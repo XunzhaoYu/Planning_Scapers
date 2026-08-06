@@ -11,7 +11,7 @@ from configs.settings import PRINT
 from general.base_scraper import Base_Scraper
 from general.document_utils import replace_invalid_characters, get_documents
 from general.items import DownloadFilesItem
-from general.utils import unique_columns, scrape_data_items, scrape_for_csv, scrape_multi_tables_for_csv
+from general.utils import unique_columns, scrape_data_items, scrape_for_csv, scrape_multi_tables_for_csv, is_empty, convert_date
 
 
 class Idox_Scraper(Base_Scraper):
@@ -80,95 +80,177 @@ class Idox_Scraper(Base_Scraper):
     # ------------------------------------------------------------------
 
     # Summary 子标签: 10 + 2 个别名 / Summary sub-tab
-    summary_dict = {'Reference': 'uid',
-                    'Application Reference': 'uid',
-                    'Planning Portal Reference': 'other_fields.planning_portal_id',
+    # 10 + 2*
+    summary_dict = {'Reference': 'uid',  # Non-Empty
+                    'Application Reference': 'uid',  # New Duplicate [Derby]
+                    'Planning Portal Reference': 'other_fields.planning_portal_id',  # New [Derby]
                     'Alternative Reference': 'altid',
-
+                    #
                     'Application Received': 'other_fields.date_received',
-                    'Application Received Date': 'other_fields.date_received',
-                    'Application Registered': 'other_fields.date_received',
+                    'Application Received Date': 'other_fields.date_received',  # New Duplicate [Chelmsford]
+                    'Application Registered': 'other_fields.date_received',  # New Duplicate [Rhondda]
                     'Application Validated': 'other_fields.date_validated',
-
+                    #
                     'Address': 'address',
-                    'Location': 'address',
+                    'Location': 'address',  # Duplicate [Derby]
                     'Proposal': 'description',
                     'Status': 'other_fields.status',
                     'Decision': 'other_fields.decision',
                     'Decision Issued Date': 'other_fields.decision_issued_date',
                     'Appeal Status': 'other_fields.appeal_status',
                     'Appeal Decision': 'other_fields.appeal_result',
-                    'Local Review Body Status': 'other_fields.local_review_body_status',
-                    'Local Review Body Decision': 'other_fields.local_review_body_decision',
+                    'Local Review Body Status': 'other_fields.local_review_body_status',  # New*
+                    'Local Review Body Decision': 'other_fields.local_review_body_decision'  # New*
                     }
 
     # Further Information 子标签 / Further Information sub-tab
+    # 10 + 3 + 2*
     details_dict = {'Application Type': 'other_fields.application_type',
-                    'Decision': 'other_fields.decision',
-                    'Actual Decision Level': 'other_fields.actual_decision_level',
-                    'Expected Decision Level': 'other_fields.expected_decision_level',
-                    'Decision Level': 'other_fields.expected_decision_level',
-
+                    'Decision': 'other_fields.decision',  # Duplicated in summary
+                    'Actual Decision Level': 'other_fields.actual_decision_level',  # New
+                    'Expected Decision Level': 'other_fields.expected_decision_level',  # New
+                    'Decision Level': 'other_fields.expected_decision_level',  # New Duplicate [Moray]
+                    #
                     'Case Officer': 'other_fields.case_officer',
                     'Parish': 'other_fields.parish',
-                    'Amenity Society': 'other_fields.amenity_society',
+                    'Amenity Society': 'other_fields.amenity_society',  # New [Westminster]
                     'Ward': 'other_fields.ward_name',
                     'District Reference': 'other_fields.district',
                     'Applicant Name': 'other_fields.applicant_name',
                     'Applicant Address': 'other_fields.applicant_address',
                     'Agent Name': 'other_fields.agent_name',
                     'Agent Company Name': 'other_fields.agent_company',
-                    'Agent Phone Number': 'other_fields.agent_phone',
+                    'Agent Phone Number': 'other_fields.agent_phone',  # New*
                     'Agent Address': 'other_fields.agent_address',
-                    'Environmental Assessment Requested': 'other_fields.environmental_assessment',
+                    'Environmental Assessment Requested': 'other_fields.environmental_assessment',  # New
                     'Environmental Assessment Required': 'other_fields.environmental_assessment',
-                    'Community Council': 'other_fields.community_council',
-                    'Community': 'other_fields.community_council',
-                    'Community/Town Council': 'other_fields.community_council',
+                    # New Duplicate [Perth]
+                    'Community Council': 'other_fields.community_council',  # New*
+                    'Community': 'other_fields.community_council',  # New* Duplicate [BreconBeacons]
+                    'Community/Town Council': 'other_fields.community_council',  # New* Duplicate [Caerphilly]
                     }
 
     # Important Dates 子标签 (仅保留常用字段, 完整列表见 Idox_scraper_old.py)
     # Important Dates sub-tab (kept concise here; see Idox_scraper_old.py for the exhaustive list)
-    dates_dict = {'Application Received Date': 'other_fields.date_received',
-                  'Application Validated Date': 'other_fields.date_validated',
+    # 14 + 4 + 1*
+    dates_dict = {'Application Received Date': 'other_fields.date_received',  # Duplicated in summary
+                  'Application Validated Date': 'other_fields.date_validated',  # Duplicated in summary
                   'Date Application Valid': 'other_fields.date_validated',
-                  'Application Valid Date': 'other_fields.date_validated',
-                  'Valid Date': 'other_fields.date_validated',
+                  # Duplicated in summary [NewcastleUnderLyme]
+                  'Application Valid Date': 'other_fields.date_validated',  # Duplicated in summary [Oadby]
+                  'Valid Date': 'other_fields.date_validated',  # New Duplicated in summary [EastHampshire]
                   'Application Registered Date': 'other_fields.date_validated',
+                  # New Duplicated in summary [Hammersmith]
 
                   'Expiry Date': 'other_fields.application_expires_date',
                   'Application Expiry Date': 'other_fields.application_expires_date',
-                  'Statutory Expiry Date': 'other_fields.statutory_expires_date',
+                  # New Duplicate [MiltonKeynes]
+                  'Application Expiry Deadline': 'other_fields.application_expires_date',  # New Duplicate [Sefton]
 
-                  'Expiry Date for Comment': 'other_fields.comment_expires_date',
-                  'Expiry Date for Comments': 'other_fields.comment_expires_date',
-                  'Last Date For Comments': 'other_fields.comment_expires_date',
-                  'Last Date for Comments': 'other_fields.comment_expires_date',
-                  'Closing Date for Comments': 'other_fields.comment_expires_date',
-
+                  'Statutory Expiry Date': 'other_fields.statutory_expires_date',  # New []
+                  #
+                  'Expiry Date for Comment': 'other_fields.comment_expires_date',  # New
+                  'Expiry Date for Comments': 'other_fields.comment_expires_date',  # New Duplicate [Moray]
+                  'Last Date For Comments': 'other_fields.comment_expires_date',  # New Duplicate [Edinburgh]
+                  'Last Date for Comments': 'other_fields.comment_expires_date',  # New Duplicate [Glasgow]
+                  'Last date for public comments': 'other_fields.comment_expires_date',  # New Duplicate [Perth]
+                  'Comments To Be Submitted By': 'other_fields.comment_expires_date',  # New Duplicate [Leeds]
+                  'Closing Date for Comments': 'other_fields.comment_expires_date',  # New Duplicate [Hammersmith]
+                  #
                   'Actual Committee Date': 'other_fields.meeting_date',
-                  'Committee Date': 'other_fields.meeting_date',
-                  'Date of Committee Meeting': 'other_fields.meeting_date',
-
-                  'Neighbour Consultation Expiry Date': 'other_fields.neighbour_consultation_end_date',
+                  'Committee Date': 'other_fields.meeting_date',  # New Duplicate [Chelmsford]
+                  'Actual Committee or Panel Date': 'other_fields.meeting_date',  # New Duplicate [Gedling]
+                  'Date of Committee Meeting': 'other_fields.meeting_date',  # New Duplicate [IOW]
+                  'Committee/Delegated List Date': 'other_fields.meeting_date',  # New Duplicate [WestLothian]
+                  # Neighbour Consultation Date
                   'Latest Neighbour Consultation Date': 'other_fields.neighbour_consultation_start_date',
+                  'Neighbours Last Notified': 'other_fields.neighbour_last_notified_date',
+                  # New [NewcastleUnderLyme]
+                  'Last Date for Neighbours Responses': 'other_fields.last_neighbour_responses_date',
+                  # New [NewcastleUnderLyme]
+                  # Neighbour Consultation Expiry
+                  'Neighbour Consultation Expiry Date': 'other_fields.neighbour_consultation_end_date',
+                  'Neighbour Comments should be submitted by Date': 'other_fields.neighbour_consultation_end_date',
+                  # New Duplicate [Bedford]
+                  'Neighbour Notification Expiry Date': 'other_fields.neighbour_notification_expiry_date',
+                  # New [Sefton]
+                  # Consultee Consultation Date
+                  'Latest Statutory Consultee Consultation Date': 'other_fields.latest_consultee_consultation_date',
+                  # New [Bedford]
+                  'Statutory Consultee Consultation Expiry Date': 'other_fields.consultee_consultation_expiry_date',
+                  # New [Bedford]
+                  # Consultation Expiry
+                  'Standard Consultation Date': 'other_fields.standard_consultation_start_date',
+                  # *** changed from consultation_start to standard_cosultation_start
+                  'Standard Consultation Expiry Date': 'other_fields.standard_consultation_end_date',
+                  # *** changed from consultation_end to standard_cosultation_end
 
-                  'Consultation Expiry Date': 'other_fields.consultation_end_date',
-                  'Consultation Deadline': 'other_fields.consultation_end_date',
-                  'Consultation End Date': 'other_fields.consultation_end_date',
+                  'Consultation Expiry Date': 'other_fields.consultation_end_date',  # New Duplicate [Chelmsford]
+                  'Consultation Deadline': 'other_fields.consultation_end_date',  # New Duplicate [NorthSomerest]
+                  'Consultation Period To End On': 'other_fields.consultation_end_date',  # New Duplicate [Torbay]
+                  'Consultation End Date': 'other_fields.consultation_end_date',  # New Duplicate [TowerHamlets]
 
-                  'Target Date': 'other_fields.target_decision_date',
-                  'Target Date for Decision': 'other_fields.target_decision_date',
-                  'Target Decision Date': 'other_fields.target_decision_date',
+                  'Public Consultation Expiry Date': 'other_fields.public_consultation_end_date',
+                  # New Duplicate [Oadby*** changed from consultation_end to public_xxx]
+                  'Public Consultation End Date': 'other_fields.public_consultation_end_date',
+                  # New Duplicate [IOW]
+                  'Public Consultation Ends': 'other_fields.public_consultation_end_date',
+                  # New Duplicate [Teignbridge]
+
+                  'Overall Consultation Expiry Date': 'other_fields.overall_consultation_expires_date',  # New []
+                  'Overall Date of Consultation Expiry': 'other_fields.overall_consultation_expires_date',
+                  # New Duplicate []
+                  # Advertisement
+                  'Last Advertised In Press Date': 'other_fields.last_advertised_date',
+                  'Advertised in Press Date': 'other_fields.last_advertised_date',  # New Duplicate [Glasgow]
+                  'Latest Advertisement Expiry Date': 'other_fields.latest_advertisement_expiry_date',
+                  'Advertisement Expiry Date': 'other_fields.latest_advertisement_expiry_date',
+                  # New Duplicate [NorthHertfordshire]
+                  # Site Notice
+                  'Last Site Notice Posted Date': 'other_fields.site_notice_start_date',
+                  'Latest Site Notice Expiry Date': 'other_fields.site_notice_end_date',
+                  'Site Notice Expiry Date': 'other_fields.site_notice_end_date',
+                  # New Duplicate [NorthHertfordshire]
+                  # Target Date
                   'Internal Target Date': 'other_fields.target_decision_date',
+                  'Target Date': 'other_fields.target_decision_date',  # New Duplicate [Bedford]
+                  'Target Date for Decision': 'other_fields.target_decision_date',  # New Duplicate [Glasgow]
+                  'Target Decision Date': 'other_fields.target_decision_date',  # New Duplicate [Stroud]
 
+                  'Revised Target Date for Decision': 'other_fields.revised_target_decision_date',  # New [Glasgow]
+                  'Revised Target Decision Date': 'other_fields.revised_target_decision_date',
+                  # New Duplicate [Stroud]
+
+                  'Agreed Extended Target Date': 'other_fields.agreed_extended_target_date',  # New [Teignbridge]
+                  'Agreed Extended Date for Decision': 'other_fields.agreed_extended_decision_date',  # New [IOW]
+                  # Decision Date
                   'Decision Made Date': 'other_fields.decision_date',
-                  'Decision Date': 'other_fields.decision_date',
-                  'Decision Issued Date': 'other_fields.decision_issued_date',
-                  'Decision Printed Date': 'other_fields.decision_published_date',
+                  'Decision Date': 'other_fields.decision_date',  # Duplicated [Hammersmith]
+                  'Decision Issued Date': 'other_fields.decision_issued_date',  # Duplicated in summary
+
+                  'Decision Notice Date': 'other_fields.decision_notice_date',  # New [NewcastleUnderLyme]
+                  'Statutory Decision Date': 'other_fields.statutory_decision_date',  # New [IOW]
+                  'Earliest Decision Date': 'other_fields.earliest_decision_date',  # New [NewcastleUnderLyme]
+                  'Agreed Expiry Date': 'other_fields.agreed_expires_date',  # New
                   'Permission Expiry Date': 'other_fields.permission_expires_date',
 
-                  'Determination Deadline': 'other_fields.determination_date',
+                  'Decision Printed Date': 'other_fields.decision_published_date',
+                  'Decision Due Date': 'other_fields.decision_due_date',  # New [Chelmsford]
+                  'Environmental Impact Assessment Received': 'other_fields.environmental_assessment_date',  # New
+                  # Determination
+                  'Determination Deadline': 'other_fields.determination_date',  # New
+                  'Statutory Determination Deadline': 'other_fields.statutory_determination_deadline',  # New []
+                  'Statutory Determination Date': 'other_fields.statutory_determination_deadline',
+                  # New Duplicate [Oadby]
+                  'Statutory Determination Deadline (Unless there is an Agreed extension date above)': 'other_fields.statutory_determination_deadline',
+                  # New Duplicate [Bedford]
+                  'Extended Determination Deadline': 'other_fields.extended_determination_deadline',
+                  # New [NorthSomerest]
+                  'Agreed Extension to Statutory Determination Deadline': 'other_fields.extended_determination_deadline',
+                  # New Duplicate [Bedford]
+
+                  'Temporary Permission Expiry Date': 'other_fields.temporary_permission_expires_date',  # New
+                  'Local Review Body Decision Date': 'other_fields.local_review_body_decision_date'  # New*
                   }
 
     # ------------------------------------------------------------------
@@ -195,25 +277,12 @@ class Idox_Scraper(Base_Scraper):
         item['session_cookies'] = cookies
         return item
 
-    @staticmethod
-    def is_empty(value):
-        """
-        判断 app_df 中某个字段是否"尚未填充"。
-        Check whether a field in app_df is still unfilled / empty.
-        """
-        if pd.isnull(value):
-            return True
-        text = str(value).strip().lower()
-        return text in ('', 'nan')
-
     def scrape_data(self, app_df, items, item_values, dictionary):
         """
         把一组 (th, td) Selenium WebElement 对, 按 dictionary 映射写入 app_df。
-        与 CivicaJason_scraper.py / Ocella_scraper.py 中同名逻辑保持一致的风格:
         - 已存在且非"see source"的字段不覆盖 (保留最先抓到的数据源);
         - 字典中没有的新字段动态补列。
         Map a batch of (th, td) Selenium WebElement pairs into app_df using `dictionary`.
-        Mirrors the style used in CivicaJason_scraper.py / Ocella_scraper.py:
         - existing, already-filled fields (other than the 'see source' placeholder) are kept;
         - unseen labels are added to app_df as new columns on the fly.
         """
@@ -223,14 +292,14 @@ class Idox_Scraper(Base_Scraper):
             item_value = value.get_attribute('innerText').strip()
             try:
                 current = app_df.at[data_name]
-                if self.is_empty(current) or str(current).strip().lower() == 'see source':
-                    app_df.at[data_name] = item_value
-                    print(f'    <{item_name}> scraped: {item_value}') if PRINT else None
+                if is_empty(current) or str(current).strip().lower() == 'see source':
+                    app_df.at[data_name] = convert_date(item_value)
+                    print(f'    <{item_name}> scraped: {app_df.at[data_name]}') if PRINT else None
                 else:
                     print(f'    <{item_name}> already filled: {current}') if PRINT else None
             except KeyError:
-                app_df[data_name] = item_value
-                print(f'    <{item_name}> scraped (new column): {item_value}') if PRINT else None
+                app_df[data_name] = convert_date(item_value)
+                print(f'    <{item_name}> scraped (new column): {app_df.at[data_name]}') if PRINT else None
         return app_df
 
     # ------------------------------------------------------------------
@@ -304,7 +373,7 @@ class Idox_Scraper(Base_Scraper):
 
         tab_container = content.find_element(By.XPATH, "./div[@class='tabcontainer']")
 
-        # --- 1. Summary (默认就是激活状态, 无需点击) / Summary (active by default, no click needed) ---
+        # --- 1. Summary --- 默认就是激活状态, 无需点击 / active by default, no click needed
         items = tab_container.find_elements(By.XPATH, "./table[@id='simpleDetailsTable']/tbody/tr/th")
         item_values = tab_container.find_elements(By.XPATH, "./table[@id='simpleDetailsTable']/tbody/tr/td")
         print(f'\n1. Summary: {len(items)} items.')
@@ -313,8 +382,7 @@ class Idox_Scraper(Base_Scraper):
         # --- 2. Further Information ---
         try:
             driver.find_element(By.XPATH, '//*[@id="subtab_details"]').click()
-            tbody = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.XPATH, "//table[@id='applicationDetails']/tbody")))
+            tbody = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//table[@id='applicationDetails']/tbody")))
             items = tbody.find_elements(By.XPATH, './tr/th')
             item_values = tbody.find_elements(By.XPATH, './tr/td')
             print(f'\n2. Further Information: {len(items)} items.')
@@ -323,12 +391,10 @@ class Idox_Scraper(Base_Scraper):
             # 部分门户没有这个子标签。/ Some portals don't expose this sub-tab.
             print('\n2. Further Information: sub-tab not found, skipped.')
 
-        # --- 3. Important Dates (复用同一个表格 id, 内容已被 JS 换成日期数据) ---
-        # --- 3. Important Dates (same table id is reused; JS swaps in the dates content) ---
+        # --- 4. Important Dates --- 复用同一个表格 id, 内容已被 JS 换成日期数据 / same table id is reused; JS swaps in the dates content
         try:
             driver.find_element(By.XPATH, '//*[@id="subtab_dates"]').click()
-            tbody = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.XPATH, "//table[@id='simpleDetailsTable']/tbody")))
+            tbody = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//table[@id='simpleDetailsTable']/tbody")))
             items = tbody.find_elements(By.XPATH, './tr/th')
             item_values = tbody.find_elements(By.XPATH, './tr/td')
             print(f'\n3. Important Dates: {len(items)} items.')
@@ -336,11 +402,58 @@ class Idox_Scraper(Base_Scraper):
         except (NoSuchElementException, TimeoutException):
             print('\n3. Important Dates: sub-tab not found, skipped.')
 
+        # --- 3. Contacts ---
+        driver.find_element(By.XPATH, '//*[@id="subtab_contacts"]').click()
+
+        folder_path = f"{self.data_storage_path}{folder_name}/"
+        print(folder_path) if PRINT else None
+        os.makedirs(folder_path, exist_ok=True)
+        #upload_folder(f"{self.data_upload_path}{folder_name}/") if CLOUD_MODE else None
+
+        tabcontainer = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//div[@class='tabcontainer']")))
+        categories = tabcontainer.find_elements(By.XPATH, './div')
+        # 每个联系人一行: [category, name, detail1, detail2, ...]，各行长度可以不同，
+        # 最后统一补齐成矩形表格。这样不需要在爬取过程中动态维护/补齐二维矩阵。
+        # Each contact is one row: [category, name, detail1, detail2, ...].
+        # Rows may have different lengths; we pad them to a rectangle only once,
+        # at the very end — no need to grow/pad a 2D matrix while scraping.
+        rows = []
+        for category in categories:
+            category_name = category.find_element(By.XPATH, './h3').get_attribute('innerText').strip()
+            contact_names = category.find_elements(By.XPATH, './p')  # 每个 <p> 对应一个联系人姓名
+
+            for i, name_selector in enumerate(contact_names, start=1):
+                contact_name = name_selector.get_attribute('innerText').strip()
+                if contact_name is None:
+                    # 部分门户网站在联系人 tab 上有 bug，跳过异常项
+                    # Some portals have bugs on the contacts tab; skip broken entries.
+                    continue
+
+                # 假定第 i 个 <p>(姓名) 对应第 i 个 <table>(联系方式明细)
+                # Assume the i-th <p> (name) corresponds to the i-th <table> (contact details)
+                detail_rows = category.find_elements(By.XPATH, f'./table[{i}]/tbody/tr')
+                details = [f"{tr.find_element(By.XPATH, './th').get_attribute('innerText').strip()}: {tr.find_element(By.XPATH, './td').get_attribute('innerText').strip()}" for tr in detail_rows]
+                rows.append([category_name, contact_name] + details)
+
+        if rows:
+            max_contacts = max(len(r) - 2 for r in rows)  # 减去 category、name 这两列
+            print(f"max number of contact details: {max_contacts}.") if PRINT else None
+
+            columns = ['category', 'name'] + [f'contact{i + 1}' for i in range(max_contacts)]
+            padded_rows = [r + [''] * (max_contacts - (len(r) - 2)) for r in rows]
+
+            contact_df = pd.DataFrame(padded_rows, columns=columns)
+            contact_df.to_csv(f"{folder_path}contacts.csv", index=False)
+            #self.upload_and_delete(folder_name=folder_name, file_name='contacts.csv') if CLOUD_MODE else None
+
+        self.ending(app_df)
+
         # --- 4. 剩下的四个标签 (Comments/Constraints/Documents/RelatedCases) 各自独立成页 ---
         # --- 4. the remaining four tabs each live on their own page ---
         # 用 app_df 里已有的 url 拼出下一个标签的 url (与 comment_url / docs_url 列的构造方式一致)。
         # Build the next tab's url from app_df's own url field (same pattern as the
         # other_fields.comment_url / other_fields.docs_url columns already in the CSV).
+        """
         base_url = app_df.at['url']
         comments_url = base_url.replace('activeTab=summary', 'activeTab=neighbourComments')
         yield SeleniumRequest(url=comments_url, callback=self.parse_public_comments_item,
@@ -348,6 +461,7 @@ class Idox_Scraper(Base_Scraper):
                                     'max_file_name_len': max_file_name_len,
                                     'comment_source': [], 'comment_date': [], 'comment_content': []},
                               dont_filter=True)
+        """
 
     # ------------------------------------------------------------------
     # 5. Comments: 公众意见(neighbourComments) + 法定咨询意见(consulteeComments)
