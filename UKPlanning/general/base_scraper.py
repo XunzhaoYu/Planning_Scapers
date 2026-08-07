@@ -13,7 +13,7 @@ from configs.settings import PRINT, CLOUD_MODE, DEVELOPMENT_MODE
 from general.utils import get_list_storage_path, get_data_storage_path, get_filenames, replace_invalid_characters
 from tools.curl import upload_file, upload_folder
 
-MAX_FILE_PATH_LEN = 240 # 245
+MAX_FILE_PATH_LEN = 230 # 245
 
 class Base_Scraper(scrapy.Spider):
     name = 'Base_Scraper'
@@ -72,7 +72,7 @@ class Base_Scraper(scrapy.Spider):
         if DEVELOPMENT_MODE:
             # sample one application of self.auth per year in the given range of years.
             # 在给定years的范围内对authority进行每年一个application的采样
-            test_index, test_year_from, test_year_end = 10, 0, 3  # Variables for test / development.
+            test_index, test_year_from, test_year_end = 5, 0, 2  # Variables for test / development.
             app_dfs = []
             filenames = get_filenames(f"{get_list_storage_path()}{self.auth}/")
             print(f"{self.auth}. number of files: {len(filenames)}")
@@ -197,16 +197,19 @@ class Base_Scraper(scrapy.Spider):
             app_df = self.app_dfs.iloc[self.index, :]
             url = app_df.at['url']
             print(f"\n{app_df.name}, start url: {url}")
-            while type(url) != str:
-                self.index += 1
-                app_df = self.app_dfs.iloc[self.index, :]
-                url = app_df.at['url']
-                print(f"\n{app_df.name}, start url: {url}")
+
+            if self.url_check:
+                if pd.isna(url):
+                    url = str(url)
+                url = self.url_preprocess(url)
+            else:
+                while type(url) != str:
+                    self.index += 1
+                    app_df = self.app_dfs.iloc[self.index, :]
+                    url = app_df.at['url']
+                    print(f"\n{app_df.name}, start url: {url}")
             print(app_df) if PRINT else None
 
-            #url = 'https://planning.warrington.gov.uk/swiftlg/apas/run/WPHAPPDETAIL.DisplayUrl?theApnID=A00/40759'
-            if self.url_check:
-                url = self.url_preprocess(url)
             # yield SeleniumRequest(url=url, callback=self.parse_data_item, meta={'app_df': app_df})
             # yield SeleniumRequest(url=url, callback=self.parse_func, meta={'app_df': app_df})  # para: dont_filter=True
             if self.use_IP_proxies:
@@ -226,8 +229,7 @@ class Base_Scraper(scrapy.Spider):
         folder_name = replace_invalid_characters(folder_name)
         folder_path = f"{self.data_storage_path}{folder_name}/"
         print(folder_path) if PRINT else None
-        if not os.path.exists(folder_path):
-            os.mkdir(folder_path)
+        os.makedirs(folder_path, exist_ok=True)
         upload_folder(f"{self.data_upload_path}{folder_name}/") if CLOUD_MODE else None
         return folder_name
 
