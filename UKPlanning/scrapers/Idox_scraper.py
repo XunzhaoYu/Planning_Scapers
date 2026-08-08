@@ -403,52 +403,56 @@ class Idox_Scraper(Base_Scraper):
             print('\n3. Important Dates: sub-tab not found, skipped.')
 
         # --- 4. Contacts ---
-        driver.find_element(By.XPATH, '//*[@id="subtab_contacts"]').click()
-        print(f'\n4. Contacts.')
+        def scrape_contacts():
+            tabcontainer = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//div[@class='tabcontainer']")))
+            categories = tabcontainer.find_elements(By.XPATH, './div')
+            # 每个联系人一行: [category, name, detail1, detail2, ...]，各行长度可以不同，
+            # 最后统一补齐成矩形表格。这样不需要在爬取过程中动态维护/补齐二维矩阵。
+            # Each contact is one row: [category, name, detail1, detail2, ...].
+            # Rows may have different lengths; we pad them to a rectangle only once,
+            # at the very end — no need to grow/pad a 2D matrix while scraping.
+            rows = []
+            for category in categories:
+                category_name = category.find_element(By.XPATH, './h3').get_attribute('innerText').strip()
+                contact_names = category.find_elements(By.XPATH, './p')  # 每个 <p> 对应一个联系人姓名
+
+                for i, name_selector in enumerate(contact_names, start=1):
+                    contact_name = name_selector.get_attribute('innerText').strip()
+                    if contact_name is None:
+                        # 部分门户网站在联系人 tab 上有 bug，跳过异常项
+                        # Some portals have bugs on the contacts tab; skip broken entries.
+                        continue
+
+                    # 假定第 i 个 <p>(姓名) 对应第 i 个 <table>(联系方式明细)
+                    # Assume the i-th <p> (name) corresponds to the i-th <table> (contact details)
+                    detail_rows = category.find_elements(By.XPATH, f'./table[{i}]/tbody/tr')
+                    details = [f"{tr.find_element(By.XPATH, './th').get_attribute('innerText').strip()}: {tr.find_element(By.XPATH, './td').get_attribute('innerText').strip()}" for tr in detail_rows]
+                    rows.append([category_name, contact_name] + details)
+
+            if rows:
+                print(f'    {rows}')
+                max_contacts = max(len(r) - 2 for r in rows)  # 减去 category、name 这两列
+                #print(f"max number of contact details: {max_contacts}.") if PRINT else None
+                columns = ['category', 'name'] + [f'contact{i + 1}' for i in range(max_contacts)]
+                padded_rows = [r + [''] * (max_contacts - (len(r) - 2)) for r in rows]
+
+                contact_df = pd.DataFrame(padded_rows, columns=columns)
+                contact_df.to_csv(f"{folder_path}contacts.csv", index=False)
+                #self.upload_and_delete(folder_name=folder_name, file_name='contacts.csv') if CLOUD_MODE else None
+
         folder_path = f"{self.data_storage_path}{folder_name}/"
         print(f'    folder path: {folder_path}') if PRINT else None
-
-        tabcontainer = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//div[@class='tabcontainer']")))
-        categories = tabcontainer.find_elements(By.XPATH, './div')
-        # 每个联系人一行: [category, name, detail1, detail2, ...]，各行长度可以不同，
-        # 最后统一补齐成矩形表格。这样不需要在爬取过程中动态维护/补齐二维矩阵。
-        # Each contact is one row: [category, name, detail1, detail2, ...].
-        # Rows may have different lengths; we pad them to a rectangle only once,
-        # at the very end — no need to grow/pad a 2D matrix while scraping.
-        rows = []
-        for category in categories:
-            category_name = category.find_element(By.XPATH, './h3').get_attribute('innerText').strip()
-            contact_names = category.find_elements(By.XPATH, './p')  # 每个 <p> 对应一个联系人姓名
-
-            for i, name_selector in enumerate(contact_names, start=1):
-                contact_name = name_selector.get_attribute('innerText').strip()
-                if contact_name is None:
-                    # 部分门户网站在联系人 tab 上有 bug，跳过异常项
-                    # Some portals have bugs on the contacts tab; skip broken entries.
-                    continue
-
-                # 假定第 i 个 <p>(姓名) 对应第 i 个 <table>(联系方式明细)
-                # Assume the i-th <p> (name) corresponds to the i-th <table> (contact details)
-                detail_rows = category.find_elements(By.XPATH, f'./table[{i}]/tbody/tr')
-                details = [f"{tr.find_element(By.XPATH, './th').get_attribute('innerText').strip()}: {tr.find_element(By.XPATH, './td').get_attribute('innerText').strip()}" for tr in detail_rows]
-                rows.append([category_name, contact_name] + details)
-
-        if rows:
-            print(f'    {rows}')
-            max_contacts = max(len(r) - 2 for r in rows)  # 减去 category、name 这两列
-            #print(f"max number of contact details: {max_contacts}.") if PRINT else None
-            columns = ['category', 'name'] + [f'contact{i + 1}' for i in range(max_contacts)]
-            padded_rows = [r + [''] * (max_contacts - (len(r) - 2)) for r in rows]
-
-            contact_df = pd.DataFrame(padded_rows, columns=columns)
-            contact_df.to_csv(f"{folder_path}contacts.csv", index=False)
-            #self.upload_and_delete(folder_name=folder_name, file_name='contacts.csv') if CLOUD_MODE else None
+        try:
+            driver.find_element(By.XPATH, '//*[@id="subtab_contacts"]').click()
+            print(f'\n4. Contacts.')
+            scrape_contacts()
+        except (NoSuchElementException, TimeoutException):
+            print('\n4. Contacts: sub-tab not found, skipped.')
 
         # ------------------------------------------------------------------
         # 5. Comments: 公众意见(neighbourComments) + 法定咨询意见(consulteeComments)
         # 5. Comments: public (neighbourComments) + statutory-consultee (consulteeComments) responses
         # ------------------------------------------------------------------
-        @staticmethod
         def scrape_comments(comments, comment_source, comment_date, comment_content):
             """
             解析一页评论列表, 抽取来源/日期/正文, 追加进传入的三个 list。
@@ -614,6 +618,115 @@ class Idox_Scraper(Base_Scraper):
                                         'max_file_name_len': response.meta['max_file_name_len']},
                                   dont_filter=True)
 
+        # ------------------------------------------------------------------
+        # 6. Constraints (规划限制条件, 例如是否在保护区/洪泛区内等)
+        # 6. Constraints (planning constraints, e.g. conservation area / flood zone, etc.)
+        # ------------------------------------------------------------------
+        def scrape_constraints():
+            # 表格首行是表头, 需要跳过。/ The first row is the header row, skip it.
+            constraint_table = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="caseConstraints"]/tbody')))
+            rows = constraint_table.find_elements(By.XPATH, './tr')[1:]
+            n_constraints = len(rows)
+            app_df.at['other_fields.n_constraints'] = n_constraints
+            print(f'\n6. Constraints: {n_constraints} items.') if PRINT else None
+
+            if n_constraints > 0:
+                constraint_df = pd.DataFrame({
+                    'name': [row.xpath('./td[1]/text()').get() for row in rows],
+                    'type': [row.xpath('./td[2]/text()').get() for row in rows],
+                    'status': [row.xpath('./td[3]/text()').get() for row in rows],
+                })
+                constraint_df.to_csv(f"{folder_path}/constraints.csv", index=False)
+                #self.upload_and_delete(folder_name=folder_name, file_name='constraints.csv') if CLOUD_MODE else None
+
+        try:
+            driver.find_element(By.XPATH, '//*[@id="tab_constraints"]').click()
+            scrape_constraints()
+        except (NoSuchElementException, TimeoutException):
+            print('\n6. Constraints: sub-tab not found, skipped.')
+
+        # ------------------------------------------------------------------
+        # 7. Documents (附件下载)
+        # 7. Documents (attachment download)
+        # ------------------------------------------------------------------
+
+        def parse_documents_item(self, response):
+            app_df = response.meta['app_df']
+            folder_name = response.meta['folder_name']
+
+            # 复用项目里已有、经过验证的 Idox 原生文档解析工具函数, 避免重复造轮子。
+            # (旧版 Idox_scraper_old.py 的 'documents' 分支也是调用这个工具函数。)
+            # Reuse the project's existing, already-tested helper for native Idox document
+            # listings instead of re-implementing the parsing logic here.
+            # (Idox_scraper_old.py's 'documents' branch also delegates to this same helper.)
+            file_urls, document_names = get_documents(response, self.data_upload_path, folder_name)
+            n_documents = len(file_urls)
+            app_df.at['other_fields.n_documents'] = n_documents
+            print(f'\n7. Documents: {n_documents} items, folder_name: {folder_name}.') if PRINT else None
+
+            if n_documents > 0:
+                driver = response.request.meta['driver']
+                item = self.create_item(driver, folder_name, file_urls, document_names)
+                yield item
+
+            related_url = app_df.at['url'].replace('activeTab=summary', 'activeTab=relatedCases')
+            yield SeleniumRequest(url=related_url, callback=self.parse_related_cases_item,
+                                  meta={'app_df': app_df, 'folder_name': folder_name},
+                                  dont_filter=True)
+
+        # ------------------------------------------------------------------
+        # 8. Related Cases (用来反查 UPRN / 房产唯一编号)
+        # 8. Related Cases (used to look up the UPRN / unique property reference number)
+        # ------------------------------------------------------------------
+
+        def parse_related_cases_item(self, response):
+            app_df = response.meta['app_df']
+
+            try:
+                n_properties = response.xpath('//*[@id="Property"]/h2/span/text()').get()
+                if n_properties is None:
+                    n_properties = response.xpath('//*[@id="Property"]/h3/span/text()').get()
+                n_properties = int(re.search(r'\d+', n_properties).group())
+            except (TypeError, AttributeError):
+                n_properties = 0
+            print(f'\n8. Related Cases: {n_properties} linked properties.') if PRINT else None
+
+            if n_properties == 0:
+                self.ending(app_df)
+                return
+
+            if n_properties == 1:
+                property_url = response.xpath('//*[@id="Property"]/ul/li/a/@href').get()
+            else:
+                # 多个关联房产时, 用地址做模糊匹配, 找出最接近当前申请地址的那一个。
+                # When several properties are linked, fuzzy-match against the application's
+                # own address to find the closest one.
+                import difflib
+                properties = response.xpath('//*[@id="Property"]/ul/li')
+                property_names = [p.xpath('./a/text()').get().strip() for p in properties]
+                try:
+                    matched = difflib.get_close_matches(app_df.at['address'], property_names, n=1)[0]
+                    matched_index = property_names.index(matched)
+                    property_url = response.xpath(f'//*[@id="Property"]/ul/li[{matched_index + 1}]/a/@href').get()
+                except IndexError:
+                    property_url = None
+
+            if property_url is None:
+                self.ending(app_df)
+                return
+
+            property_url = response.urljoin(property_url)
+            yield SeleniumRequest(url=property_url, callback=self.parse_uprn_item, meta={'app_df': app_df})
+
+        def parse_uprn_item(self, response):
+            app_df = response.meta['app_df']
+            uprn = response.xpath('//*[@id="propertyAddress"]/tbody/tr[1]/td/text()').get()
+            if uprn:
+                app_df.at['other_fields.uprn'] = uprn.strip()
+                print(f"<UPRN> scraped: {app_df.at['other_fields.uprn']}") if PRINT else None
+            self.ending(app_df)
+
+
         self.ending(app_df)
 
         # --- 4. 剩下的四个标签 (Comments/Constraints/Documents/RelatedCases) 各自独立成页 ---
@@ -630,113 +743,3 @@ class Idox_Scraper(Base_Scraper):
                                     'comment_source': [], 'comment_date': [], 'comment_content': []},
                               dont_filter=True)
         """
-    # ------------------------------------------------------------------
-    # 6. Constraints (规划限制条件, 例如是否在保护区/洪泛区内等)
-    # 6. Constraints (planning constraints, e.g. conservation area / flood zone, etc.)
-    # ------------------------------------------------------------------
-
-    def parse_constraints_item(self, response):
-        app_df = response.meta['app_df']
-        folder_name = response.meta['folder_name']
-
-        # 表格首行是表头, 需要跳过。/ The first row is the header row, skip it.
-        rows = response.xpath('//*[@id="caseConstraints"]/tbody/tr')[1:]
-        n_constraints = len(rows)
-        app_df.at['other_fields.n_constraints'] = n_constraints
-        print(f'\n6. Constraints: {n_constraints} items.') if PRINT else None
-
-        if n_constraints > 0:
-            constraint_df = pd.DataFrame({
-                'name': [row.xpath('./td[1]/text()').get() for row in rows],
-                'type': [row.xpath('./td[2]/text()').get() for row in rows],
-                'status': [row.xpath('./td[3]/text()').get() for row in rows],
-            })
-            constraint_df.to_csv(f"{self.data_storage_path}{folder_name}/constraints.csv", index=False)
-
-        docs_url = app_df.at['url'].replace('activeTab=summary', 'activeTab=documents')
-        app_df.at['other_fields.docs_url'] = docs_url
-        yield SeleniumRequest(url=docs_url, callback=self.parse_documents_item,
-                              meta={'app_df': app_df, 'folder_name': folder_name,
-                                    'max_file_name_len': response.meta['max_file_name_len']},
-                              dont_filter=True)
-
-    # ------------------------------------------------------------------
-    # 7. Documents (附件下载)
-    # 7. Documents (attachment download)
-    # ------------------------------------------------------------------
-
-    def parse_documents_item(self, response):
-        app_df = response.meta['app_df']
-        folder_name = response.meta['folder_name']
-
-        # 复用项目里已有、经过验证的 Idox 原生文档解析工具函数, 避免重复造轮子。
-        # (旧版 Idox_scraper_old.py 的 'documents' 分支也是调用这个工具函数。)
-        # Reuse the project's existing, already-tested helper for native Idox document
-        # listings instead of re-implementing the parsing logic here.
-        # (Idox_scraper_old.py's 'documents' branch also delegates to this same helper.)
-        file_urls, document_names = get_documents(response, self.data_upload_path, folder_name)
-        n_documents = len(file_urls)
-        app_df.at['other_fields.n_documents'] = n_documents
-        print(f'\n7. Documents: {n_documents} items, folder_name: {folder_name}.') if PRINT else None
-
-        if n_documents > 0:
-            driver = response.request.meta['driver']
-            item = self.create_item(driver, folder_name, file_urls, document_names)
-            yield item
-
-        related_url = app_df.at['url'].replace('activeTab=summary', 'activeTab=relatedCases')
-        yield SeleniumRequest(url=related_url, callback=self.parse_related_cases_item,
-                              meta={'app_df': app_df, 'folder_name': folder_name},
-                              dont_filter=True)
-
-    # ------------------------------------------------------------------
-    # 8. Related Cases (用来反查 UPRN / 房产唯一编号)
-    # 8. Related Cases (used to look up the UPRN / unique property reference number)
-    # ------------------------------------------------------------------
-
-    def parse_related_cases_item(self, response):
-        app_df = response.meta['app_df']
-
-        try:
-            n_properties = response.xpath('//*[@id="Property"]/h2/span/text()').get()
-            if n_properties is None:
-                n_properties = response.xpath('//*[@id="Property"]/h3/span/text()').get()
-            n_properties = int(re.search(r'\d+', n_properties).group())
-        except (TypeError, AttributeError):
-            n_properties = 0
-        print(f'\n8. Related Cases: {n_properties} linked properties.') if PRINT else None
-
-        if n_properties == 0:
-            self.ending(app_df)
-            return
-
-        if n_properties == 1:
-            property_url = response.xpath('//*[@id="Property"]/ul/li/a/@href').get()
-        else:
-            # 多个关联房产时, 用地址做模糊匹配, 找出最接近当前申请地址的那一个。
-            # When several properties are linked, fuzzy-match against the application's
-            # own address to find the closest one.
-            import difflib
-            properties = response.xpath('//*[@id="Property"]/ul/li')
-            property_names = [p.xpath('./a/text()').get().strip() for p in properties]
-            try:
-                matched = difflib.get_close_matches(app_df.at['address'], property_names, n=1)[0]
-                matched_index = property_names.index(matched)
-                property_url = response.xpath(f'//*[@id="Property"]/ul/li[{matched_index + 1}]/a/@href').get()
-            except IndexError:
-                property_url = None
-
-        if property_url is None:
-            self.ending(app_df)
-            return
-
-        property_url = response.urljoin(property_url)
-        yield SeleniumRequest(url=property_url, callback=self.parse_uprn_item, meta={'app_df': app_df})
-
-    def parse_uprn_item(self, response):
-        app_df = response.meta['app_df']
-        uprn = response.xpath('//*[@id="propertyAddress"]/tbody/tr[1]/td/text()').get()
-        if uprn:
-            app_df.at['other_fields.uprn'] = uprn.strip()
-            print(f"<UPRN> scraped: {app_df.at['other_fields.uprn']}") if PRINT else None
-        self.ending(app_df)
