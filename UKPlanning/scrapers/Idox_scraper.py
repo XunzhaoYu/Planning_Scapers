@@ -371,7 +371,7 @@ class Idox_Scraper(Base_Scraper):
             note = response.xpath('//*[@id="main-content"]/article/h1/text()').get()
             print('note: ', note)
             return
-
+        """
         tab_container = content.find_element(By.XPATH, "./div[@class='tabcontainer']")
 
         # --- 1. Summary --- 默认就是激活状态, 无需点击 / active by default, no click needed
@@ -402,7 +402,7 @@ class Idox_Scraper(Base_Scraper):
             app_df = self.scrape_data(app_df, items, item_values, self.dates_dict)
         except (NoSuchElementException, TimeoutException):
             print('\n3. Important Dates: sub-tab not found, skipped.')
-
+        """
         # --- 4. Contacts ---
         def scrape_contacts():
             tabcontainer = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//div[@class='tabcontainer']")))
@@ -651,207 +651,50 @@ class Idox_Scraper(Base_Scraper):
         # 7. Documents (附件下载)
         # 7. Documents (attachment download)
         # ------------------------------------------------------------------
-        def scrape_documents():
+        def get_n_documents(mode):
+            if mode == 'documents':
+                ### get n_documents ###
+                documents_str = (
+                        response.xpath('//*[@id="tab_documents"]/span/text()').get()
+                        or response.xpath('//*[@id="pa"]/div[3]/div[3]/ul/li[3]/span/text()').get()
+                )
+                #if documents_str is None:
+                #    n_documents = 0
+                match = re.search(r'\d+', documents_str) if documents_str else None
+                if match:
+                    n_documents = int(match.group())
+                else:
+                    n_documents = len(response.xpath('//*[@id="Documents"]/tbody/tr')[1:])
+                return n_documents
+            else:
+                return 0
+
+        try:
+            current_url = driver.current_url
+            driver.find_element(By.XPATH, '//*[@id="tab_documents"]').click()
+            while driver.current_url == current_url:
+                time.sleep(random.uniform(0.3, 0.7))
+
+            # 获取文档界面的模式类型/get the mode of document pages.
             try:
-                #mode_str = response.request.url.split('activeTab=')[1]
-                mode_str = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="caseConstraints"]/tbody')))
+                mode_str = driver.current_url.split('activeTab=')[1]
                 mode = mode_str.split('&')[0]
             except IndexError as error:
                 mode = 'associatedDocuments'
 
+            # 分类型获取文档/get documents based on document mode.
+            n_documents = get_n_documents(mode)
+            print(f'\n7. Documents <{mode}>: {n_documents} items, folder_name: {folder_name}.') if PRINT else None
 
-            if mode == 'documents':
-                ### get n_documents ###
-                documents_str = response.xpath('//*[@id="tab_documents"]/span/text()').get()
-                if documents_str is None:
-                    documents_str = response.xpath('//*[@id="pa"]/div[3]/div[3]/ul/li[3]/span/text()').get()
-                if documents_str is None:
-                    n_documents = 0
-                    print(f"{app_df.name} <doc mode> n_documents: {n_documents}. (None)")
-                else:
-                    try:
-                        n_documents = int(re.search(r"\d+", documents_str).group())
-                    except AttributeError:
-                        n_documents = len(response.xpath('//*[@id="Documents"]/tbody/tr')[1:])
-                    time_cost = time.time() - self.start_time
-                    # print(f"<doc mode> n_documents: {n_documents}")
-                    print(f"{app_df.name} <doc mode> n_documents: {n_documents}, folder_name: {folder_name}",
-                          " time_cost: {:.0f} mins {:.4f} secs.".format(time_cost // 60, time_cost % 60))
-                # other_fields.n_documents
-                app_df.at['other_fields.n_documents'] = n_documents
-
-                ### download documents ###
-                if n_documents > 0:
-                    # document_names, file_urls = self.rename_documents_and_get_file_urls(response, self.data_upload_path, folder_name)
-                    file_urls, document_names = get_documents(response, self.data_upload_path, folder_name)
-                    item = self.create_item(folder_name, file_urls, document_names)
-                    yield item
-
-            #print(f'\n7. Documents: {n_documents} items, folder_name: {folder_name}.') if PRINT else None
-            elif mode == 'externalDocuments':  # Identify and redirect to the associated third-party document systems.
-                docs_url = response.css('div.tabcontainer.toplevel').xpath('./p/a/@href').get()
-                # docs_url = response.xpath('//*[@id="pa"]/div[3]/div[3]/div[3]/p/a/@href').get()
-                # Civica:       //*[@id="pa"]/div[3]/div[3]/div[3]/p/a
-                # NEC:          //*[@id="pa"]/div[3]/div[3]/div[3]/p/a
-                # Northgate:    //*[@id="pa"]/div[3]/div[3]/div[9]/p/a
-                app_df.at['other_fields.docs_url'] = docs_url
-                print(f'<{mode}> external document link:', docs_url)
-                yield SeleniumRequest(url=docs_url, callback=self.parse_documents_item,
-                                      meta={'app_df': app_df, 'folder_name': folder_name})
-                return
-            elif mode == 'associatedDocuments':  # Scrape the associated third-party document systems.
-                mode_str = response.request.url.split('?')[1]
-                print('mode_str: ', mode_str) if PRINT else None
-                system_name = 'Unknown'
-                # if 'SDescription' in mode_str or 'ref_no' in mode_str:
-                if any(x in mode_str for x in ('SDescription', 'ref_no')):
-                    """ Civica [13 LAs] examples:
-                    [4]
-                    [41]
-                    [86]
-                    [117]
-                    [123]
-                    https://myserviceplanning.gateshead.gov.uk/Planning/planning-documents?SDescription=DC/03/01849/FUL
-                    [155 Norwich| SDescription |Civica 2006] https://documents.norwich.gov.uk/Planning/dialog.page?org.apache.shale.dialog.DIALOG_NAME=gfplanningsearch&Param=lg.Planning&viewdocs=true&SDescription=06/00022/F
-                    [***168 ]
-                    [171]
-                    [177]
-                    [192]
-                    [198]
-                    [202]
-                    [242]
-                    https://documents.richmondshire.gov.uk/planning/planning-documents?SDescription=03/01572/LBC&viewdocs=true
-                    https://padocs.lewes-eastbourne.gov.uk/planning/planning-documents?ref_no=LW/04/0007
-                    """
-                    system_name = 'Civica'
-                elif 'SEARCH_TYPE' in mode_str or 'FileSystemId' in mode_str or 'doc_class_code' in mode_str:
-                    """
-                    NEC [9 LAs]:
-                    [2 AdurWorthing| FileSystemId] https://docs.adur-worthing.gov.uk/PublicAccess_Live/SearchResult/RunThirdPartySearch?FileSystemId=DA&FOLDER1_REF=SU/1/01/TP/18916
-                    [31 Bury| SEARCH_TYPE] https://pad-planning.bury.gov.uk/AniteIM.WebSearch/ExternalEntryPoint.aspx?SEARCH_TYPE=1&DOC_CLASS_CODE=DC&FOLDER1_REF=49332
-                    [60 DerbyshireDales| SEARCH_TYPE] https://plandocs.derbyshiredales.gov.uk/PublicAccess_Live/ExternalEntryPoint.aspx?SEARCH_TYPE=1&DOC_CLASS_CODE=PD&FOLDER1_REF=04/01/0027
-                    [***95 Hambleton*** |?] 
-                    [113 Knowsley| FileSystemId] https://epa2.knowsley.gov.uk/PublicAccess_Live/SearchResult/RunThirdPartySearch?FileSystemId=DC&FOLDER1_REF=04/00001/FUL
-                    [115 Lancaster| FileSystemId] https://planningdocstest.lancaster.gov.uk/PublicAccess_Live/SearchResult/RunThirdPartySearch?Folder1_Ref=03/00007/FUL&FileSystemId=DC 
-                    [147 NorthHertfordshire| doc_class_code] https://documentportal.north-herts.gov.uk/GetDocList/Default.aspx?doc_class_code=DC&case_number=03/00004/1
-                    [170 Rhondda| SEARCH_TYPE] https://documents0122.rctcbc.gov.uk/Publicaccess_Live/ExternalEntrypoint.aspx?SEARCH_TYPE=1&DOC_CLASS_CODE=DC&folder1_ref=01/6003/10
-                    [***182 Selby***download error| FileSystemId] http://publicaccess1.selby.gov.uk/PublicAccess_LIVE/SearchResult/RunThirdPartySearch?FileSystemId=PL&FOLDER1_REF=CO/2004/0021
-
-                    Northgate [7 LAs]:
-                    [105 Hinckley| SEARCH_TYPE] https://publicdocuments.hinckley-bosworth.gov.uk/PublicAccess_LIVE/ExternalEntryPoint.aspx?SEARCH_TYPE=1&DOC_CLASS_CODE=PL&FOLDER1_REF=11/00935/FUL
-                    [106 Horsham| FileSystemId] https://iawpa.horsham.gov.uk/PublicAccess_LIVE/SearchResult/RunThirdPartySearch?FileSystemId=DH&FOLDER1_REF=DC/14/0006
-                    [108 Huntingdonshire| FileSystemId] https://docs.huntingdonshire.gov.uk/PublicAccess_Live/SearchResult/RunThirdPartySearch?FileSystemId=PS&FOLDER1_REF=1102106FUL
-                    [129 MerthyrTydfil| FileSystemId] https://enterprise.merthyr.gov.uk/PublicAccess_LIVE/SearchResult/RunThirdPartySearch?FileSystemId=DC&FOLDER1_REF=P/12/0009
-                    [133 MidSussex| FileSystemId] https://padocs.midsussex.gov.uk/PublicAccess_Live/SearchResult/RunThirdPartySearch?FileSystemId=DM&FOLDER1_REF=DM/22/0020
-                    [135 MiltonKeynes| FileSystemId] https://npaedms.milton-keynes.gov.uk/PublicAccess_LIVE/SearchResult/RunThirdPartySearch?FileSystemId=DC&FOLDER1_REF=18/00002/FUL
-                    [143 Newport| FileSystemId] https://documents.newport.gov.uk/PublicAccess_LIVE/SearchResult/RunThirdPartySearch?FileSystemId=PL&FOLDER1_REF=12/0004]
-                    """
-                    try:
-                        powered_by = response.css('.powered-by').xpath('./a/text()').get()
-                        print(powered_by)
-                        if 'NEC' in powered_by:
-                            system_name = 'NEC'
-                        elif 'Northgate' in powered_by:
-                            system_name = 'Northgate'
-                    except TypeError:
-                        copyright = response.xpath('//*[@id="tblFooter"]/tbody/tr/td/p/text()').get()
-                        if 'NEC' in copyright:
-                            system_name = 'NEC'
-                        elif 'Northgate' in copyright:
-                            system_name = 'Northgate'
-                elif 'appref' in mode_str:
-                    # [81] Exeter https://exeter.gov.uk/planning-services/permissions-and-applications/related-documents?appref=06/0009/FUL
-                    system_name = 'Exeter'
-
-                    driver = response.request.meta["driver"]
-                    document_tree = WebDriverWait(driver, 10).until(
-                        EC.visibility_of_element_located((By.CLASS_NAME, 'tree')))
-                    # //*[@id="main-content"]/div/div[1]/article/section/div[2]
-                    document_items = document_tree.find_elements(By.XPATH, '//*[@id="1"]')
-                    n_documents = len(document_items)
-                    print(f"{app_df.name} <{system_name} mode> n_documents: {n_documents}, folder_name: {folder_name}")
-                    app_df.at['other_fields.n_documents'] = n_documents
-
-                    ### download documents ###
-                    if n_documents > 0:
-                        file_urls, document_names = get_Exeter_documents(response, document_tree, n_documents, self.data_upload_path, folder_name)
-                        item = self.create_item(folder_name, file_urls, document_names)
-                        yield item
-
-                if system_name == 'Unknown':
-                    print('Unknown document system.')
-
-                if system_name == 'Civica':  # Ryedale
-                    ### get n_documents ###
-                    driver = response.request.meta["driver"]
-                    # application_viewer = '//*[@id="applicationviewer"]'
-                    # civica_document_list = '//*[@id="applicationviewer"]/div/div/div[2]/div/div[3]/div'
-                    # civica_doclist = '//*[@id="applicationviewer"]/div/div/div[2]/div/div[3]/div/div/div/div'
-                    Civica_version = 2024
-                    try:
-                        # document_list = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, f'{civica_doclist}/ul')))
-                        document_list = WebDriverWait(driver, 10).until(
-                            EC.visibility_of_element_located((By.CLASS_NAME, 'civica-doclist')))
-                        document_items = document_list.find_elements(By.XPATH, './ul/li')
-                        # print('driver document items', document_items)
-                        n_documents = len(document_items)
-                    except TimeoutException:
-                        try:
-                            document_list = WebDriverWait(driver, 10).until(
-                                EC.visibility_of_element_located((By.ID, '_id58:data:tbody_element')))
-                            document_items = document_list.find_elements(By.XPATH, './tr')
-                            n_documents = len(document_items)
-                            Civica_version = 2006
-                        except TimeoutException:
-                            print('No documents are available.') if PRINT else None
-                            n_documents = 0
-
-                    print(
-                        f"{app_df.name} <{system_name} mode (ver.{Civica_version})> n_documents: {n_documents}, folder_name: {folder_name}")
-                    app_df.at['other_fields.n_documents'] = n_documents
-
-                    ### download documents ###
-                    if n_documents > 0:
-                        file_urls, document_names = get_Civica_documents(response, document_items, n_documents, self.data_upload_path, folder_name, Civica_version)
-                        item = self.create_item(folder_name, file_urls, document_names)
-                        yield item
-
-                if system_name == 'NEC' or system_name == 'Northgate':
-                    # NEC: AdurWorthing, Bury
-                    ### get n_documents ###
-                    version = 2024
-                    try:
-                        documents_str = response.xpath(
-                            '//*[@id="searchResult_info"]/text()').get()  # documents_str = 'Showing 1 to 10 of {n_documents} entries'
-                        documents_str = documents_str.split('of')[1]  # documents_str = '{n_documents} entries'
-                        n_documents = int(re.search(r"\d+", documents_str).group())
-                    except AttributeError:
-                        try:
-                            # //*[@id="PanelMain"]/div[1]
-                            documents_str = response.css('div.TitleLabel').xpath('./text()').get()  # documents_str = 'Search Results - {n_documents} records found'
-                            n_documents = int(re.search(r"\d+", documents_str).group())
-                            version = 2009
-                        except TypeError:
-                            print('No documents are available.') if PRINT else None
-                            n_documents = 0
-
-                    print(f"{app_df.name} <{system_name} mode (ver.{version})> n_documents: {n_documents}, folder_name: {folder_name}")
-                    app_df.at['other_fields.n_documents'] = n_documents
-
-                    ### download documents ###
-                    if n_documents > 0:
-                        file_urls, document_names = get_NEC_or_Northgate_documents(response, n_documents, self.data_upload_path, folder_name,                                                                              version)
-                        item = self.create_item(folder_name, file_urls, document_names)
-                        yield item
-            else:
-                print('Unknown document mode.')
-
-        try:
-            driver.find_element(By.XPATH, '//*[@id="tab_documents"]').click()
-            scrape_documents()
         except (NoSuchElementException, TimeoutException):
-            app_df.at['other_fields.n_documents'] = 0
+            n_documents = 0
             print('\n7. Documents: sub-tab not found, skipped.')
+        app_df.at['other_fields.n_documents'] = n_documents
+        if n_documents > 0:
+            # document_names, file_urls = self.rename_documents_and_get_file_urls(response, self.data_upload_path, folder_name)
+            file_urls, document_names = get_documents(driver, response, self.data_upload_path, folder_name, max_file_name_len)
+            item = self.create_item(driver, folder_name, file_urls, document_names)
+            yield item
 
             """
             related_url = app_df.at['url'].replace('activeTab=summary', 'activeTab=relatedCases')
