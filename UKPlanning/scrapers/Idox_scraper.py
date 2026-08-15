@@ -649,7 +649,7 @@ class Idox_Scraper(Base_Scraper):
 
         # ------------------------------------------------------------------
         # 7. Documents (附件下载)
-        # 7. Documents (attachment download)
+        # 7. Documents (attachment download), mode: documents
         # ------------------------------------------------------------------
         def get_n_documents(mode):
             if mode == 'documents':
@@ -689,6 +689,7 @@ class Idox_Scraper(Base_Scraper):
         except (NoSuchElementException, TimeoutException):
             n_documents = 0
             print('\n7. Documents: sub-tab not found, skipped.')
+
         app_df.at['other_fields.n_documents'] = n_documents
         if n_documents > 0:
             # document_names, file_urls = self.rename_documents_and_get_file_urls(response, self.data_upload_path, folder_name)
@@ -707,26 +708,17 @@ class Idox_Scraper(Base_Scraper):
         # 8. Related Cases (用来反查 UPRN / 房产唯一编号)
         # 8. Related Cases (used to look up the UPRN / unique property reference number)
         # ------------------------------------------------------------------
-
-        def parse_related_cases_item(self, response):
-            app_df = response.meta['app_df']
-
-            try:
-                n_properties = response.xpath('//*[@id="Property"]/h2/span/text()').get()
-                if n_properties is None:
-                    n_properties = response.xpath('//*[@id="Property"]/h3/span/text()').get()
-                n_properties = int(re.search(r'\d+', n_properties).group())
-            except (TypeError, AttributeError):
-                n_properties = 0
+        def get_related_properties_url():
+            properties_str = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="Property"]')))
+            properties_str = properties_str.find_element(By.XPATH, './h2/span | ./h3/span').get_attribute('innerText')
+            match = re.search(r'\d+', properties_str) if properties_str else None
+            n_properties = int(match.group()) if match else 0
             print(f'\n8. Related Cases: {n_properties} linked properties.') if PRINT else None
 
-            if n_properties == 0:
-                self.ending(app_df)
-                return
-
+            property_url = None
             if n_properties == 1:
                 property_url = response.xpath('//*[@id="Property"]/ul/li/a/@href').get()
-            else:
+            elif n_properties > 1:
                 # 多个关联房产时, 用地址做模糊匹配, 找出最接近当前申请地址的那一个。
                 # When several properties are linked, fuzzy-match against the application's
                 # own address to find the closest one.
@@ -738,24 +730,28 @@ class Idox_Scraper(Base_Scraper):
                     matched_index = property_names.index(matched)
                     property_url = response.xpath(f'//*[@id="Property"]/ul/li[{matched_index + 1}]/a/@href').get()
                 except IndexError:
-                    property_url = None
+                    pass
+            return property_url
 
-            if property_url is None:
+        try:
+            driver.find_element(By.XPATH, '//*[@id="tab_relatedCases"]').click()
+            property_url = get_related_properties_url()
+            if property_url:
+                property_url = response.urljoin(property_url)
+                yield SeleniumRequest(url=property_url, callback=self.parse_uprn_item, meta={'app_df': app_df})
+            else:
                 self.ending(app_df)
-                return
 
-            property_url = response.urljoin(property_url)
-            yield SeleniumRequest(url=property_url, callback=self.parse_uprn_item, meta={'app_df': app_df})
-
-        def parse_uprn_item(self, response):
-            app_df = response.meta['app_df']
-            uprn = response.xpath('//*[@id="propertyAddress"]/tbody/tr[1]/td/text()').get()
-            if uprn:
-                app_df.at['other_fields.uprn'] = uprn.strip()
-                print(f"<UPRN> scraped: {app_df.at['other_fields.uprn']}") if PRINT else None
+        except (NoSuchElementException, TimeoutException):
+            print(f'\n8. Related Cases: 0 linked properties.') if PRINT else None
             self.ending(app_df)
 
-
+    def parse_uprn_item(self, response):
+        app_df = response.meta['app_df']
+        uprn = response.xpath('//*[@id="propertyAddress"]/tbody/tr[1]/td/text()').get()
+        if uprn:
+            app_df.at['other_fields.uprn'] = uprn.strip()
+            print(f"<UPRN> scraped: {app_df.at['other_fields.uprn']}") if PRINT else None
         self.ending(app_df)
 
         # --- 4. 剩下的四个标签 (Comments/Constraints/Documents/RelatedCases) 各自独立成页 ---
