@@ -1,5 +1,6 @@
 import os, re, time, random
 import pandas as pd
+import difflib
 
 from scrapy_selenium import SeleniumRequest
 from selenium.webdriver.common.by import By
@@ -619,6 +620,12 @@ class Idox_Scraper(Base_Scraper):
                                         'max_file_name_len': response.meta['max_file_name_len']},
                                   dont_filter=True)
 
+        try:
+            driver.find_element(By.XPATH, '//*[@id="tab_makeComment"]').click()
+            scrape_comments()
+        except (NoSuchElementException, TimeoutException):
+            app_df.at['other_fields.n_comments'] = 0
+            print('\n5. Comments: sub-tab not found, skipped.')
         # ------------------------------------------------------------------
         # 6. Constraints (规划限制条件, 例如是否在保护区/洪泛区内等)
         # 6. Constraints (planning constraints, e.g. conservation area / flood zone, etc.)
@@ -654,17 +661,14 @@ class Idox_Scraper(Base_Scraper):
         def get_n_documents(mode):
             if mode == 'documents':
                 ### get n_documents ###
-                documents_str = (
-                        response.xpath('//*[@id="tab_documents"]/span/text()').get()
-                        or response.xpath('//*[@id="pa"]/div[3]/div[3]/ul/li[3]/span/text()').get()
-                )
+                documents_str = driver.find_element(By.XPATH, '//*[@id="tab_documents"]/span | //*[@id="pa"]/div[3]/div[3]/ul/li[3]/span').get_attribute('innerText').strip()
                 #if documents_str is None:
                 #    n_documents = 0
                 match = re.search(r'\d+', documents_str) if documents_str else None
                 if match:
                     n_documents = int(match.group())
                 else:
-                    n_documents = len(response.xpath('//*[@id="Documents"]/tbody/tr')[1:])
+                    n_documents = len(driver.find_elements(By.XPATH, '//*[@id="Documents"]/tbody/tr')) - 1 # tr[1:]
                 return n_documents
             else:
                 return 0
@@ -697,38 +701,33 @@ class Idox_Scraper(Base_Scraper):
             item = self.create_item(driver, folder_name, file_urls, document_names)
             yield item
 
-            """
-            related_url = app_df.at['url'].replace('activeTab=summary', 'activeTab=relatedCases')
-            yield SeleniumRequest(url=related_url, callback=self.parse_related_cases_item,
-                                  meta={'app_df': app_df, 'folder_name': folder_name},
-                                  dont_filter=True)
-            """
-
         # ------------------------------------------------------------------
         # 8. Related Cases (用来反查 UPRN / 房产唯一编号)
         # 8. Related Cases (used to look up the UPRN / unique property reference number)
         # ------------------------------------------------------------------
         def get_related_properties_url():
-            properties_str = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="Property"]')))
-            properties_str = properties_str.find_element(By.XPATH, './h2/span | ./h3/span').get_attribute('innerText')
+            properties_panel = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="Property"]')))
+            properties_str = properties_panel.find_element(By.XPATH, './h2/span | ./h3/span').get_attribute('innerText')
             match = re.search(r'\d+', properties_str) if properties_str else None
             n_properties = int(match.group()) if match else 0
             print(f'\n8. Related Cases: {n_properties} linked properties.') if PRINT else None
 
             property_url = None
             if n_properties == 1:
-                property_url = response.xpath('//*[@id="Property"]/ul/li/a/@href').get()
+                property_url = properties_panel.find_element(By.XPATH, './ul/li/a').get_attribute('href')
             elif n_properties > 1:
                 # 多个关联房产时, 用地址做模糊匹配, 找出最接近当前申请地址的那一个。
                 # When several properties are linked, fuzzy-match against the application's
                 # own address to find the closest one.
-                import difflib
-                properties = response.xpath('//*[@id="Property"]/ul/li')
-                property_names = [p.xpath('./a/text()').get().strip() for p in properties]
+                properties = properties_panel.find_elements(By.XPATH, './ul/li')
+                property_names = [p.find_element(By.XPATH, './a').get_attribute('innerText').strip() for p in properties]
+                #properties = response.xpath('//*[@id="Property"]/ul/li')
+                #property_names = [p.xpath('./a/text()').get().strip() for p in properties]
                 try:
                     matched = difflib.get_close_matches(app_df.at['address'], property_names, n=1)[0]
                     matched_index = property_names.index(matched)
-                    property_url = response.xpath(f'//*[@id="Property"]/ul/li[{matched_index + 1}]/a/@href').get()
+                    property_url = properties[matched_index].get_attribute('href')
+                    #property_url = response.xpath(f'//*[@id="Property"]/ul/li[{matched_index + 1}]/a/@href').get()
                 except IndexError:
                     pass
             return property_url
@@ -736,6 +735,7 @@ class Idox_Scraper(Base_Scraper):
         try:
             driver.find_element(By.XPATH, '//*[@id="tab_relatedCases"]').click()
             property_url = get_related_properties_url()
+            print('property url: ', property_url)
             if property_url:
                 property_url = response.urljoin(property_url)
                 yield SeleniumRequest(url=property_url, callback=self.parse_uprn_item, meta={'app_df': app_df})
