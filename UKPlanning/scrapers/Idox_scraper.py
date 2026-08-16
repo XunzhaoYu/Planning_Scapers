@@ -620,8 +620,15 @@ class Idox_Scraper(Base_Scraper):
 
         try:
             driver.find_element(By.XPATH, '//*[@id="tab_neighbourComments"]').click()
-            strs = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="commentsContainer"]/ul/li[1]')))
-            print(f"\n5 .Comment strs: {strs.get_attribute('innerText').strip()}")
+            summary_stats = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="commentsContainer"]/ul')))
+            summary_stats = summary_stats.find_elements(By.XPATH, './li')
+            summary_stat_strs = [stat.get_attribute('innerText').strip() for stat in summary_stats]
+            summary_stat_nums = [int(re.search(r"\d+", stat_str).group()) for stat_str in summary_stat_strs]
+            print(f"\n5.1. Public Comment strs: {summary_stat_nums}")
+            app_df['other_fields.n_comments_public_total_consulted'] = summary_stat_nums[0]
+            app_df['other_fields.n_comments_public_received'] = summary_stat_nums[1]
+            app_df['other_fields.n_comments_public_objections'] = summary_stat_nums[2]
+            app_df['other_fields.n_comments_public_supporting'] = summary_stat_nums[3]
             #scrape_comments()
         except (NoSuchElementException, TimeoutException):
             app_df.at['other_fields.n_comments'] = 0
