@@ -45,11 +45,11 @@ class Idox_Scraper(Base_Scraper):
        load for that tab.
 
     示例 / Examples:
-        auth_id = 31, Blackpool:
+        auth_id = 32, Blackpool:
             page:   https://idoxpa.blackpool.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=_BLCKP_DCAPR_23417
             comments: .../applicationDetails.do?activeTab=neighbourComments&keyVal=_BLCKP_DCAPR_23417
             documents: .../applicationDetails.do?activeTab=documents&keyVal=_BLCKP_DCAPR_23417
-        auth_id = 34, Bolton (需要先用申请编号搜索, 因为原始 url 会过期/失效):
+        auth_id = 35, Bolton (需要先用申请编号搜索, 因为原始 url 会过期/失效):
             search: https://paplanning.bolton.gov.uk/online-applications/search.do?action=simple&searchType=Application
             page:   https://paplanning.bolton.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=ZZZPEGDEPM788
     """
@@ -267,8 +267,6 @@ class Idox_Scraper(Base_Scraper):
         downloading each attachment via a plain Scrapy Request.
         """
         os.makedirs(self.failed_downloads_path + folder_name, exist_ok=True)
-        #if not os.path.exists(self.failed_downloads_path + folder_name):
-        #    os.mkdir(self.failed_downloads_path + folder_name)
 
         item = DownloadFilesItem()
         item['file_urls'] = file_urls
@@ -403,7 +401,7 @@ class Idox_Scraper(Base_Scraper):
             app_df = self.scrape_data(app_df, items, item_values, self.dates_dict)
         except (NoSuchElementException, TimeoutException):
             print('\n3. Important Dates: sub-tab not found, skipped.')
-        """
+        #"""
         # --- 4. Contacts ---
         def scrape_contacts():
             tabcontainer = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//div[@class='tabcontainer']")))
@@ -621,8 +619,10 @@ class Idox_Scraper(Base_Scraper):
                                   dont_filter=True)
 
         try:
-            driver.find_element(By.XPATH, '//*[@id="tab_makeComment"]').click()
-            scrape_comments()
+            driver.find_element(By.XPATH, '//*[@id="tab_neighbourComments"]').click()
+            strs = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="commentsContainer"]/ul/li[1]')))
+            print(f"\n5 .Comment strs: {strs.get_attribute('innerText').strip()}")
+            #scrape_comments()
         except (NoSuchElementException, TimeoutException):
             app_df.at['other_fields.n_comments'] = 0
             print('\n5. Comments: sub-tab not found, skipped.')
@@ -639,11 +639,12 @@ class Idox_Scraper(Base_Scraper):
             print(f'\n6. Constraints: {n_constraints} items.') if PRINT else None
 
             if n_constraints > 0:
-                constraint_df = pd.DataFrame({
-                    'name': [row.find_element(By.XPATH, './td[1]').get_attribute('innerText').strip() for row in rows],
-                    'type': [row.find_element(By.XPATH, './td[2]').get_attribute('innerText').strip() for row in rows],
-                    'status': [row.find_element(By.XPATH, './td[3]').get_attribute('innerText').strip() for row in rows],
-                })
+                constraint_columns = constraint_table.find_elements(By.XPATH, './tr[1]/th')
+                constraint_names = [col.get_attribute('innerText').strip() for col in constraint_columns]
+                constraints = {}
+                for column_index, constraint_name in enumerate(constraint_names):
+                    constraints[constraint_name] = [row.find_element(By.XPATH, f'./td[{column_index+1}]').get_attribute('innerText').strip() for row in rows]
+                constraint_df = pd.DataFrame(constraints)
                 constraint_df.to_csv(f"{folder_path}/constraints.csv", index=False)
                 #self.upload_and_delete(folder_name=folder_name, file_name='constraints.csv') if CLOUD_MODE else None
 
@@ -753,18 +754,3 @@ class Idox_Scraper(Base_Scraper):
             app_df.at['other_fields.uprn'] = uprn.strip()
             print(f"<UPRN> scraped: {app_df.at['other_fields.uprn']}") if PRINT else None
         self.ending(app_df)
-
-        # --- 4. 剩下的四个标签 (Comments/Constraints/Documents/RelatedCases) 各自独立成页 ---
-        # --- 4. the remaining four tabs each live on their own page ---
-        # 用 app_df 里已有的 url 拼出下一个标签的 url (与 comment_url / docs_url 列的构造方式一致)。
-        # Build the next tab's url from app_df's own url field (same pattern as the
-        # other_fields.comment_url / other_fields.docs_url columns already in the CSV).
-        """
-        base_url = app_df.at['url']
-        comments_url = base_url.replace('activeTab=summary', 'activeTab=neighbourComments')
-        yield SeleniumRequest(url=comments_url, callback=self.parse_public_comments_item,
-                              meta={'app_df': app_df, 'folder_name': folder_name,
-                                    'max_file_name_len': max_file_name_len,
-                                    'comment_source': [], 'comment_date': [], 'comment_content': []},
-                              dont_filter=True)
-        """
