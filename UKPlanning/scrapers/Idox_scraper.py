@@ -621,18 +621,50 @@ class Idox_Scraper(Base_Scraper):
         try:
             driver.find_element(By.XPATH, '//*[@id="tab_neighbourComments"]').click()
             summary_stats = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="commentsContainer"]/ul')))
-            summary_stats = summary_stats.find_elements(By.XPATH, './li')
+            summary_stats = summary_stats.find_elements(By.XPATH, './li')[:4]
             summary_stat_strs = [stat.get_attribute('innerText').strip() for stat in summary_stats]
             summary_stat_nums = [int(re.search(r"\d+", stat_str).group()) for stat_str in summary_stat_strs]
-            print(f"\n5.1. Public Comment strs: {summary_stat_nums}")
+            print(f"\n5.1. Public Comments: Consulted {summary_stat_nums[0]}, Received {summary_stat_nums[1]}, "
+                  f"Objections {summary_stat_nums[2]}, Supporting {summary_stat_nums[3]}.")
             app_df['other_fields.n_comments_public_total_consulted'] = summary_stat_nums[0]
             app_df['other_fields.n_comments_public_received'] = summary_stat_nums[1]
             app_df['other_fields.n_comments_public_objections'] = summary_stat_nums[2]
             app_df['other_fields.n_comments_public_supporting'] = summary_stat_nums[3]
             #scrape_comments()
         except (NoSuchElementException, TimeoutException):
-            app_df.at['other_fields.n_comments'] = 0
             print('\n5. Comments: sub-tab not found, skipped.')
+            # Public Comments
+            app_df['other_fields.n_comments_public_total_consulted'] = 0
+            app_df['other_fields.n_comments_public_received'] = 0
+            app_df['other_fields.n_comments_public_objections'] = 0
+            app_df['other_fields.n_comments_public_supporting'] = 0
+            # Consultee Comments
+            app_df['other_fields.n_comments_consultee_total_consulted'] = 0
+            app_df['other_fields.n_comments_consultee_responded'] = 0
+            # Total
+            app_df.at['other_fields.n_comments'] = 0
+
+        # If public comments page exists, continue for consultee comments:
+        if app_df['other_fields.n_comments'] != 0:
+            try:
+                driver.find_element(By.XPATH, '//*[@id="subtab_consulteeComments"]').click()
+                summary_stats = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="commentsContainer"]/ul')))
+                summary_stats = summary_stats.find_elements(By.XPATH, './li')[:2]
+                summary_stat_strs = [stat.get_attribute('innerText').strip() for stat in summary_stats]
+                summary_stat_nums = [int(re.search(r"\d+", stat_str).group()) for stat_str in summary_stat_strs]
+                print(f"\n5.2. Consultee Comments: Consulted {summary_stat_nums[0]}, Responded {summary_stat_nums[1]}.")
+                app_df['other_fields.n_comments_consultee_total_consulted'] = summary_stat_nums[0]
+                app_df['other_fields.n_comments_consultee_responded'] = summary_stat_nums[1]
+                app_df.at['other_fields.n_comments'] = app_df.at['other_fields.n_comments_consultee_responded'] + \
+                                                       app_df.at['other_fields.n_comments_public_received']
+            except (NoSuchElementException, TimeoutException):
+                print('\n5.2. Consultee Comments: sub-tab not found, skipped.')
+                # Consultee Comments
+                app_df['other_fields.n_comments_consultee_total_consulted'] = 0
+                app_df['other_fields.n_comments_consultee_responded'] = 0
+                # Total
+                app_df.at['other_fields.n_comments'] = app_df.at['other_fields.n_comments_public_received']
+
         # ------------------------------------------------------------------
         # 6. Constraints (规划限制条件, 例如是否在保护区/洪泛区内等)
         # 6. Constraints (planning constraints, e.g. conservation area / flood zone, etc.)
