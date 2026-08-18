@@ -453,7 +453,39 @@ class Idox_Scraper(Base_Scraper):
         # 5. Comments: 公众意见(neighbourComments) + 法定咨询意见(consulteeComments)
         # 5. Comments: public (neighbourComments) + statutory-consultee (consulteeComments) responses
         # ------------------------------------------------------------------
-        def scrape_comments(comments, comment_source, comment_date, comment_content):
+        def scrape_comments(comment_source, comment_date, comment_content):
+            comments = driver.find_elements(By.XPATH, '//*[@id="comments"]/div')
+            for i, comment in enumerate(comments, start=1):
+                temp_source = comment.find_element(By.XPATH, './h2 | ./h3').get_attribute('innerText').strip()
+                comment_wraps = comment.find_elements(By.XPATH, './div')
+                if len(comment_wraps) == 0:
+                    comment_source.append(temp_source)
+                    comment_date.append('')
+                    comment_content.append('')
+                else:
+                    # 每个comment source可能留下多条评论内容(算作一条评论)
+                    # Each comment source could have multiple comment contents (treated as a single comment)
+                    # example: https://planning.n-somerset.gov.uk/online-applications/applicationDetails.do?activeTab=neighbourComments&keyVal=QMES8DLPFI100
+                    for comment_wrap in comment_wraps:
+                        comment_source.append(temp_source)
+                        print(f'\n  --- --- --- comment --- --- --- ')
+                        temp_date = comment_wrap.find_element(By.XPATH, './h3 | ./h4').get_attribute('innerText').strip()
+                        temp_date2 = re.sub("\s+", " ", temp_date)
+                        print(f'    source: {temp_source}, date: {temp_date}, date2: {temp_date2}')
+                        comment_date.append(temp_date2)
+
+                        temp_content = comment_wrap.get_attribute('innerText').strip()
+                        #print(f'\n  --- --- --- content1 --- --- --- ')
+                        #print(temp_content)
+                        temp_content = re.sub(temp_date, " ", temp_content)
+                        #print(f'\n  --- --- --- content2 (without comment date) --- --- --- ')
+                        #print(temp_content2)
+                        temp_content2 = re.sub("\s+", " ", temp_content)
+                        print(f'\n  --- --- --- content2 (delete spaces and newlines) --- --- --- ')
+                        print(temp_content2)
+                        comment_content.append(temp_content2)
+
+        def scrape_comments_old(comments, comment_source, comment_date, comment_content):
             """
             解析一页评论列表, 抽取来源/日期/正文, 追加进传入的三个 list。
             逻辑沿用旧版 Idox_scraper_old.py 的容错处理 (不同门户的 HTML 细节略有差异)。
@@ -618,6 +650,7 @@ class Idox_Scraper(Base_Scraper):
                                         'max_file_name_len': response.meta['max_file_name_len']},
                                   dont_filter=True)
 
+        comment_source, comment_date, comment_content = [], [], []
         try:
             driver.find_element(By.XPATH, '//*[@id="tab_neighbourComments"]').click()
             summary_stats = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="commentsContainer"]/ul')))
@@ -630,7 +663,9 @@ class Idox_Scraper(Base_Scraper):
             app_df['other_fields.n_comments_public_received'] = summary_stat_nums[1]
             app_df['other_fields.n_comments_public_objections'] = summary_stat_nums[2]
             app_df['other_fields.n_comments_public_supporting'] = summary_stat_nums[3]
-            #scrape_comments()
+
+            if app_df['other_fields.n_comments_public_received'] > 0:
+                scrape_comments(comment_source, comment_date, comment_content)
         except (NoSuchElementException, TimeoutException):
             print('\n5. Comments: sub-tab not found, skipped.')
             # Public Comments
@@ -657,6 +692,9 @@ class Idox_Scraper(Base_Scraper):
                 app_df['other_fields.n_comments_consultee_responded'] = summary_stat_nums[1]
                 app_df.at['other_fields.n_comments'] = app_df.at['other_fields.n_comments_consultee_responded'] + \
                                                        app_df.at['other_fields.n_comments_public_received']
+
+                if app_df['other_fields.n_comments_consultee_responded'] > 0:
+                    scrape_comments(comment_source, comment_date, comment_content)
             except (NoSuchElementException, TimeoutException):
                 print('\n5.2. Consultee Comments: sub-tab not found, skipped.')
                 # Consultee Comments
@@ -681,8 +719,8 @@ class Idox_Scraper(Base_Scraper):
                 constraint_columns = constraint_table.find_elements(By.XPATH, './tr[1]/th')
                 constraint_names = [col.get_attribute('innerText').strip() for col in constraint_columns]
                 constraints = {}
-                for column_index, constraint_name in enumerate(constraint_names):
-                    constraints[constraint_name] = [row.find_element(By.XPATH, f'./td[{column_index+1}]').get_attribute('innerText').strip() for row in rows]
+                for column_index, constraint_name in enumerate(constraint_names, start=1):
+                    constraints[constraint_name] = [row.find_element(By.XPATH, f'./td[{column_index}]').get_attribute('innerText').strip() for row in rows]
                 constraint_df = pd.DataFrame(constraints)
                 constraint_df.to_csv(f"{folder_path}/constraints.csv", index=False)
                 #self.upload_and_delete(folder_name=folder_name, file_name='constraints.csv') if CLOUD_MODE else None
