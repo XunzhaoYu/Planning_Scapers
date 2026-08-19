@@ -454,7 +454,9 @@ class Idox_Scraper(Base_Scraper):
         # 5. Comments: public (neighbourComments) + statutory-consultee (consulteeComments) responses
         # ------------------------------------------------------------------
         def scrape_comments(comment_source, comment_date, comment_content):
-            comments = driver.find_elements(By.XPATH, '//*[@id="comments"]/div')
+            #comments = driver.find_elements(By.XPATH, '//*[@id="comments"]/div')
+            comments_block = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="comments"]')))
+            comments = comments_block.find_elements(By.XPATH, './div')
             for i, comment in enumerate(comments, start=1):
                 temp_source = comment.find_element(By.XPATH, './h2 | ./h3').get_attribute('innerText').strip()
                 comment_wraps = comment.find_elements(By.XPATH, './div')
@@ -468,22 +470,21 @@ class Idox_Scraper(Base_Scraper):
                     # example: https://planning.n-somerset.gov.uk/online-applications/applicationDetails.do?activeTab=neighbourComments&keyVal=QMES8DLPFI100
                     for comment_wrap in comment_wraps:
                         comment_source.append(temp_source)
-                        print(f'\n  --- --- --- comment --- --- --- ')
+
                         temp_date = comment_wrap.find_element(By.XPATH, './h3 | ./h4').get_attribute('innerText').strip()
                         temp_date2 = re.sub("\s+", " ", temp_date)
-                        print(f'    source: {temp_source}, date: {temp_date}, date2: {temp_date2}')
                         comment_date.append(temp_date2)
+                        print(f'\n  --- --- --- comment --- --- --- ')
+                        print(f'    source: {temp_source}, date: {temp_date}, date2: {temp_date2}')
 
+                        # ./ or ./div/p or ./p
                         temp_content = comment_wrap.get_attribute('innerText').strip()
-                        #print(f'\n  --- --- --- content1 --- --- --- ')
-                        #print(temp_content)
-                        temp_content = re.sub(temp_date, " ", temp_content)
-                        #print(f'\n  --- --- --- content2 (without comment date) --- --- --- ')
-                        #print(temp_content2)
+                        temp_content = re.sub(temp_date, " ", temp_content) # delete date text for ./
                         temp_content2 = re.sub("\s+", " ", temp_content)
+                        comment_content.append(temp_content2)
                         print(f'\n  --- --- --- content2 (delete spaces and newlines) --- --- --- ')
                         print(temp_content2)
-                        comment_content.append(temp_content2)
+            return comment_source, comment_date, comment_content
 
         def scrape_comments_old(comments, comment_source, comment_date, comment_content):
             """
@@ -663,9 +664,6 @@ class Idox_Scraper(Base_Scraper):
             app_df['other_fields.n_comments_public_received'] = summary_stat_nums[1]
             app_df['other_fields.n_comments_public_objections'] = summary_stat_nums[2]
             app_df['other_fields.n_comments_public_supporting'] = summary_stat_nums[3]
-
-            if app_df['other_fields.n_comments_public_received'] > 0:
-                scrape_comments(comment_source, comment_date, comment_content)
         except (NoSuchElementException, TimeoutException):
             print('\n5. Comments: sub-tab not found, skipped.')
             # Public Comments
@@ -678,6 +676,14 @@ class Idox_Scraper(Base_Scraper):
             app_df['other_fields.n_comments_consultee_responded'] = 0
             # Total
             app_df.at['other_fields.n_comments'] = 0
+        if app_df['other_fields.n_comments_public_received'] > 0:
+            comment_source, comment_date, comment_content = scrape_comments(comment_source, comment_date, comment_content)
+            next_page = driver.find_elements(By.XPATH, '//*[@id="commentsListContainer"]//p[class="pager top"]/a[class="next"]')
+            while len(next_page) > 0:
+                next_page[0].click()
+                print('=== === === next comment page === === ===')
+                comment_source, comment_date, comment_content = scrape_comments(comment_source, comment_date, comment_content)
+                next_page = driver.find_elements(By.XPATH, '//*[@id="commentsListContainer"]//p[class="pager top"]/a[class="next"]')
 
         # If public comments page exists, continue for consultee comments:
         if app_df['other_fields.n_comments'] != 0:
@@ -692,9 +698,6 @@ class Idox_Scraper(Base_Scraper):
                 app_df['other_fields.n_comments_consultee_responded'] = summary_stat_nums[1]
                 app_df.at['other_fields.n_comments'] = app_df.at['other_fields.n_comments_consultee_responded'] + \
                                                        app_df.at['other_fields.n_comments_public_received']
-
-                if app_df['other_fields.n_comments_consultee_responded'] > 0:
-                    scrape_comments(comment_source, comment_date, comment_content)
             except (NoSuchElementException, TimeoutException):
                 print('\n5.2. Consultee Comments: sub-tab not found, skipped.')
                 # Consultee Comments
@@ -702,6 +705,14 @@ class Idox_Scraper(Base_Scraper):
                 app_df['other_fields.n_comments_consultee_responded'] = 0
                 # Total
                 app_df.at['other_fields.n_comments'] = app_df.at['other_fields.n_comments_public_received']
+            if app_df['other_fields.n_comments_consultee_responded'] > 0:
+                comment_source, comment_date, comment_content = scrape_comments(comment_source, comment_date, comment_content)
+                next_page = driver.find_elements(By.XPATH, '//*[@id="commentsListContainer"]//p[class="pager top"]/a[class="next"]')
+                while len(next_page) > 0:
+                    next_page[0].click()
+                    print('=== === === next comment page === === ===')
+                    comment_source, comment_date, comment_content = scrape_comments(comment_source, comment_date, comment_content)
+                    next_page = driver.find_elements(By.XPATH, '//*[@id="commentsListContainer"]//p[class="pager top"]/a[class="next"]')
 
         # ------------------------------------------------------------------
         # 6. Constraints (规划限制条件, 例如是否在保护区/洪泛区内等)
