@@ -652,8 +652,15 @@ class Idox_Scraper(Base_Scraper):
                                   dont_filter=True)
 
         comment_source, comment_date, comment_content = [], [], []
-        try:
-            driver.find_element(By.XPATH, '//*[@id="tab_neighbourComments"]').click()
+        try: # subtab_neighbourComments
+            #driver.find_element(By.XPATH, '//*[@id="tab_neighbourComments"]').click()
+            #driver.find_element(By.XPATH, '//*[@id="subtab_neighbourComments"]').click()
+            # 不同的Idox网站,其comment界面的tab可能是makeComment,也可能是neighbourComments. 为了泛化，采用修改url的方式访问Comments
+            # Idox portals could have different Comment tabs (makeComment or neighbourComments). For generalization, we modify url to access Comments.
+            current_tab = driver.current_url.split('activeTab=')[-1].split('&')[0]
+            print(f'current_tab={current_tab}.')
+            new_url = driver.current_url.replace(current_tab, 'neighbourComments')
+            driver.get(new_url)
             summary_stats = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="commentsContainer"]/ul')))
             summary_stats = summary_stats.find_elements(By.XPATH, './li')[:4]
             summary_stat_strs = [stat.get_attribute('innerText').strip() for stat in summary_stats]
@@ -678,14 +685,15 @@ class Idox_Scraper(Base_Scraper):
             app_df.at['other_fields.n_comments'] = 0
         if app_df['other_fields.n_comments_public_received'] > 0:
             comment_source, comment_date, comment_content = scrape_comments(comment_source, comment_date, comment_content)
-            next_page = driver.find_elements(By.XPATH, '//*[@id="commentsListContainer"]//p[class="pager top"]/a[class="next"]')
+            next_page = driver.find_elements(By.XPATH, '//*[@id="commentsListContainer"]//p[@class="pager top"]/a[@class="next"]')
             while len(next_page) > 0:
                 next_page[0].click()
                 print('=== === === next comment page === === ===')
                 comment_source, comment_date, comment_content = scrape_comments(comment_source, comment_date, comment_content)
-                next_page = driver.find_elements(By.XPATH, '//*[@id="commentsListContainer"]//p[class="pager top"]/a[class="next"]')
+                next_page = driver.find_elements(By.XPATH, '//*[@id="commentsListContainer"]//p[@class="pager top"]/a[@class="next"]')
 
         # If public comments page exists, continue for consultee comments:
+        # TO DO: neighbour comments不存在也可能有consultee comments:
         if app_df['other_fields.n_comments'] != 0:
             try:
                 driver.find_element(By.XPATH, '//*[@id="subtab_consulteeComments"]').click()
@@ -707,12 +715,13 @@ class Idox_Scraper(Base_Scraper):
                 app_df.at['other_fields.n_comments'] = app_df.at['other_fields.n_comments_public_received']
             if app_df['other_fields.n_comments_consultee_responded'] > 0:
                 comment_source, comment_date, comment_content = scrape_comments(comment_source, comment_date, comment_content)
-                next_page = driver.find_elements(By.XPATH, '//*[@id="commentsListContainer"]//p[class="pager top"]/a[class="next"]')
+                next_page = driver.find_elements(By.XPATH, '//*[@id="commentsListContainer"]//p[@class="pager top"]/a[@class="next"]')
+                print('next page: ', next_page)
                 while len(next_page) > 0:
                     next_page[0].click()
                     print('=== === === next comment page === === ===')
                     comment_source, comment_date, comment_content = scrape_comments(comment_source, comment_date, comment_content)
-                    next_page = driver.find_elements(By.XPATH, '//*[@id="commentsListContainer"]//p[class="pager top"]/a[class="next"]')
+                    next_page = driver.find_elements(By.XPATH, '//*[@id="commentsListContainer"]//p[@class="pager top"]/a[@class="next"]')
 
         # ------------------------------------------------------------------
         # 6. Constraints (规划限制条件, 例如是否在保护区/洪泛区内等)
