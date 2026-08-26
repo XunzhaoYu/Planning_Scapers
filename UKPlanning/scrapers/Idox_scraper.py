@@ -672,17 +672,11 @@ class Idox_Scraper(Base_Scraper):
             app_df['other_fields.n_comments_public_objections'] = summary_stat_nums[2]
             app_df['other_fields.n_comments_public_supporting'] = summary_stat_nums[3]
         except (NoSuchElementException, TimeoutException):
-            print('\n5. Comments: sub-tab not found, skipped.')
-            # Public Comments
+            print('\n5.1. Public Comments: sub-tab not found, skipped.')
             app_df['other_fields.n_comments_public_total_consulted'] = 0
             app_df['other_fields.n_comments_public_received'] = 0
             app_df['other_fields.n_comments_public_objections'] = 0
             app_df['other_fields.n_comments_public_supporting'] = 0
-            # Consultee Comments
-            app_df['other_fields.n_comments_consultee_total_consulted'] = 0
-            app_df['other_fields.n_comments_consultee_responded'] = 0
-            # Total
-            app_df.at['other_fields.n_comments'] = 0
         if app_df['other_fields.n_comments_public_received'] > 0:
             comment_source, comment_date, comment_content = scrape_comments(comment_source, comment_date, comment_content)
             next_page = driver.find_elements(By.XPATH, '//*[@id="commentsListContainer"]//p[@class="pager top"]/a[@class="next"]')
@@ -692,36 +686,34 @@ class Idox_Scraper(Base_Scraper):
                 comment_source, comment_date, comment_content = scrape_comments(comment_source, comment_date, comment_content)
                 next_page = driver.find_elements(By.XPATH, '//*[@id="commentsListContainer"]//p[@class="pager top"]/a[@class="next"]')
 
-        # If public comments page exists, continue for consultee comments:
         # TO DO: neighbour comments不存在也可能有consultee comments:
-        if app_df['other_fields.n_comments'] != 0:
-            try:
-                driver.find_element(By.XPATH, '//*[@id="subtab_consulteeComments"]').click()
-                summary_stats = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="commentsContainer"]/ul')))
-                summary_stats = summary_stats.find_elements(By.XPATH, './li')[:2]
-                summary_stat_strs = [stat.get_attribute('innerText').strip() for stat in summary_stats]
-                summary_stat_nums = [int(re.search(r"\d+", stat_str).group()) for stat_str in summary_stat_strs]
-                print(f"\n5.2. Consultee Comments: Consulted {summary_stat_nums[0]}, Responded {summary_stat_nums[1]}.")
-                app_df['other_fields.n_comments_consultee_total_consulted'] = summary_stat_nums[0]
-                app_df['other_fields.n_comments_consultee_responded'] = summary_stat_nums[1]
-                app_df.at['other_fields.n_comments'] = app_df.at['other_fields.n_comments_consultee_responded'] + \
-                                                       app_df.at['other_fields.n_comments_public_received']
-            except (NoSuchElementException, TimeoutException):
-                print('\n5.2. Consultee Comments: sub-tab not found, skipped.')
-                # Consultee Comments
-                app_df['other_fields.n_comments_consultee_total_consulted'] = 0
-                app_df['other_fields.n_comments_consultee_responded'] = 0
-                # Total
-                app_df.at['other_fields.n_comments'] = app_df.at['other_fields.n_comments_public_received']
-            if app_df['other_fields.n_comments_consultee_responded'] > 0:
+        try:
+            #driver.find_element(By.XPATH, '//*[@id="subtab_consulteeComments"]').click()
+            new_url = driver.current_url.replace('neighbourComments', 'consulteeComments')
+            driver.get(new_url)
+            summary_stats = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="commentsContainer"]/ul')))
+            summary_stats = summary_stats.find_elements(By.XPATH, './li')[:2]
+            summary_stat_strs = [stat.get_attribute('innerText').strip() for stat in summary_stats]
+            summary_stat_nums = [int(re.search(r"\d+", stat_str).group()) for stat_str in summary_stat_strs]
+            print(f"\n5.2. Consultee Comments: Consulted {summary_stat_nums[0]}, Responded {summary_stat_nums[1]}.")
+            app_df['other_fields.n_comments_consultee_total_consulted'] = summary_stat_nums[0]
+            app_df['other_fields.n_comments_consultee_responded'] = summary_stat_nums[1]
+            app_df.at['other_fields.n_comments'] = app_df.at['other_fields.n_comments_consultee_responded'] + \
+                                                   app_df.at['other_fields.n_comments_public_received']
+        except (NoSuchElementException, TimeoutException):
+            print('\n5.2. Consultee Comments: sub-tab not found, skipped.')
+            app_df['other_fields.n_comments_consultee_total_consulted'] = 0
+            app_df['other_fields.n_comments_consultee_responded'] = 0
+            app_df.at['other_fields.n_comments'] = app_df.at['other_fields.n_comments_public_received']
+        if app_df['other_fields.n_comments_consultee_responded'] > 0:
+            comment_source, comment_date, comment_content = scrape_comments(comment_source, comment_date, comment_content)
+            next_page = driver.find_elements(By.XPATH, '//*[@id="commentsListContainer"]//p[@class="pager top"]/a[@class="next"]')
+            print('next page: ', next_page)
+            while len(next_page) > 0:
+                next_page[0].click()
+                print('=== === === next comment page === === ===')
                 comment_source, comment_date, comment_content = scrape_comments(comment_source, comment_date, comment_content)
                 next_page = driver.find_elements(By.XPATH, '//*[@id="commentsListContainer"]//p[@class="pager top"]/a[@class="next"]')
-                print('next page: ', next_page)
-                while len(next_page) > 0:
-                    next_page[0].click()
-                    print('=== === === next comment page === === ===')
-                    comment_source, comment_date, comment_content = scrape_comments(comment_source, comment_date, comment_content)
-                    next_page = driver.find_elements(By.XPATH, '//*[@id="commentsListContainer"]//p[@class="pager top"]/a[@class="next"]')
 
         # ------------------------------------------------------------------
         # 6. Constraints (规划限制条件, 例如是否在保护区/洪泛区内等)
