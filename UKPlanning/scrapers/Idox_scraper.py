@@ -549,7 +549,6 @@ class Idox_Scraper(Base_Scraper):
         try:
             comment_source, comment_date, comment_content = scrape_comments(comment_source, comment_date, comment_content)
             next_page = driver.find_elements(By.XPATH, '//*[@id="commentsListContainer"]//p[@class="pager top"]/a[@class="next"]')
-            print('next page: ', next_page)
             while len(next_page) > 0:
                 next_page[0].click()
                 print('=== === === next comment page === === ===')
@@ -557,6 +556,13 @@ class Idox_Scraper(Base_Scraper):
                 next_page = driver.find_elements(By.XPATH, '//*[@id="commentsListContainer"]//p[@class="pager top"]/a[@class="next"]')
         except TimeoutException:
             pass
+
+        if len(comment_source) | len(comment_date) | len(comment_content) > 0:
+            comment_df = pd.DataFrame({'comment_source': comment_source,
+                                       'comment_date': comment_date,
+                                       'comment_content': comment_content})
+            comment_df.to_csv(f"{self.data_storage_path}{folder_name}/comments.csv", index=False)
+            #self.upload_and_delete(folder_name=folder_name, file_name='comments.csv') if CLOUD_MODE else None
 
         # ------------------------------------------------------------------
         # 6. Constraints (规划限制条件, 例如是否在保护区/洪泛区内等)
@@ -681,8 +687,14 @@ class Idox_Scraper(Base_Scraper):
 
     def parse_uprn_item(self, response):
         app_df = response.meta['app_df']
-        uprn = response.xpath('//*[@id="propertyAddress"]/tbody/tr[1]/td/text()').get()
-        if uprn:
-            app_df.at['other_fields.uprn'] = uprn.strip()
-            print(f"<UPRN> scraped: {app_df.at['other_fields.uprn']}") if PRINT else None
+        item_name = response.xpath('//*[@id="propertyAddress"]/tbody/tr[1]/th/text()').get()
+        if 'uprn' in item_name.lower():
+            uprn = response.xpath('//*[@id="propertyAddress"]/tbody/tr[1]/td/text()').get()
+            if uprn:
+                app_df.at['other_fields.uprn'] = uprn.strip()
+                print(f"<UPRN> scraped: {app_df.at['other_fields.uprn']}") if PRINT else None
+            else:
+                print(f"<UPRN> item is empty.")
+        else:
+            print(f"NO <UPRN> item.")
         self.ending(app_df)
