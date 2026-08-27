@@ -487,14 +487,14 @@ class Idox_Scraper(Base_Scraper):
             return comment_source, comment_date, comment_content
 
         comment_source, comment_date, comment_content = [], [], []
-        try: # subtab_neighbourComments
+        try:
             # 不同的Idox网站,其comment界面的tab可能是makeComment,也可能是neighbourComments. 为了泛化，采用修改url的方式访问Comments
             # Idox portals could have different Comment tabs (makeComment or neighbourComments). For generalization, we modify url to access Comments.
             current_tab = driver.current_url.split('activeTab=')[-1].split('&')[0]
             new_url = driver.current_url.replace(current_tab, 'neighbourComments')
             driver.get(new_url)
-            # 收集统计数据(即使comment页面不存在，仍然有不可见且为0的统计数据,所以一般不会抛出异常)
-            # Collect summaryStats(Even if comment page is unavailable, there still have invisible summaryStats with value 0)
+            # 收集统计数据(即使comment页面不存在，仍然有不可见的统计数据,所以一般不会抛出异常)
+            # Collect summaryStats(Even if comment page is unavailable, there still have invisible summaryStats)
             summary_stats = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="commentsContainer"]/ul')))
             summary_stats = summary_stats.find_elements(By.XPATH, './li')[:4]
             summary_stat_strs = [stat.get_attribute('innerText').strip() for stat in summary_stats]
@@ -511,7 +511,11 @@ class Idox_Scraper(Base_Scraper):
             app_df['other_fields.n_comments_public_received'] = 0
             app_df['other_fields.n_comments_public_objections'] = 0
             app_df['other_fields.n_comments_public_supporting'] = 0
-        if app_df['other_fields.n_comments_public_received'] > 0:
+        #if app_df['other_fields.n_comments_public_received'] > 0:
+        # summaryStats的结果 与 comment存在与否 无关
+        # the existence of comments is irrelevant to the result of summaryStats
+        # example: https://paplanning.bolton.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=ZZZPDBDEPM354
+        try:
             comment_source, comment_date, comment_content = scrape_comments(comment_source, comment_date, comment_content)
             next_page = driver.find_elements(By.XPATH, '//*[@id="commentsListContainer"]//p[@class="pager top"]/a[@class="next"]')
             while len(next_page) > 0:
@@ -519,6 +523,8 @@ class Idox_Scraper(Base_Scraper):
                 print('=== === === next comment page === === ===')
                 comment_source, comment_date, comment_content = scrape_comments(comment_source, comment_date, comment_content)
                 next_page = driver.find_elements(By.XPATH, '//*[@id="commentsListContainer"]//p[@class="pager top"]/a[@class="next"]')
+        except TimeoutException:
+            pass
 
         # neighbour comments不存在也可能有consultee comments, 所以还是得用url访问:
         # consultee comments could be available even if neighbour comments are unavailable, so we still need access consultee comments with URL.
@@ -539,7 +545,8 @@ class Idox_Scraper(Base_Scraper):
             app_df['other_fields.n_comments_consultee_total_consulted'] = 0
             app_df['other_fields.n_comments_consultee_responded'] = 0
             app_df.at['other_fields.n_comments'] = app_df.at['other_fields.n_comments_public_received']
-        if app_df['other_fields.n_comments_consultee_responded'] > 0:
+        #if app_df['other_fields.n_comments_consultee_responded'] > 0:
+        try:
             comment_source, comment_date, comment_content = scrape_comments(comment_source, comment_date, comment_content)
             next_page = driver.find_elements(By.XPATH, '//*[@id="commentsListContainer"]//p[@class="pager top"]/a[@class="next"]')
             print('next page: ', next_page)
@@ -548,6 +555,8 @@ class Idox_Scraper(Base_Scraper):
                 print('=== === === next comment page === === ===')
                 comment_source, comment_date, comment_content = scrape_comments(comment_source, comment_date, comment_content)
                 next_page = driver.find_elements(By.XPATH, '//*[@id="commentsListContainer"]//p[@class="pager top"]/a[@class="next"]')
+        except TimeoutException:
+            pass
 
         # ------------------------------------------------------------------
         # 6. Constraints (规划限制条件, 例如是否在保护区/洪泛区内等)
