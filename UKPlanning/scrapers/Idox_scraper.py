@@ -370,7 +370,7 @@ class Idox_Scraper(Base_Scraper):
             note = response.xpath('//*[@id="main-content"]/article/h1/text()').get()
             print('note: ', note)
             return
-        """
+        #"""
         tab_container = content.find_element(By.XPATH, "./div[@class='tabcontainer']")
 
         # --- 1. Summary --- 默认就是激活状态, 无需点击 / active by default, no click needed
@@ -482,185 +482,19 @@ class Idox_Scraper(Base_Scraper):
                         temp_content = re.sub(temp_date, " ", temp_content) # delete date text for ./
                         temp_content2 = re.sub("\s+", " ", temp_content)
                         comment_content.append(temp_content2)
-                        print(f'\n  --- --- --- content2 (delete spaces and newlines) --- --- --- ')
+                        #print(f'\n  --- --- --- content2 (delete spaces and newlines) --- --- --- ')
                         print(temp_content2)
             return comment_source, comment_date, comment_content
 
-        def scrape_comments_old(comments, comment_source, comment_date, comment_content):
-            """
-            解析一页评论列表, 抽取来源/日期/正文, 追加进传入的三个 list。
-            逻辑沿用旧版 Idox_scraper_old.py 的容错处理 (不同门户的 HTML 细节略有差异)。
-            Parse one page of comments, extracting source / date / body text into the
-            three accumulator lists passed in. Defensive logic ported from
-            Idox_scraper_old.py, since different councils' HTML varies slightly.
-            """
-
-            def scrape_source(comment, label_name):
-                temp_source = comment.xpath(f'./{label_name}/text()').get()
-                temp_source = temp_source.strip() if temp_source else ''
-                for subtag in comment.xpath(f'./{label_name}/*'):
-                    sub_text = subtag.xpath('./text()').get()
-                    temp_source += sub_text.strip() if sub_text else ''
-                return temp_source
-
-            for comment in comments:
-                if comment.xpath('./h2').get():
-                    temp_source = scrape_source(comment, 'h2')
-                elif comment.xpath('./h3').get():
-                    temp_source = scrape_source(comment, 'h3')
-                else:
-                    temp_source = ''
-
-                comment_wraps = comment.xpath('./div')
-                if len(comment_wraps) == 0:
-                    comment_source.append(temp_source)
-                    comment_date.append('')
-                    comment_content.append('')
-                    continue
-
-                for comment_wrap in comment_wraps:
-                    comment_source.append(temp_source)
-                    temp_date = ''
-                    if comment_wrap.xpath('./h3').get():
-                        temp_date = comment_wrap.xpath('./h3/text()').get() or ''
-                    elif comment_wrap.xpath('./h4').get():
-                        temp_date = comment_wrap.xpath('./h4/text()').get() or ''
-                    comment_date.append(re.sub(r'\s+', ' ', temp_date.strip()))
-
-                    temp_content = comment_wrap.xpath('./text()').getall()
-                    temp_content = re.sub(r'\s+', ' ', ' '.join(temp_content)).strip()
-                    comment_content.append(temp_content)
-
-        def parse_public_comments_item(self, response):
-            app_df = response.meta['app_df']
-            folder_name = response.meta['folder_name']
-            comment_source = response.meta['comment_source']
-            comment_date = response.meta['comment_date']
-            comment_content = response.meta['comment_content']
-
-            # 首次进入该标签才需要读取汇总统计数字; 翻页请求(下面的 elif 分支)不需要重复统计。
-            # Only read the aggregate counters on the first visit to this tab;
-            # follow-up pagination requests (see below) skip re-counting.
-            if 'first_visit' not in response.meta or response.meta['first_visit']:
-                try:
-                    strs = response.xpath('//*[@id="commentsContainer"]/ul/li[1]/text()').get()
-                    public_consulted = int(re.search(r'\d+', strs).group())
-                    strs = response.xpath('//*[@id="commentsContainer"]/ul/li[2]/text()').get()
-                    public_received = int(re.search(r'\d+', strs).group())
-                    public_consulted = max(public_consulted, public_received)
-
-                    app_df['other_fields.n_comments_public_total_consulted'] = public_consulted
-                    app_df['other_fields.n_comments_public_received'] = public_received
-                    if public_received == 0:
-                        app_df['other_fields.n_comments_public_objections'] = 0
-                        app_df['other_fields.n_comments_public_supporting'] = 0
-                    else:
-                        strs = response.xpath('//*[@id="commentsContainer"]/ul/li[3]/text()').get()
-                        app_df['other_fields.n_comments_public_objections'] = int(re.search(r'\d+', strs).group())
-                        strs = response.xpath('//*[@id="commentsContainer"]/ul/li[4]/text()').get()
-                        app_df['other_fields.n_comments_public_supporting'] = int(re.search(r'\d+', strs).group())
-                    print(
-                        f"\n5. Public comments: consulted={public_consulted}, received={public_received}.") if PRINT else None
-                except (TypeError, AttributeError):
-                    # 该门户没有公众评论页 / this portal has no public-comments page for this application.
-                    app_df['other_fields.n_comments_public_total_consulted'] = 0
-                    app_df['other_fields.n_comments_public_received'] = 0
-                    app_df['other_fields.n_comments_public_objections'] = 0
-                    app_df['other_fields.n_comments_public_supporting'] = 0
-                    print('\n5. Public comments: no comments page for this application.') if PRINT else None
-
-            # 抓取当前页的评论正文(如果有的话)。/ Scrape this page's individual comments, if any.
-            try:
-                comments = response.xpath('//*[@id="comments"]').xpath('./div')
-                self.scrape_comments(comments, comment_source, comment_date, comment_content)
-            except TypeError:
-                pass
-
-            # 翻页: 若有下一页则递归调用自身; 否则进入法定咨询意见标签。
-            # Pagination: recurse into the next page if present; otherwise move on to consultee comments.
-            next_page_url = response.xpath('//*[@id="commentsListContainer"]').css('a.next::attr(href)').get()
-            if next_page_url:
-                next_page_url = response.urljoin(next_page_url)
-                yield SeleniumRequest(url=next_page_url, callback=self.parse_public_comments_item,
-                                      meta={'app_df': app_df, 'folder_name': folder_name,
-                                            'max_file_name_len': response.meta['max_file_name_len'],
-                                            'comment_source': comment_source, 'comment_date': comment_date,
-                                            'comment_content': comment_content, 'first_visit': False},
-                                      dont_filter=True)
-            else:
-                consultee_url = app_df.at['url'].replace('activeTab=summary', 'activeTab=consulteeComments')
-                yield SeleniumRequest(url=consultee_url, callback=self.parse_consultee_comments_item,
-                                      meta={'app_df': app_df, 'folder_name': folder_name,
-                                            'max_file_name_len': response.meta['max_file_name_len'],
-                                            'comment_source': comment_source, 'comment_date': comment_date,
-                                            'comment_content': comment_content, 'first_visit': True},
-                                      dont_filter=True)
-
-        def parse_consultee_comments_item(self, response):
-            app_df = response.meta['app_df']
-            folder_name = response.meta['folder_name']
-            comment_source = response.meta['comment_source']
-            comment_date = response.meta['comment_date']
-            comment_content = response.meta['comment_content']
-
-            if response.meta.get('first_visit', True):
-                try:
-                    strs = response.xpath('//*[@id="commentsContainer"]/ul/li[1]/text()').get()
-                    app_df['other_fields.n_comments_consultee_total_consulted'] = int(re.search(r'\d+', strs).group())
-                    strs = response.xpath('//*[@id="commentsContainer"]/ul/li[2]/text()').get()
-                    app_df['other_fields.n_comments_consultee_responded'] = int(re.search(r'\d+', strs).group())
-                except (TypeError, AttributeError):
-                    app_df['other_fields.n_comments_consultee_total_consulted'] = 0
-                    app_df['other_fields.n_comments_consultee_responded'] = 0
-                print(
-                    f"consultee comments: consulted={app_df.at['other_fields.n_comments_consultee_total_consulted']}, "
-                    f"responded={app_df.at['other_fields.n_comments_consultee_responded']}.") if PRINT else None
-
-                # 汇总 n_comments (公众 + 法定咨询) / total n_comments (public + statutory consultee)
-                app_df.at['other_fields.n_comments'] = (app_df.at['other_fields.n_comments_consultee_responded'] +
-                                                        app_df.at['other_fields.n_comments_public_received'])
-
-            try:
-                comments = response.xpath('//*[@id="comments"]').xpath('./div')
-                self.scrape_comments(comments, comment_source, comment_date, comment_content)
-            except TypeError:
-                pass
-
-            next_page_url = response.xpath('//*[@id="commentsListContainer"]').css('a.next::attr(href)').get()
-            if next_page_url:
-                next_page_url = response.urljoin(next_page_url)
-                yield SeleniumRequest(url=next_page_url, callback=self.parse_consultee_comments_item,
-                                      meta={'app_df': app_df, 'folder_name': folder_name,
-                                            'max_file_name_len': response.meta['max_file_name_len'],
-                                            'comment_source': comment_source, 'comment_date': comment_date,
-                                            'comment_content': comment_content, 'first_visit': False},
-                                      dont_filter=True)
-                return
-
-            # 评论抓取完毕: 若有内容则落盘保存, 然后进入 Constraints 标签。
-            # Comments done: persist to csv if any, then move on to the Constraints tab.
-            if comment_source:
-                comment_df = pd.DataFrame({'comment_source': comment_source,
-                                           'comment_date': comment_date,
-                                           'comment_content': comment_content})
-                comment_df.to_csv(f"{self.data_storage_path}{folder_name}/comments.csv", index=False)
-
-            constraints_url = app_df.at['url'].replace('activeTab=summary', 'activeTab=constraints')
-            yield SeleniumRequest(url=constraints_url, callback=self.parse_constraints_item,
-                                  meta={'app_df': app_df, 'folder_name': folder_name,
-                                        'max_file_name_len': response.meta['max_file_name_len']},
-                                  dont_filter=True)
-
         comment_source, comment_date, comment_content = [], [], []
         try: # subtab_neighbourComments
-            #driver.find_element(By.XPATH, '//*[@id="tab_neighbourComments"]').click()
-            #driver.find_element(By.XPATH, '//*[@id="subtab_neighbourComments"]').click()
             # 不同的Idox网站,其comment界面的tab可能是makeComment,也可能是neighbourComments. 为了泛化，采用修改url的方式访问Comments
             # Idox portals could have different Comment tabs (makeComment or neighbourComments). For generalization, we modify url to access Comments.
             current_tab = driver.current_url.split('activeTab=')[-1].split('&')[0]
-            print(f'current_tab={current_tab}.')
             new_url = driver.current_url.replace(current_tab, 'neighbourComments')
             driver.get(new_url)
+            # 收集统计数据(即使comment页面不存在，仍然有不可见且为0的统计数据,所以一般不会抛出异常)
+            # Collect summaryStats(Even if comment page is unavailable, there still have invisible summaryStats with value 0)
             summary_stats = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="commentsContainer"]/ul')))
             summary_stats = summary_stats.find_elements(By.XPATH, './li')[:4]
             summary_stat_strs = [stat.get_attribute('innerText').strip() for stat in summary_stats]
@@ -686,9 +520,9 @@ class Idox_Scraper(Base_Scraper):
                 comment_source, comment_date, comment_content = scrape_comments(comment_source, comment_date, comment_content)
                 next_page = driver.find_elements(By.XPATH, '//*[@id="commentsListContainer"]//p[@class="pager top"]/a[@class="next"]')
 
-        # TO DO: neighbour comments不存在也可能有consultee comments:
+        # neighbour comments不存在也可能有consultee comments, 所以还是得用url访问:
+        # consultee comments could be available even if neighbour comments are unavailable, so we still need access consultee comments with URL.
         try:
-            #driver.find_element(By.XPATH, '//*[@id="subtab_consulteeComments"]').click()
             new_url = driver.current_url.replace('neighbourComments', 'consulteeComments')
             driver.get(new_url)
             summary_stats = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="commentsContainer"]/ul')))
