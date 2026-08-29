@@ -52,6 +52,9 @@ class Idox_Scraper(Base_Scraper):
         auth_id = 35, Bolton (需要先用申请编号搜索, 因为原始 url 会过期/失效):
             search: https://paplanning.bolton.gov.uk/online-applications/search.do?action=simple&searchType=Application
             page:   https://paplanning.bolton.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=ZZZPEGDEPM788
+        auth_id = 48, Broads (External Documents)
+            page: https://planning.broads-authority.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=NG285JTB00W00
+
     """
 
     name = 'Idox_Scraper'
@@ -402,6 +405,7 @@ class Idox_Scraper(Base_Scraper):
         except (NoSuchElementException, TimeoutException):
             print('\n3. Important Dates: sub-tab not found, skipped.')
         #"""
+
         # --- 4. Contacts ---
         def scrape_contacts():
             tabcontainer = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//div[@class='tabcontainer']")))
@@ -441,7 +445,7 @@ class Idox_Scraper(Base_Scraper):
                 #self.upload_and_delete(folder_name=folder_name, file_name='contacts.csv') if CLOUD_MODE else None
 
         folder_path = f"{self.data_storage_path}{folder_name}/"
-        print(f'    folder path: {folder_path}') if PRINT else None
+        print(f'\nfolder path: {folder_path}') if PRINT else None
         try:
             driver.find_element(By.XPATH, '//*[@id="subtab_contacts"]').click()
             print(f'\n4. Contacts.')
@@ -617,6 +621,7 @@ class Idox_Scraper(Base_Scraper):
             driver.find_element(By.XPATH, '//*[@id="tab_documents"]').click()
             while driver.current_url == current_url:
                 time.sleep(random.uniform(0.3, 0.7))
+            print(f"test url: {driver.current_url}")
 
             # 获取文档界面的模式类型/get the mode of document pages.
             try:
@@ -624,6 +629,7 @@ class Idox_Scraper(Base_Scraper):
                 mode = mode_str.split('&')[0]
             except IndexError as error:
                 mode = 'associatedDocuments'
+            print(f"test mode: {mode}")
 
             # 分类型获取文档/get documents based on document mode.
             n_documents = get_n_documents(mode)
