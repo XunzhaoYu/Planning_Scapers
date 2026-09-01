@@ -613,15 +613,19 @@ class Idox_Scraper(Base_Scraper):
                 else:
                     n_documents = len(driver.find_elements(By.XPATH, '//*[@id="Documents"]/tbody/tr')) - 1 # tr[1:]
                 return n_documents
+            elif mode == 'externalDocuments': # open a new url_tab for external documents.
+                external_doc_button = driver.find_element(By.XPATH, '//p[@class="externalDocumentsLink"/a')
+                external_doc_button.click()
+                external_doc_url = external_doc_button.get_attribute('href')
+
             else:
                 return 0
 
         try:
             current_url = driver.current_url
-            driver.find_element(By.XPATH, '//*[@id="tab_documents"]').click()
+            driver.find_element(By.XPATH, '//*[@id="tab_documents"] | //*[@id="tab_externalDocuments"]').click()
             while driver.current_url == current_url:
                 time.sleep(random.uniform(0.3, 0.7))
-            print(f"test url: {driver.current_url}")
 
             # 获取文档界面的模式类型/get the mode of document pages.
             try:
@@ -638,6 +642,7 @@ class Idox_Scraper(Base_Scraper):
         except (NoSuchElementException, TimeoutException):
             n_documents = 0
             print('\n7. Documents: sub-tab not found, skipped.')
+            print(f"Doc url: {driver.current_url}")
 
         app_df.at['other_fields.n_documents'] = n_documents
         if n_documents > 0:
