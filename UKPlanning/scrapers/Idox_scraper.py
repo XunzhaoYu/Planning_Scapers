@@ -603,6 +603,11 @@ class Idox_Scraper(Base_Scraper):
         # ------------------------------------------------------------------
         def get_n_documents(mode):
             if mode == 'documents':
+                if app_df.at['other_fields.docs_url'] != driver.current_url:
+                    print(f'doc url:')
+                    print(app_df.at['other_fields.docs_url'])
+                    print(driver.current_url)
+                    app_df.at['other_fields.docs_url'] = driver.current_url
                 ### get n_documents ###
                 documents_str = driver.find_element(By.XPATH, '//*[@id="tab_documents"]/span | //*[@id="pa"]/div[3]/div[3]/ul/li[3]/span').get_attribute('innerText').strip()
                 #if documents_str is None:
@@ -614,22 +619,56 @@ class Idox_Scraper(Base_Scraper):
                     n_documents = len(driver.find_elements(By.XPATH, '//*[@id="Documents"]/tbody/tr')) - 1 # tr[1:]
                 return n_documents
             elif mode == 'externalDocuments': # open a new url_tab for external documents.
-                external_doc_button = driver.find_element(By.XPATH, '//p[@class="externalDocumentsLink"/a')
-                external_doc_button.click()
+                external_doc_button = driver.find_element(By.XPATH, '//p[@class="externalDocumentsLink"]/a')
                 external_doc_url = external_doc_button.get_attribute('href')
 
+                if app_df.at['other_fields.docs_url'] != external_doc_url:
+                    print(f'doc url:')
+                    print(app_df.at['other_fields.docs_url'])
+                    print(external_doc_url)
+                    app_df.at['other_fields.docs_url'] = external_doc_url
+                external_doc_button.click()
+                mode = 'associateDocuments'
+                return get_n_documents(mode)
+            elif mode == 'associateDocuments':
+                mode_str = app_df.at['other_fields.docs_url'].split('?')[1]
+                print('mode_str: ', mode_str) if PRINT else None
+                system_name = 'Unknown'
+                if any(x in mode_str for x in ('SDescription', 'ref_no')):
+                    system_name = 'Civica'
+                elif any(x in mode_str for x in ('doc_class_code', 'FileSystemId', 'SEARCH_TYPE')):
+                    system_name = 'NEC' # *** to be completed
+                elif 'appref' in mode_str:
+                    system_name = 'Exeter'
+                elif 'appType' in mode_str:
+                    # appType=Development%20Control&appNumber=BA/2002/6344/HISTAP
+                    system_name = 'Broads'
+                    print(system_name)
+                    document_table = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '/html/body/table/tbody')))
+                    print('2')
+                    n_documents = len(document_table.find_elements(By.XPATH, './tr')) - 1
+                return n_documents
             else:
+                print('Unknown document mode.')
                 return 0
 
+        document_tab_available = False
         try:
-            current_url = driver.current_url
+            constraint_tab_url = driver.current_url
             driver.find_element(By.XPATH, '//*[@id="tab_documents"] | //*[@id="tab_externalDocuments"]').click()
-            while driver.current_url == current_url:
+            while driver.current_url == constraint_tab_url:
                 time.sleep(random.uniform(0.3, 0.7))
+            document_tab_url = driver.current_url
+            document_tab_available = True
+        except (NoSuchElementException, TimeoutException):
+            n_documents = 0
+            print('\n7. Documents: sub-tab not found, skipped.')
+            print(f"Doc url: {driver.current_url}")
 
+        if document_tab_available:
             # 获取文档界面的模式类型/get the mode of document pages.
             try:
-                mode_str = driver.current_url.split('activeTab=')[1]
+                mode_str = document_tab_url.split('activeTab=')[1]
                 mode = mode_str.split('&')[0]
             except IndexError as error:
                 mode = 'associatedDocuments'
@@ -638,11 +677,6 @@ class Idox_Scraper(Base_Scraper):
             # 分类型获取文档/get documents based on document mode.
             n_documents = get_n_documents(mode)
             print(f'\n7. Documents <{mode}>: {n_documents} items, folder_name: {folder_name}.') if PRINT else None
-
-        except (NoSuchElementException, TimeoutException):
-            n_documents = 0
-            print('\n7. Documents: sub-tab not found, skipped.')
-            print(f"Doc url: {driver.current_url}")
 
         app_df.at['other_fields.n_documents'] = n_documents
         if n_documents > 0:
