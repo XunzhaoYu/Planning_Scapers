@@ -666,10 +666,26 @@ class Idox_Scraper(Base_Scraper):
             print(f"Doc url: {driver.current_url}")
 
         if document_tab_available:
-            # 获取文档界面的模式类型/get the mode of document pages.
+            # 获取文档界面的模式类型，更新other_fields.docs_url
+            # get the mode of document pages, update other_fields.docs_url
             try:
                 mode_str = document_tab_url.split('activeTab=')[1]
                 mode = mode_str.split('&')[0]
+                if mode == 'documents':
+                    if app_df.at['other_fields.docs_url'] != document_tab_url:
+                        print(f"doc url: {app_df.at['other_fields.docs_url']}")
+                        print(document_tab_url)
+                        app_df.at['other_fields.docs_url'] = driver.current_url
+                elif mode == 'externalDocuments':
+                    external_doc_button = driver.find_element(By.XPATH, '//p[@class="externalDocumentsLink"]/a')
+                    external_doc_url = external_doc_button.get_attribute('href')
+
+                    if app_df.at['other_fields.docs_url'] != external_doc_url:
+                        print(f"doc url: {app_df.at['other_fields.docs_url']}")
+                        print(external_doc_url)
+                        app_df.at['other_fields.docs_url'] = external_doc_url
+                    external_doc_button.click()
+                    mode = 'associateDocuments'
             except IndexError as error:
                 mode = 'associatedDocuments'
             print(f"test mode: {mode}")
