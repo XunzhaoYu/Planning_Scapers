@@ -688,6 +688,7 @@ class Idox_Scraper(Base_Scraper):
                     mode = 'associateDocuments'
             except IndexError as error:
                 mode = 'associatedDocuments'
+                assert 1==2 # need to add new document mode.
             print(f"test mode: {mode}")
 
             # 分类型获取文档/get documents based on document mode.
