@@ -10,7 +10,7 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
 from configs.settings import PRINT
 from general.base_scraper import Base_Scraper
-from general.document_utils import replace_invalid_characters, get_documents
+from general.document_utils import replace_invalid_characters, get_documents, get_Broads_documents
 from general.items import DownloadFilesItem
 from general.utils import unique_columns, scrape_data_items, scrape_for_csv, scrape_multi_tables_for_csv, is_empty, convert_date
 
@@ -653,7 +653,6 @@ class Idox_Scraper(Base_Scraper):
                 print(f'\n7. Documents <{mode}>: {n_documents} items, folder_name: {folder_name}.') if PRINT else None
 
                 if n_documents > 0:
-                    # document_names, file_urls = self.rename_documents_and_get_file_urls(response, self.data_upload_path, folder_name)
                     file_urls, document_names = get_documents(driver, response, self.data_upload_path, folder_name, max_file_name_len)
                     item = self.create_item(driver, folder_name, file_urls, document_names)
                     yield item
@@ -662,8 +661,8 @@ class Idox_Scraper(Base_Scraper):
                     Idox_tab = driver.current_window_handle
                     all_tabs = driver.window_handles
                     external_doc_tab = [x for x in all_tabs if x != Idox_tab][0]
-                    # driver.close()  # close the 'Idox page' tab.
                     driver.switch_to.window(external_doc_tab)  # move to new tab.
+                    return Idox_tab
 
                 mode_str = app_df.at['other_fields.docs_url'].split('?')[1]
                 print('mode_str: ', mode_str) if PRINT else None
@@ -679,12 +678,16 @@ class Idox_Scraper(Base_Scraper):
                     system_name = 'Broads'
                     print(system_name)
 
-                    switch_to_doc_tab(driver)
+                    Idox_tab = switch_to_doc_tab(driver)
                     document_table = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '/html/body/table/tbody')))
                     n_documents = len(document_table.find_elements(By.XPATH, './tr')) - 1
                     print(f'\n7. Documents <{mode}>: {n_documents} items, folder_name: {folder_name}.') if PRINT else None
-
-
+                    if n_documents > 0:
+                        file_urls, document_names = get_Broads_documents(response, document_table, self.data_upload_path, folder_name, max_file_name_len)
+                        item = self.create_item(driver, folder_name, file_urls, document_names)
+                        yield item
+                    driver.close()
+                    driver.switch_to.window(Idox_tab)
             app_df.at['other_fields.n_documents'] = n_documents
 
         # ------------------------------------------------------------------
