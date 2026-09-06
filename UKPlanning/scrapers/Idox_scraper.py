@@ -366,15 +366,17 @@ class Idox_Scraper(Base_Scraper):
         print(f'parse_data_item_Idox, scraper name: {scraper_name}, max_file_name_len: {max_file_name_len}.')
 
         try:
-            content = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="pa"]/div[@class="container"]/div[@class="content"]')))
+            #content = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="pa"]/div[@class="container"]/div[@class="content"]')))
+            tab_container = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="pa"]/div[@class="container"]/div[@class="content"]/div[@class="tabcontainer"]')))
         except TimeoutException:
             # 该申请详情不可查看 (可能已被撤回/限制公开)。
             # Application details are not viewable (may have been withdrawn / restricted).
-            note = response.xpath('//*[@id="main-content"]/article/h1/text()').get()
+            #note = response.xpath('//*[@id="main-content"]/article/h1/text()').get()
+            note = driver.find_element(By.XPATH, '//*[@id="pa"]/div[3]/div[3]/p').get_attribute('innerText')
             print('note: ', note)
             return
         #"""
-        tab_container = content.find_element(By.XPATH, "./div[@class='tabcontainer']")
+        #tab_container = content.find_element(By.XPATH, "./div[@class='tabcontainer']")
 
         # --- 1. Summary --- 默认就是激活状态, 无需点击 / active by default, no click needed
         items = tab_container.find_elements(By.XPATH, "./table[@id='simpleDetailsTable']/tbody/tr/th")
@@ -676,16 +678,21 @@ class Idox_Scraper(Base_Scraper):
                 elif 'appType' in mode_str:
                     # appType=Development%20Control&appNumber=BA/2002/6344/HISTAP
                     system_name = 'Broads'
-                    print(system_name)
 
                     Idox_tab = switch_to_doc_tab(driver)
-                    document_table = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '/html/body/table/tbody')))
-                    n_documents = len(document_table.find_elements(By.XPATH, './tr')) - 1
-                    print(f'\n7. Documents <{mode}>: {n_documents} items, folder_name: {folder_name}.') if PRINT else None
+                    try:
+                        document_table = WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, '/html/body/table/tbody')))
+                        n_documents = len(document_table.find_elements(By.XPATH, './tr')) - 1
+                        print(f'\n7. Documents <{mode}>: {n_documents} items, folder_name: {folder_name}.') if PRINT else None
+                    except TimeoutException:
+                        # example: https://planning.broads-authority.gov.uk/PublicAccessDocs/planningdocs.aspx?appType=Development%20Control&appNumber=BA/2006/0001/HISTAP
+                        no_document_text = driver.find_element(By.XPATH, '/html/body/p/strong').get_attribute('innerText').strip()
+                        print(f'\n7. Documents <{mode}>: {no_document_text}')
                     if n_documents > 0:
                         file_urls, document_names = get_Broads_documents(response, document_table, self.data_upload_path, folder_name, max_file_name_len)
                         item = self.create_item(driver, folder_name, file_urls, document_names)
                         yield item
+                    # 关闭Chrome的外部文档页面 / Close external document Chrome tab.
                     driver.close()
                     driver.switch_to.window(Idox_tab)
             app_df.at['other_fields.n_documents'] = n_documents
