@@ -27,6 +27,7 @@ class Tascomi_Scaper(Base_Scraper):
     auth_id = 90, Coventry: https://planningsearch.coventry.gov.uk/planning/application/556153 [X]
                     [Search ID] https://planandregulatory.coventry.gov.uk/planning/index.html?fa=getApplication&id=249328
     auth_id = 98, Dartmoor: https://dartmoor-online.tascomi.com/planning/index.html?fa=getApplication&id=126932
+    auth_id = 155, Gloucestershire (was Idox): https://planningonline.gloucestershire.gov.uk/planning/index.html?fa=getApplication&id=129260
     auth_id = 161(159), Gwynedd: https://amg.gwynedd.llyw.cymru/planning/index.html?fa=getApplication&id=89
     auth_id = 162(160), Hackney: https://developmentandhousing.hackney.gov.uk/planning/index.html?fa=getApplication&id=63606
     *auth_id = 171(169), Harrow: https://planningsearch.harrow.gov.uk/planning/planning-application?RefType=GFPlanning&KeyNo=696420
@@ -50,7 +51,7 @@ class Tascomi_Scaper(Base_Scraper):
         super().__init__(*args, **kwargs)
 
         # All sub_classes of Base_Scraper should define their self.parse_func(s) in __init__
-        if self.auth in ['Coventry', 'Dartmoor', 'Harrow', 'NewcastleUponTyne', 'Warrington', 'Wirral', 'Breckland', 'Rother']:
+        if self.auth in ['Coventry', 'Dartmoor', 'Gloucestershire', 'Harrow', 'NewcastleUponTyne', 'Warrington', 'Wirral', 'Breckland', 'Rother']:
             self.url_check = True
             self.url_preprocess = self.url_preprocess_Tascomi
         elif self.auth in ['Gwynedd']:
@@ -61,6 +62,7 @@ class Tascomi_Scaper(Base_Scraper):
     LA_url_dict = {'Breckland': 'https://publicportal.breckland.gov.uk/planning/index',
                    'Coventry':  'https://planandregulatory.coventry.gov.uk/planning/index',
                    'Dartmoor':  'https://dartmoor-online.tascomi.com/planning/index',
+                   'Gloucestershire': 'https://planningonline.gloucestershire.gov.uk/planning/index',
                    'Harrow':    'https://planningsearch.harrow.gov.uk/planning/index',
                    'NewcastleUponTyne': 'https://portal.newcastle.gov.uk/planning/index',
                    'Rother':    'https://online.rother.gov.uk/planning/index',
@@ -285,9 +287,9 @@ class Tascomi_Scaper(Base_Scraper):
                             print(f'    {file_url}') if PRINT else None
                             file_urls.append(file_url)
 
-                            document_type = document_item.find_element(By.XPATH, './td[@data-field-name="document_type"]').text.strip()
-                            document_description = document_item.find_element(By.XPATH, './td[@data-field-name="description"]').text.strip()
-                            document_date = document_item.find_element(By.XPATH, './td[@data-field-name="date_document_added"] | .//td[@data-field-name="document_date"]').text.strip()
+                            document_type = document_item.find_element(By.XPATH, './td[@data-field-name="document_type"]').get_attribute('innerText').strip()  #text.strip()
+                            document_description = document_item.find_element(By.XPATH, './td[@data-field-name="description"]').get_attribute('innerText').strip()  #text.strip()
+                            document_date = document_item.find_element(By.XPATH, './td[@data-field-name="date_document_added"] | .//td[@data-field-name="document_date"]').get_attribute('innerText').strip()  #text.strip()
                             document_name = f'date={document_date}&type={document_type}&desc={document_description}&uid={n_documents}'
                             len_limitation = len(document_name) - max_file_name_len
                             print(f'    Doc {n_documents} len_limitation: {len_limitation}') if len_limitation > -5 else None
@@ -326,7 +328,7 @@ class Tascomi_Scaper(Base_Scraper):
                         except NoSuchElementException:
                             print(f'    - - - Representation {comment_index + 1}: N/A - - -') if PRINT else None
             # --- --- --- Make a Comment / Representation (null) --- --- ---
-            elif tab_name == 'make_a_representation':
+            elif 'make_a_representation' in tab_name:
                 print(f'\n{tab_index+1}. Make a representation.')
             # --- --- --- Appeals (csv + doc) --- --- --- Save appeals as .csv + extract file_urls (if have) for downloading appeal docs.
             elif tab_name == 'appeals':  # e.g. auth=3, year=[7]
