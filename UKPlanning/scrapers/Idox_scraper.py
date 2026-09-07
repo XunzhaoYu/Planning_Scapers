@@ -45,16 +45,26 @@ class Idox_Scraper(Base_Scraper):
        load for that tab.
 
     示例 / Examples:
-        auth_id = 32, Blackpool:
+        1.auth_id = 32, Blackpool:
             page:   https://idoxpa.blackpool.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=_BLCKP_DCAPR_23417
             comments: .../applicationDetails.do?activeTab=neighbourComments&keyVal=_BLCKP_DCAPR_23417
             documents: .../applicationDetails.do?activeTab=documents&keyVal=_BLCKP_DCAPR_23417
-        auth_id = 35, Bolton (需要先用申请编号搜索, 因为原始 url 会过期/失效):
+        2.auth_id = 35, Bolton (需要先用申请编号搜索, 因为原始 url 会过期/失效):
             search: https://paplanning.bolton.gov.uk/online-applications/search.do?action=simple&searchType=Application
             page:   https://paplanning.bolton.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=ZZZPEGDEPM788
-        auth_id = 48, Broads (External Documents)
+        3.auth_id = 48, Broads (External Documents)
             page: https://planning.broads-authority.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=NG285JTB00W00
-
+        *4.auth_id = 101 or 102, Derby (IP rotation 59 & document system)
+        5.auth_id = 125, EastNorthamptonshire (*Page not found 74, too many requests)
+            page:   https://publicaccess.east-northamptonshire.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=R5L7NRGOMI300
+        6.auth_id = 155, Gloucestershire (was Idox, is Tascomi now)
+            page:   https://planning.gloucestershire.gov.uk/publicaccess/applicationDetails.do?keyVal=QR5GJNHNML200&activeTab=summary
+        7.auth_id = 165, Hambleton (NEC, page load issue 95)
+            page:   https://planning.gloucestershire.gov.uk/publicaccess/applicationDetails.do?keyVal=QR5GJNHNML200&activeTab=summary
+        *8.auth_id = 166, Hammersmith (Dict, IP rotation 96)
+        9.auth_id = 247, Newport (Northgate 143)
+        10.auth_id = 317, Selby (NEC download failed 182)
+        11.auth_id = 344, Spelthorne (url errors since 2012 201)
     """
 
     name = 'Idox_Scraper'
