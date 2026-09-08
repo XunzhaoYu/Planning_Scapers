@@ -10,7 +10,7 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
 from configs.settings import PRINT
 from general.base_scraper import Base_Scraper
-from general.document_utils import replace_invalid_characters, get_documents, get_Broads_documents
+from general.document_utils import replace_invalid_characters, get_documents, get_NEC_or_Northgate_documents, get_Broads_documents
 from general.items import DownloadFilesItem
 from general.utils import unique_columns, scrape_data_items, scrape_for_csv, scrape_multi_tables_for_csv, is_empty, convert_date
 
@@ -55,14 +55,18 @@ class Idox_Scraper(Base_Scraper):
         3.auth_id = 48, Broads (External Documents)
             page: https://planning.broads-authority.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=NG285JTB00W00
         *4.auth_id = 101 or 102, Derby (IP rotation 59 & document system)
-        5.auth_id = 125, EastNorthamptonshire (*Page not found 74, too many requests)
+        **5.auth_id = 125, EastNorthamptonshire (Page not found 74, *too many requests)
             page:   https://publicaccess.east-northamptonshire.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=R5L7NRGOMI300
         6.auth_id = 155, Gloucestershire (was Idox, is Tascomi now)
             page:   https://planning.gloucestershire.gov.uk/publicaccess/applicationDetails.do?keyVal=QR5GJNHNML200&activeTab=summary
-        7.auth_id = 165, Hambleton (NEC, page load issue 95)
-            page:   https://planning.gloucestershire.gov.uk/publicaccess/applicationDetails.do?keyVal=QR5GJNHNML200&activeTab=summary
-        *8.auth_id = 166, Hammersmith (Dict, IP rotation 96)
-        9.auth_id = 247, Newport (Northgate 143)
+        **7.auth_id = 165, Hambleton (NEC, *doc page load issue 95)
+            page:   https://planning.hambleton.gov.uk/online-applications/applicationDetails.do?keyVal=0300023CAT&activeTab=summary
+        *8.auth_id = 166, Hammersmith (IP rotation 96, *too many requests)
+            page:   https://public-access.lbhf.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=ISU0I8BIM9000
+        9.auth_id = 247, Newport (External Documents: Northgate 143)
+            origin: http://planning.newport.gov.uk/swift/apas/run/WPHAPPDETAIL.DisplayUrl?theApnID=01/0026
+            search: https://publicaccess.newport.gov.uk/online-applications/search.do?action=simple&searchType=Application
+            page:   https://publicaccess.newport.gov.uk/online-applications/simpleSearchResults.do?action=firstPage
         10.auth_id = 317, Selby (NEC download failed 182)
         11.auth_id = 344, Spelthorne (url errors since 2012 201)
     """
@@ -675,21 +679,43 @@ class Idox_Scraper(Base_Scraper):
                     external_doc_tab = [x for x in all_tabs if x != Idox_tab][0]
                     driver.switch_to.window(external_doc_tab)  # move to new tab.
                     return Idox_tab
-
+                Idox_tab = switch_to_doc_tab(driver)
                 mode_str = app_df.at['other_fields.docs_url'].split('?')[1]
                 print('mode_str: ', mode_str) if PRINT else None
                 system_name = 'Unknown'
                 if any(x in mode_str for x in ('SDescription', 'ref_no')):
                     system_name = 'Civica'
                 elif any(x in mode_str for x in ('doc_class_code', 'FileSystemId', 'SEARCH_TYPE')):
-                    system_name = 'NEC'  # *** to be completed
+                    system_name = 'NEC'
+                    version = 2024
+                    try: # documents_str = 'Showing 1 to 10 of {n_documents} entries'
+                        documents_str = WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, '//*[@id="searchResult_info"]'))).get_attribute('innerText')
+                        documents_str = documents_str.split('of')[1]  # documents_str = '{n_documents} entries'
+                        n_documents = int(re.search(r"\d+", documents_str).group())
+                    except NoSuchElementException:
+                        try: # documents_str = 'Search Results - {n_documents} records found'
+                            # //*[@id="PanelMain"]/div[1]
+                            documents_str = WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, '//*[@id="PanelMain"]/div[1]'))).get_attribute('innerText')
+                            #documents_str = response.css('div.TitleLabel').xpath('./text()').get()
+                            n_documents = int(re.search(r"\d+", documents_str).group())
+                            version = 2009
+                        except NoSuchElementException:
+                            print('No documents are available.') if PRINT else None
+                            #n_documents = 0
+                    print(f"{app_df.name} <{system_name} mode (ver.{version})> n_documents: {n_documents}, folder_name: {folder_name}")
+                    app_df.at['other_fields.n_documents'] = n_documents
+                    if n_documents > 0:
+                        file_urls, document_names = get_NEC_or_Northgate_documents(driver, n_documents, self.data_upload_path, folder_name, version)
+                        item = self.create_item(driver, folder_name, file_urls, document_names)
+                        yield item
+
                 elif 'appref' in mode_str:
                     system_name = 'Exeter'
                 elif 'appType' in mode_str:
                     # appType=Development%20Control&appNumber=BA/2002/6344/HISTAP
                     system_name = 'Broads'
 
-                    Idox_tab = switch_to_doc_tab(driver)
+                    #Idox_tab = switch_to_doc_tab(driver)
                     try:
                         document_table = WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, '/html/body/table/tbody')))
                         n_documents = len(document_table.find_elements(By.XPATH, './tr')) - 1
