@@ -708,6 +708,9 @@ class Idox_Scraper(Base_Scraper):
                         file_urls, document_names = get_NEC_or_Northgate_documents(driver, n_documents, self.data_upload_path, folder_name, version)
                         item = self.create_item(driver, folder_name, file_urls, document_names)
                         yield item
+                    # 关闭Chrome的外部文档页面 / Close external document Chrome tab.
+                    driver.close()
+                    driver.switch_to.window(Idox_tab)
 
                 elif 'appref' in mode_str:
                     system_name = 'Exeter'
