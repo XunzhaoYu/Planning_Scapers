@@ -714,7 +714,6 @@ class Idox_Scraper(Base_Scraper):
                 elif 'appType' in mode_str:
                     # appType=Development%20Control&appNumber=BA/2002/6344/HISTAP
                     system_name = 'Broads'
-
                     #Idox_tab = switch_to_doc_tab(driver)
                     try:
                         document_table = WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.XPATH, '/html/body/table/tbody')))
