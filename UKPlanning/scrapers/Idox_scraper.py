@@ -66,7 +66,7 @@ class Idox_Scraper(Base_Scraper):
         9.auth_id = 247, Newport (External Documents: Northgate 143)
             origin: http://planning.newport.gov.uk/swift/apas/run/WPHAPPDETAIL.DisplayUrl?theApnID=01/0026
             search: https://publicaccess.newport.gov.uk/online-applications/search.do?action=simple&searchType=Application
-            page:   https://publicaccess.newport.gov.uk/online-applications/simpleSearchResults.do?action=firstPage
+            page:   https://publicaccess.newport.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=ZZZYZGLCPM524
         10.auth_id = 317, Selby (NEC download failed 182)
         11.auth_id = 344, Spelthorne (url errors since 2012 201)
     """
@@ -82,13 +82,17 @@ class Idox_Scraper(Base_Scraper):
 
         # 每个 Base_Scraper 子类都需要在 __init__ 中指定 self.parse_func。
         # Every sub-class of Base_Scraper must define self.parse_func(s) in __init__.
-        if self.auth in ['Bolton']:
-            # Bolton 的 CSV 起始 url 可能已过期, 需要先按申请编号(uid)搜索, 再跳转到真实详情页。
+        if self.auth in ['Bolton', 'Newport']:
+            # Bolton 等的 CSV 起始 url 可能已过期, 需要先按申请编号(uid)搜索, 再跳转到真实详情页。
             # Bolton's stored start url may be stale, so we search by uid first.
             self.url_check = True
-            self.url_preprocess = self.url_preprocess_Bolton
+            self.url_preprocess = self.url_preprocess_Idox
         else:
             self.parse_func = self.parse_data_item_Idox
+
+    LA_url_dict = {'Bolton': 'https://paplanning.bolton.gov.uk/online-applications',    # applicationDetails.do?activeTab=summary&keyVal=
+                   'Newport': 'https://publicaccess.newport.gov.uk/online-applications',# applicationDetails.do?activeTab=summary&keyVal=
+                    }
 
     # ------------------------------------------------------------------
     # 字段映射表 / Field-name mapping dictionaries
@@ -323,13 +327,14 @@ class Idox_Scraper(Base_Scraper):
     # Bolton 专用: 按申请编号搜索 / Bolton-specific: search by application id
     # ------------------------------------------------------------------
 
-    def url_preprocess_Bolton(self, url):
-        if url.startswith('https://paplanning.bolton.gov.uk/online-applications/applicationDetails.do?'):
+    def url_preprocess_Idox(self, url):
+        if url.startswith(f'{self.LA_url_dict[self.auth]}'):
             self.parse_func = self.parse_data_item_Idox
             return url
         else:
             self.parse_func = self.search_by_appID_Idox
-            return 'https://paplanning.bolton.gov.uk/online-applications/search.do?action=simple&searchType=Application'
+            return f'{self.LA_url_dict[self.auth]}/search.do?action=simple&searchType=Application'
+
 
     def search_by_appID_Idox(self, response):
         driver = response.request.meta['driver']
