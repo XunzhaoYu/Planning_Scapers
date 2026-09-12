@@ -386,7 +386,8 @@ class Idox_Scraper(Base_Scraper):
 
         try:
             #content = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="pa"]/div[@class="container"]/div[@class="content"]')))
-            tab_container = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="pa"]/div[@class="container"]/div[@class="content"]/div[@class="tabcontainer"]')))
+            tab_container = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="pa"]/main[@class="container"]/div[@class="content"]/div[@class="tabcontainer"]')))
+            #                                                                                                    //*[@id="pa"]/main/div[3]/div[9]
         except TimeoutException:
             # 该申请详情不可查看 (可能已被撤回/限制公开)。
             # Application details are not viewable (may have been withdrawn / restricted).
@@ -483,7 +484,7 @@ class Idox_Scraper(Base_Scraper):
             comments_block = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="comments"]')))
             comments = comments_block.find_elements(By.XPATH, './div')
             for i, comment in enumerate(comments, start=1):
-                temp_source = comment.find_element(By.XPATH, './h2 | ./h3').get_attribute('innerText').strip()
+                temp_source = comment.find_element(By.XPATH, './h2 | ./h3 | ./h1').get_attribute('innerText').strip()
                 comment_wraps = comment.find_elements(By.XPATH, './div')
                 if len(comment_wraps) == 0:
                     comment_source.append(temp_source)
@@ -496,7 +497,7 @@ class Idox_Scraper(Base_Scraper):
                     for comment_wrap in comment_wraps:
                         comment_source.append(temp_source)
 
-                        temp_date = comment_wrap.find_element(By.XPATH, './h3 | ./h4').get_attribute('innerText').strip()
+                        temp_date = comment_wrap.find_element(By.XPATH, './h3 | ./h4 | ./h2').get_attribute('innerText').strip()
                         temp_date2 = re.sub("\s+", " ", temp_date)
                         comment_date.append(temp_date2)
                         print(f'\n  --- --- --- comment --- --- --- ')
@@ -710,7 +711,7 @@ class Idox_Scraper(Base_Scraper):
                     print(f"{app_df.name} <{system_name} mode (ver.{version})> n_documents: {n_documents}, folder_name: {folder_name}")
                     app_df.at['other_fields.n_documents'] = n_documents
                     if n_documents > 0:
-                        file_urls, document_names = get_NEC_or_Northgate_documents(driver, n_documents, self.data_upload_path, folder_name, version)
+                        file_urls, document_names = get_NEC_or_Northgate_documents(driver, n_documents, self.data_upload_path, folder_name, max_file_name_len, version)
                         item = self.create_item(driver, folder_name, file_urls, document_names)
                         yield item
                     # 关闭Chrome的外部文档页面 / Close external document Chrome tab.

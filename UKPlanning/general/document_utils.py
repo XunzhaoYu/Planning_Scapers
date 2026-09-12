@@ -112,6 +112,8 @@ def get_documents_for_old_Idox(response, folder_path, folder_name):  # All docs 
         file_urls.append(response.urljoin(file_url))
     return file_urls, document_names
 
+
+
 # Updated on 05/09/2026
 def get_Broads_documents(response, document_table, folder_path, folder_name, max_file_name_len):
     date_column, type_column, description_column = 1, 2, 3
@@ -187,19 +189,83 @@ def get_Civica_documents(response, document_items, n_documents, folder_path, fol
         pass
     return file_urls, document_names
 
-def generate_unique_document_name(existing_names, document_name):
-    # Note that the document_name should not contain any extension such as '.pdf'
-    if document_name in existing_names:
-        base = document_name
-        rename_index = 2
-        while True:
-            document_name = base + str(rename_index)
-            if document_name not in existing_names:
-                return document_name
-            else:
-                rename_index += 1
-    else:
-        return document_name
+
+
+# Updated on 12/01/2026. for Agile scrapers
+# Previous (Idox) version used regular expression (RE) to match the string of javascript.
+# This version manage to use a new method to get the Python dictionary of model info: model_data = driver.execute_script("return model;")
+def get_NEC_or_Northgate_documents(driver, n_documents, folder_path, folder_name, max_file_name_len, version=2024):
+    file_urls = []
+    document_names = []
+    if version == 2024:  # Scrape from Javascript code. All docs in one page.
+        """
+        #javascript = driver.find_element(By.XPATH, '//*[@id="searchResult"]/script[4] | //*[@id="searchResult"]/script[6] | //*[@id="layoutMain"]/div/div/script[4]').text.strip()
+        javascript = driver.find_element(By.XPATH, '//*[@id="searchResult"]/script[6]').get_attribute('innerHTML')
+        print(javascript)
+        #"""
+        model_data = driver.execute_script("return model;")
+        doc_ids, document_dates,  document_types, document_descriptions = [], [], [], []
+        for i in range (n_documents):
+            doc_ids.append(model_data['Rows'][i]['Guid'])
+            document_dates.append(model_data['Rows'][i]['Date_Received'].split(' ')[0])  # extract date
+            document_types.append(model_data['Rows'][i]['Doc_Type'])
+            document_descriptions.append(model_data['Rows'][i]['Doc_Ref2'])
+
+        url_domain = driver.current_url.split('/')[2]
+        print(f"url domain: {url_domain}") if PRINT else None
+        view_document_url = driver.execute_script("return viewDocumentUrl;")
+        print(f"view document url: {view_document_url}") if PRINT else None
+
+        for doc_index in range(n_documents):
+            print(f'    - - - Document {doc_index+1} - - -') if PRINT else None
+            file_url = f"https://{url_domain}{view_document_url}?id={doc_ids[doc_index]}"
+            file_urls.append(file_url)
+            print(f"    file url: {file_url}") if PRINT else None
+
+            document_name = f"date={document_dates[doc_index]}&type={document_types[doc_index]}&desc={document_descriptions[doc_index]}&uid={doc_index+1}.pdf"
+            len_limitation = len(document_name) - max_file_name_len
+            print(f'    Doc {n_documents} len_limitation: {len_limitation}') if len_limitation > -5 else None
+            if len_limitation > 0:
+                document_name = f"date={document_dates[doc_index]}&type={document_types[doc_index]}&desc={document_descriptions[doc_index][:-len_limitation]}&uid={doc_index+1}.pdf"
+            #document_name = f"date={document_dates[doc_index]}&type={document_types[doc_index]}({document_filetypes[doc_index].lower()})&desc={document_descriptions[doc_index]}"
+
+            # Check the format of document names.
+            document_name = document_name.encode('utf-8').decode('unicode_escape')  # some document names may contain characters presented in other unicode, e.g. \u0026
+            document_name = document_name.replace('\r', ' ').replace('\n', ' ').strip()
+            print(f"    doc name: {document_name}") if PRINT else None
+            document_name = replace_invalid_characters(document_name)
+            document_names.append(f"{folder_path}{folder_name}/{document_name}.pdf")
+    elif version == 2009:  # Default 25 docs per page, max 50 docs per page. Need to change pages if there are many docs.
+        ### Get url domain ###
+        url_domain = response.url.split('/')[2]
+        print("url domain: ", url_domain) if PRINT else None
+        n_pages = np.ceil(n_documents/25)
+        if n_pages > 1:
+            driver = response.request.meta["driver"]
+        for page in range(n_pages):
+            document_items = response.xpath('//*[@id="grdResults_tblData"]/tbody/tr')[1:]
+            for i, document_item in enumerate(document_items):
+                document_date = document_item.xpath(f'./td[1]/text()').get().strip()
+                document_type = document_item.xpath(f'./td[2]/text()').get().strip()
+                try:
+                    document_description = document_item.xpath(f'./td[4]/text()').get().strip()
+                except AttributeError:
+                    document_description = ''
+                item_identity = document_item.xpath(f'./td[5]/text()').get().strip()
+                document_name = f"date={document_date}&type={document_type}&desc={document_description}&{item_identity}"
+                print(document_name) if PRINT else None
+                document_name = replace_invalid_characters(document_name)
+                document_names.append(f"{folder_path}{folder_name}/{document_name}")
+
+                file_url = f"https://{url_domain}/AnitePublicDocs/00{item_identity}.pdf"
+                file_urls.append(file_url)
+                print(file_url) if PRINT else None
+            if page > 0:
+                driver.find_element(By.XPATH, '//*[@id="grdResults__ctl0_cmdNext"]').click()
+    else: # Unknown NEC or Northgate version
+        pass
+
+    return file_urls, document_names
 
 # Updated on 03/06/2024. for Idox scrapers
 def get_NEC_or_Northgate_documents_Idox(response, n_documents, folder_path, folder_name, version=2024):
@@ -344,85 +410,6 @@ def get_NEC_or_Northgate_documents_Idox(response, n_documents, folder_path, fold
     return file_urls, document_names
 
 
-# Updated on 12/01/2026. for Agile scrapers
-# Previous (Idox) version used regular expression (RE) to match the string of javascript.
-# This version manage to use a new method to get the Python dictionary of model info: model_data = driver.execute_script("return model;")
-def get_NEC_or_Northgate_documents(driver, n_documents, folder_path, folder_name, max_file_name_len, version=2024):
-    file_urls = []
-    document_names = []
-    if version == 2024:  # Scrape from Javascript code. All docs in one page.
-        """
-        #javascript = driver.find_element(By.XPATH, '//*[@id="searchResult"]/script[4] | //*[@id="searchResult"]/script[6] | //*[@id="layoutMain"]/div/div/script[4]').text.strip()
-        javascript = driver.find_element(By.XPATH, '//*[@id="searchResult"]/script[6]').get_attribute('innerHTML')
-        print(javascript)
-        #"""
-        model_data = driver.execute_script("return model;")
-        doc_ids, document_dates,  document_types, document_descriptions = [], [], [], []
-        for i in range (n_documents):
-            doc_ids.append(model_data['Rows'][i]['Guid'])
-            document_dates.append(model_data['Rows'][i]['Date_Received'].split(' ')[0])  # extract date
-            document_types.append(model_data['Rows'][i]['Doc_Type'])
-            document_descriptions.append(model_data['Rows'][i]['Doc_Ref2'])
-
-        url_domain = driver.current_url.split('/')[2]
-        print(f"url domain: {url_domain}") if PRINT else None
-        view_document_url = driver.execute_script("return viewDocumentUrl;")
-        print(f"view document url: {view_document_url}") if PRINT else None
-
-        for doc_index in range(n_documents):
-            print(f'    - - - Document {doc_index+1} - - -') if PRINT else None
-            file_url = f"https://{url_domain}{view_document_url}?id={doc_ids[doc_index]}"
-            file_urls.append(file_url)
-            print(f"    file url: {file_url}") if PRINT else None
-
-            document_name = f"date={document_dates[doc_index]}&type={document_types[doc_index]}&desc={document_descriptions[doc_index]}&uid={doc_index+1}.pdf"
-            len_limitation = len(document_name) - max_file_name_len
-            print(f'    Doc {n_documents} len_limitation: {len_limitation}') if len_limitation > -5 else None
-            if len_limitation > 0:
-                document_name = f"date={document_dates[doc_index]}&type={document_types[doc_index]}&desc={document_descriptions[doc_index][:-len_limitation]}&uid={doc_index+1}.pdf"
-            #document_name = f"date={document_dates[doc_index]}&type={document_types[doc_index]}({document_filetypes[doc_index].lower()})&desc={document_descriptions[doc_index]}"
-
-            # Check the format of document names.
-            document_name = document_name.encode('utf-8').decode('unicode_escape')  # some document names may contain characters presented in other unicode, e.g. \u0026
-            document_name = document_name.replace('\r', ' ').replace('\n', ' ').strip()
-            print(f"    doc name: {document_name}") if PRINT else None
-            document_name = replace_invalid_characters(document_name)
-            document_names.append(f"{folder_path}{folder_name}/{document_name}.pdf")
-    elif version == 2009:  # Default 25 docs per page, max 50 docs per page. Need to change pages if there are many docs.
-        ### Get url domain ###
-        url_domain = response.url.split('/')[2]
-        print("url domain: ", url_domain) if PRINT else None
-        n_pages = np.ceil(n_documents/25)
-        if n_pages > 1:
-            driver = response.request.meta["driver"]
-        for page in range(n_pages):
-            document_items = response.xpath('//*[@id="grdResults_tblData"]/tbody/tr')[1:]
-            for i, document_item in enumerate(document_items):
-                document_date = document_item.xpath(f'./td[1]/text()').get().strip()
-                document_type = document_item.xpath(f'./td[2]/text()').get().strip()
-                try:
-                    document_description = document_item.xpath(f'./td[4]/text()').get().strip()
-                except AttributeError:
-                    document_description = ''
-                item_identity = document_item.xpath(f'./td[5]/text()').get().strip()
-                document_name = f"date={document_date}&type={document_type}&desc={document_description}&{item_identity}"
-                print(document_name) if PRINT else None
-                document_name = replace_invalid_characters(document_name)
-                document_names.append(f"{folder_path}{folder_name}/{document_name}")
-
-                file_url = f"https://{url_domain}/AnitePublicDocs/00{item_identity}.pdf"
-                file_urls.append(file_url)
-                print(file_url) if PRINT else None
-            if page > 0:
-                driver.find_element(By.XPATH, '//*[@id="grdResults__ctl0_cmdNext"]').click()
-    else: # Unknown NEC or Northgate version
-        pass
-
-    return file_urls, document_names
-
-
-
-
 
 # doc href is #.
 def get_Exeter_documents(response, document_tree, n_documents, folder_path, folder_name):
@@ -467,75 +454,9 @@ def get_Exeter_documents(response, document_tree, n_documents, folder_path, fold
 
 
 
-
-
-
-
-# Updated on 01/06/2024, has been merged to get_NEC_or_Northgate_documents().
-#
-# Similar to NEC, but it has no attributes such as file_type in document names.
-# Different points (compared with NEC):
-# 1. viewDocumentUrl
-# 2. document features: Do not have features such as file types.
-def get_Northgate_documents(response, n_documents, folder_path, folder_name):
-    javascript = response.xpath('//*[@id="searchResult"]/script[4]/text()').get().strip()
-    # print(javascript)
-
-    ### Extract document uid. ###
-    id_pattern = r'"Guid":"[0-9A-F]+",'  # hexadecimal: 0-9, A-F.
-    doc_ids = re.findall(id_pattern, javascript)
-    doc_ids = [doc_id[8:-2] for doc_id in doc_ids]
-    print(len(doc_ids))
-    assert (len(doc_ids) == n_documents)
-    print(doc_ids)
-
-    ### Extract document details: date, type, description, file type. ###
-    date_pattern = '"Date_Received":"\d{2}/\d{2}/\d{4}'
-    document_dates = re.findall(date_pattern, javascript)
-    document_dates = [document_date[17:] for document_date in document_dates]
-
-    type_pattern = '"Doc_Type":"[^"]*"'
-    document_types = re.findall(type_pattern, javascript)
-    document_types = [document_type[12:-1] for document_type in document_types]
-
-    description_pattern = '"Doc_Ref2":"[^"]*"'
-    document_descriptions = re.findall(description_pattern, javascript)
-    document_descriptions = [document_description[12:-1] for document_description in document_descriptions]
-
-    ### Get url domain ###
-    url_domain = response.url.split('/')[2]
-    print("url domain: ", url_domain) if PRINT else None
-
-    ### Generate file urls: url domain + document uids; Generate document names ###
-    view_document_url_pattern = 'var viewDocumentUrl = [^;]+;'
-    view_document_url = re.findall(view_document_url_pattern, javascript)[0].split('=')[1]
-    view_document_url = view_document_url[2:-2]
-    print(view_document_url) if PRINT else None
-    # view_document_url = '/PublicAccess_LIVE/Document'  # Northgate
-
-    file_urls = []
-    for doc_index in range(n_documents):
-        file_url = f"https://{url_domain}{view_document_url}?id={doc_ids[doc_index]}"
-        file_urls.append(file_url)
-        print(file_url) if PRINT else None
-
-    existing_names = []
-    document_names = []
-    for doc_index in range(n_documents):
-        document_name = f"date={document_dates[doc_index]}&type={document_types[doc_index]}&desc={document_descriptions[doc_index]}.pdf"
-        document_name = document_name.encode('utf-8').decode('unicode_escape')  # some document names may contain characters presented in other unicode, e.g. \u0026
-        print(document_name) if PRINT else None
-        document_name = replace_invalid_characters(document_name)
-        document_name = generate_unique_document_name(existing_names, document_name)
-        existing_names.append(document_name)
-        document_names.append(f"{folder_path}{folder_name}/{document_name}")
-    return file_urls, document_names
-
-
 """
 The following are obsolete code and thus useless.
 """
-
 def unzip_documents(self, storage_path, wait_unit=1.0, wait_total=100):
     zipname = ''
     n_wait = 0
@@ -791,3 +712,78 @@ def scrape_documents_by_NEC2_USELESS(self, response, n_documents, storage_path):
     except FileNotFoundError as error:
         print("Downloading Failed:", error)
         self.failures += 1
+
+# Updated on 01/06/2024, has been merged to get_NEC_or_Northgate_documents().
+#
+# Similar to NEC, but it has no attributes such as file_type in document names.
+# Different points (compared with NEC):
+# 1. viewDocumentUrl
+# 2. document features: Do not have features such as file types.
+def get_Northgate_documents(response, n_documents, folder_path, folder_name):
+    javascript = response.xpath('//*[@id="searchResult"]/script[4]/text()').get().strip()
+    # print(javascript)
+
+    ### Extract document uid. ###
+    id_pattern = r'"Guid":"[0-9A-F]+",'  # hexadecimal: 0-9, A-F.
+    doc_ids = re.findall(id_pattern, javascript)
+    doc_ids = [doc_id[8:-2] for doc_id in doc_ids]
+    print(len(doc_ids))
+    assert (len(doc_ids) == n_documents)
+    print(doc_ids)
+
+    ### Extract document details: date, type, description, file type. ###
+    date_pattern = '"Date_Received":"\d{2}/\d{2}/\d{4}'
+    document_dates = re.findall(date_pattern, javascript)
+    document_dates = [document_date[17:] for document_date in document_dates]
+
+    type_pattern = '"Doc_Type":"[^"]*"'
+    document_types = re.findall(type_pattern, javascript)
+    document_types = [document_type[12:-1] for document_type in document_types]
+
+    description_pattern = '"Doc_Ref2":"[^"]*"'
+    document_descriptions = re.findall(description_pattern, javascript)
+    document_descriptions = [document_description[12:-1] for document_description in document_descriptions]
+
+    ### Get url domain ###
+    url_domain = response.url.split('/')[2]
+    print("url domain: ", url_domain) if PRINT else None
+
+    ### Generate file urls: url domain + document uids; Generate document names ###
+    view_document_url_pattern = 'var viewDocumentUrl = [^;]+;'
+    view_document_url = re.findall(view_document_url_pattern, javascript)[0].split('=')[1]
+    view_document_url = view_document_url[2:-2]
+    print(view_document_url) if PRINT else None
+    # view_document_url = '/PublicAccess_LIVE/Document'  # Northgate
+
+    file_urls = []
+    for doc_index in range(n_documents):
+        file_url = f"https://{url_domain}{view_document_url}?id={doc_ids[doc_index]}"
+        file_urls.append(file_url)
+        print(file_url) if PRINT else None
+
+    existing_names = []
+    document_names = []
+    for doc_index in range(n_documents):
+        document_name = f"date={document_dates[doc_index]}&type={document_types[doc_index]}&desc={document_descriptions[doc_index]}.pdf"
+        document_name = document_name.encode('utf-8').decode('unicode_escape')  # some document names may contain characters presented in other unicode, e.g. \u0026
+        print(document_name) if PRINT else None
+        document_name = replace_invalid_characters(document_name)
+        document_name = generate_unique_document_name(existing_names, document_name)
+        existing_names.append(document_name)
+        document_names.append(f"{folder_path}{folder_name}/{document_name}")
+    return file_urls, document_names
+
+# For doc names with default doc ids.
+def generate_unique_document_name(existing_names, document_name):
+    # Note that the document_name should not contain any extension such as '.pdf'
+    if document_name in existing_names:
+        base = document_name
+        rename_index = 2
+        while True:
+            document_name = base + str(rename_index)
+            if document_name not in existing_names:
+                return document_name
+            else:
+                rename_index += 1
+    else:
+        return document_name
