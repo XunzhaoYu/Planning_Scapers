@@ -58,7 +58,8 @@ class Idox_Scraper(Base_Scraper):
         **5.auth_id = 125, EastNorthamptonshire (Page not found 74, *too many requests)
             page:   https://publicaccess.east-northamptonshire.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=R5L7NRGOMI300
         6.auth_id = 155, Gloucestershire (was Idox, is Tascomi now)
-            page:   https://planning.gloucestershire.gov.uk/publicaccess/applicationDetails.do?keyVal=QR5GJNHNML200&activeTab=summary
+            origin: https://planning.gloucestershire.gov.uk/publicaccess/applicationDetails.do?keyVal=QR5GJNHNML200&activeTab=summary
+            page(Tascomi):  https://planningonline.gloucestershire.gov.uk/planning/index.html?fa=getApplication&id=129260
         **7.auth_id = 165, Hambleton (NEC, *doc page load issue 95)
             page:   https://planning.hambleton.gov.uk/online-applications/applicationDetails.do?keyVal=0300023CAT&activeTab=summary
         *8.auth_id = 166, Hammersmith (IP rotation 96, *too many requests)
@@ -67,8 +68,14 @@ class Idox_Scraper(Base_Scraper):
             origin: http://planning.newport.gov.uk/swift/apas/run/WPHAPPDETAIL.DisplayUrl?theApnID=01/0026
             search: https://publicaccess.newport.gov.uk/online-applications/search.do?action=simple&searchType=Application
             page:   https://publicaccess.newport.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=ZZZYZGLCPM524
-        10.auth_id = 317, Selby (NEC download failed 182)
-        11.auth_id = 344, Spelthorne (url errors since 2012 201)
+        10.auth_id = 318, Selby (was External Documents, not now)
+            origin: https://public.selby.gov.uk/online-applications/applicationDetails.do?keyVal=ZZZZZRNXXE759&activeTab=summary
+            search: https://publicaccess.northyorks.gov.uk/online-applications/
+            page:   https://publicaccess.northyorks.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=S71KFPNX0EX00
+        11.auth_id = 345, Spelthorne
+            origin: https://my.spelthorne.gov.uk/planningpublisher.aspx?requesttype=parsetemplate&template=DCApplication.tmplt&basepage=planningpublisher.aspx&Filter=%5EREFVAL%5E%3D%2700/00013/TPO%27&history=0d9cb9a740094ce69db040f94cd8af08
+            search: https://publicaccess.spelthorne.gov.uk/online-applications/
+            paeg:   https://publicaccess.spelthorne.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=0000013TPO
     """
 
     name = 'Idox_Scraper'
@@ -82,7 +89,7 @@ class Idox_Scraper(Base_Scraper):
 
         # 每个 Base_Scraper 子类都需要在 __init__ 中指定 self.parse_func。
         # Every sub-class of Base_Scraper must define self.parse_func(s) in __init__.
-        if self.auth in ['Bolton', 'Newport']:
+        if self.auth in ['Bolton', 'Newport', 'Selby']:
             # Bolton 等的 CSV 起始 url 可能已过期, 需要先按申请编号(uid)搜索, 再跳转到真实详情页。
             # Bolton's stored start url may be stale, so we search by uid first.
             self.url_check = True
@@ -92,6 +99,7 @@ class Idox_Scraper(Base_Scraper):
 
     LA_url_dict = {'Bolton': 'https://paplanning.bolton.gov.uk/online-applications',    # applicationDetails.do?activeTab=summary&keyVal=
                    'Newport': 'https://publicaccess.newport.gov.uk/online-applications',# applicationDetails.do?activeTab=summary&keyVal=
+                   'Selby': 'https://publicaccess.northyorks.gov.uk/online-applications', #applicationDetails.do?activeTab=summary&keyVal=
                     }
 
     # ------------------------------------------------------------------
@@ -386,8 +394,8 @@ class Idox_Scraper(Base_Scraper):
 
         try:
             #content = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="pa"]/div[@class="container"]/div[@class="content"]')))
-            tab_container = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="pa"]/main[@class="container"]/div[@class="content"]/div[@class="tabcontainer"]')))
-            #                                                                                                    //*[@id="pa"]/main/div[3]/div[9]
+            tab_container = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="pa"]/*[@class="container"]/div[@class="content"]/div[@class="tabcontainer"]')))
+            #                                                                                                    //*[@id="pa"]/div or main[@class="container"]/div[@class="content"]/div[@class="tabcontainer"]
         except TimeoutException:
             # 该申请详情不可查看 (可能已被撤回/限制公开)。
             # Application details are not viewable (may have been withdrawn / restricted).
@@ -633,7 +641,6 @@ class Idox_Scraper(Base_Scraper):
             document_tab_available = True
         except (NoSuchElementException, TimeoutException):
             print('\n7. Documents: sub-tab not found, skipped.')
-            print(f"Doc url: {driver.current_url}")
 
         if document_tab_available:
             n_documents = 0
@@ -766,7 +773,7 @@ class Idox_Scraper(Base_Scraper):
                 try:
                     matched = difflib.get_close_matches(app_df.at['address'], property_names, n=1)[0]
                     matched_index = property_names.index(matched)
-                    property_url = properties[matched_index].get_attribute('href')
+                    property_url = properties[matched_index].find_element(By.XPATH, './a').get_attribute('href')
                     #property_url = response.xpath(f'//*[@id="Property"]/ul/li[{matched_index + 1}]/a/@href').get()
                 except IndexError:
                     pass
