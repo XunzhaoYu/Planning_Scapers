@@ -89,7 +89,7 @@ class Idox_Scraper(Base_Scraper):
 
         # 每个 Base_Scraper 子类都需要在 __init__ 中指定 self.parse_func。
         # Every sub-class of Base_Scraper must define self.parse_func(s) in __init__.
-        if self.auth in ['Bolton', 'Newport', 'Selby']:
+        if self.auth in ['Bolton', 'Newport', 'Selby', 'Spelthorne']:
             # Bolton 等的 CSV 起始 url 可能已过期, 需要先按申请编号(uid)搜索, 再跳转到真实详情页。
             # Bolton's stored start url may be stale, so we search by uid first.
             self.url_check = True
@@ -100,6 +100,7 @@ class Idox_Scraper(Base_Scraper):
     LA_url_dict = {'Bolton': 'https://paplanning.bolton.gov.uk/online-applications',    # applicationDetails.do?activeTab=summary&keyVal=
                    'Newport': 'https://publicaccess.newport.gov.uk/online-applications',# applicationDetails.do?activeTab=summary&keyVal=
                    'Selby': 'https://publicaccess.northyorks.gov.uk/online-applications', #applicationDetails.do?activeTab=summary&keyVal=
+                   'Spelthorne': 'https://publicaccess.spelthorne.gov.uk/online-applications', #applicationDetails.do?activeTab=summary&keyVal=
                     }
 
     # ------------------------------------------------------------------
@@ -215,6 +216,7 @@ class Idox_Scraper(Base_Scraper):
                   'Standard Consultation Expiry Date': 'other_fields.standard_consultation_end_date',
                   # *** changed from consultation_end to standard_cosultation_end
 
+                  'Latest Consultation Expiry Date': 'other_fields.consultation_end_date',
                   'Consultation Expiry Date': 'other_fields.consultation_end_date',  # New Duplicate [Chelmsford]
                   'Consultation Deadline': 'other_fields.consultation_end_date',  # New Duplicate [NorthSomerest]
                   'Consultation Period To End On': 'other_fields.consultation_end_date',  # New Duplicate [Torbay]
@@ -372,8 +374,24 @@ class Idox_Scraper(Base_Scraper):
 
         # 从结果页里拿到 Summary 子标签的真实链接 (跳转后的临时 url 不能长期复用)。
         # Grab the real 'summary' tab link from the results page (the redirected url itself is transient).
-        summary_tab = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="subtab_summary"]')))
-        real_url = summary_tab.get_attribute('href')
+        real_url = None
+        try:
+            summary_tab = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="subtab_summary"]')))
+            real_url = summary_tab.get_attribute('href')
+        except TimeoutException:
+            # 有时搜索结果页是多个applications的list，需要进一步选取目标application后才能跳转至结果页
+            # Sometimes the search results page is a list of multiple applications, need further select the target application.
+            # example: 14/00016/FUL
+            search_result_list = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="searchresults"]')))
+            search_results = search_result_list.find_elements(By.XPATH, './li')
+            for search_result in search_results:
+                result_id = search_result.find_element(By.XPATH, './p[@class="metaInfo"]').get_attribute('innerText')
+                if app_id in result_id:
+                    real_url = search_result.find_element(By.XPATH, './a[1]').get_attribute('href')
+                    search_result.find_element(By.XPATH, './a[1]').click()
+                    break
+            time.sleep(random.uniform(4., 5.))
+
         app_df.at['url'] = response.urljoin(real_url)
         print(f"correct url: {app_df.at['url']}")
 
