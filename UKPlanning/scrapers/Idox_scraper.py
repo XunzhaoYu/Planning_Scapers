@@ -379,18 +379,25 @@ class Idox_Scraper(Base_Scraper):
             summary_tab = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="subtab_summary"]')))
             real_url = summary_tab.get_attribute('href')
         except TimeoutException:
-            # 有时搜索结果页是多个applications的list，需要进一步选取目标application后才能跳转至结果页
-            # Sometimes the search results page is a list of multiple applications, need further select the target application.
-            # example: 14/00016/FUL
-            search_result_list = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="searchresults"]')))
-            search_results = search_result_list.find_elements(By.XPATH, './li')
-            for search_result in search_results:
-                result_id = search_result.find_element(By.XPATH, './p[@class="metaInfo"]').get_attribute('innerText')
-                if app_id in result_id:
-                    real_url = search_result.find_element(By.XPATH, './a[1]').get_attribute('href')
-                    search_result.find_element(By.XPATH, './a[1]').click()
-                    break
-            time.sleep(random.uniform(4., 5.))
+            try:
+                # 有时搜索结果页是多个applications的list，需要进一步选取目标application后才能跳转至结果页
+                # Sometimes the search results page is a list of multiple applications, need further select the target application.
+                # example: 14/00016/FUL
+                search_result_list = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="searchresults"]')))
+                search_results = search_result_list.find_elements(By.XPATH, './li')
+                for search_result in search_results:
+                    result_id = search_result.find_element(By.XPATH, './p[@class="metaInfo"]').get_attribute('innerText')
+                    if app_id in result_id:
+                        real_url = search_result.find_element(By.XPATH, './a[1]').get_attribute('href')
+                        search_result.find_element(By.XPATH, './a[1]').click()
+                        break
+                time.sleep(random.uniform(4., 5.))
+            except TimeoutException:
+                # 目标application不存在 / The application does not exist. Example: 17/00020/HOU
+                note = driver.find_element(By.XPATH, '//*[@id="pa"]/main/div[3]/div[1]/ul/li').get_attribute('innerText')
+                print(note) if PRINT else None
+                app_df.at['url'] = None
+                return
 
         app_df.at['url'] = response.urljoin(real_url)
         print(f"correct url: {app_df.at['url']}")
@@ -772,7 +779,7 @@ class Idox_Scraper(Base_Scraper):
         # ------------------------------------------------------------------
         def get_related_properties_url():
             properties_panel = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="Property"]')))
-            properties_str = properties_panel.find_element(By.XPATH, './h2/span | ./h3/span').get_attribute('innerText')
+            properties_str = properties_panel.find_element(By.XPATH, './h2/span | ./h3/span | ./h1/span').get_attribute('innerText')
             match = re.search(r'\d+', properties_str) if properties_str else None
             n_properties = int(match.group()) if match else 0
             print(f'\n8. Related Cases: {n_properties} linked properties.') if PRINT else None
