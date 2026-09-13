@@ -820,9 +820,11 @@ class Idox_Scraper(Base_Scraper):
 
     def parse_uprn_item(self, response):
         app_df = response.meta['app_df']
-        item_name = response.xpath('//*[@id="propertyAddress"]/tbody/tr[1]/th/text()').get()
+        driver = response.request.meta['driver']
+        item_name = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="propertyAddress"]/tbody/tr[1]/th')))
+        item_name = item_name.get_attribute('innerText')
         if 'uprn' in item_name.lower():
-            uprn = response.xpath('//*[@id="propertyAddress"]/tbody/tr[1]/td/text()').get()
+            uprn = driver.find_element(By.XPATH, '//*[@id="propertyAddress"]/tbody/tr[1]/td').get_attribute('innerText')
             if uprn:
                 app_df.at['other_fields.uprn'] = uprn.strip()
                 print(f"<UPRN> scraped: {app_df.at['other_fields.uprn']}") if PRINT else None
