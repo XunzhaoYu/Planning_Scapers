@@ -54,13 +54,14 @@ class Idox_Scraper(Base_Scraper):
             page:   https://paplanning.bolton.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=ZZZPEGDEPM788
         3.auth_id = 48, Broads (External Documents)
             page: https://planning.broads-authority.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=NG285JTB00W00
-        *4.auth_id = 101 or 102, Derby (IP rotation 59 & document system)
+        *4.auth_id = 101, Derby (External Documents, IP rotation 59 & document system)
+            page:   https://eplanning.derby.gov.uk/online-applications/applicationDetails.do?keyVal=ZZZZRWFSXE316&activeTab=summary
         **5.auth_id = 125, EastNorthamptonshire (Page not found 74, *too many requests)
             page:   https://publicaccess.east-northamptonshire.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=R5L7NRGOMI300
         6.auth_id = 155, Gloucestershire (was Idox, is Tascomi now)
             origin: https://planning.gloucestershire.gov.uk/publicaccess/applicationDetails.do?keyVal=QR5GJNHNML200&activeTab=summary
             page(Tascomi):  https://planningonline.gloucestershire.gov.uk/planning/index.html?fa=getApplication&id=129260
-        **7.auth_id = 165, Hambleton (NEC, *doc page load issue 95)
+        **7.auth_id = 165, Hambleton (NEC, *doc page load issue 95) Not available since 13-Sep-2026
             page:   https://planning.hambleton.gov.uk/online-applications/applicationDetails.do?keyVal=0300023CAT&activeTab=summary
         *8.auth_id = 166, Hammersmith (IP rotation 96, *too many requests)
             page:   https://public-access.lbhf.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=ISU0I8BIM9000
@@ -128,6 +129,7 @@ class Idox_Scraper(Base_Scraper):
                     'Status': 'other_fields.status',
                     'Decision': 'other_fields.decision',
                     'Decision Issued Date': 'other_fields.decision_issued_date',
+                    'Decision Date': 'other_fields.decision_date',
                     'Appeal Status': 'other_fields.appeal_status',
                     'Appeal Decision': 'other_fields.appeal_result',
                     'Local Review Body Status': 'other_fields.local_review_body_status',  # New*
@@ -235,11 +237,13 @@ class Idox_Scraper(Base_Scraper):
                   # Advertisement
                   'Last Advertised In Press Date': 'other_fields.last_advertised_date',
                   'Advertised in Press Date': 'other_fields.last_advertised_date',  # New Duplicate [Glasgow]
+                  'Press Advertisement Date': 'other_fields.last_advertised_date', # New [Derby]
                   'Latest Advertisement Expiry Date': 'other_fields.latest_advertisement_expiry_date',
                   'Advertisement Expiry Date': 'other_fields.latest_advertisement_expiry_date',
                   # New Duplicate [NorthHertfordshire]
                   # Site Notice
                   'Last Site Notice Posted Date': 'other_fields.site_notice_start_date',
+                  'Site Notice Displayed Date': 'other_fields.site_notice_start_date', # New [Derby]
                   'Latest Site Notice Expiry Date': 'other_fields.site_notice_end_date',
                   'Site Notice Expiry Date': 'other_fields.site_notice_end_date',
                   # New Duplicate [NorthHertfordshire]
@@ -253,6 +257,7 @@ class Idox_Scraper(Base_Scraper):
                   'Revised Target Decision Date': 'other_fields.revised_target_decision_date',
                   # New Duplicate [Stroud]
 
+                  'Agreed Extension of Time Date': 'other_fields.agreed_extension_of_time_date', # New [Derby]
                   'Agreed Extended Target Date': 'other_fields.agreed_extended_target_date',  # New [Teignbridge]
                   'Agreed Extended Date for Decision': 'other_fields.agreed_extended_decision_date',  # New [IOW]
                   # Decision Date
@@ -746,9 +751,6 @@ class Idox_Scraper(Base_Scraper):
                         file_urls, document_names = get_NEC_or_Northgate_documents(driver, n_documents, self.data_upload_path, folder_name, max_file_name_len, version)
                         item = self.create_item(driver, folder_name, file_urls, document_names)
                         yield item
-                    # 关闭Chrome的外部文档页面 / Close external document Chrome tab.
-                    driver.close()
-                    driver.switch_to.window(Idox_tab)
 
                 elif 'appref' in mode_str:
                     system_name = 'Exeter'
@@ -768,9 +770,12 @@ class Idox_Scraper(Base_Scraper):
                         file_urls, document_names = get_Broads_documents(response, document_table, self.data_upload_path, folder_name, max_file_name_len)
                         item = self.create_item(driver, folder_name, file_urls, document_names)
                         yield item
-                    # 关闭Chrome的外部文档页面 / Close external document Chrome tab.
-                    driver.close()
-                    driver.switch_to.window(Idox_tab)
+                else:
+                    print(f'\n7. Documents <{mode}>: Doc system name <{system_name}>.')
+
+                # 关闭Chrome的外部文档页面 / Close external document Chrome tab.
+                driver.close()
+                driver.switch_to.window(Idox_tab)
             app_df.at['other_fields.n_documents'] = n_documents
 
         # ------------------------------------------------------------------
@@ -814,7 +819,8 @@ class Idox_Scraper(Base_Scraper):
             else:
                 self.ending(app_df)
 
-        except (NoSuchElementException, TimeoutException):
+        except (NoSuchElementException, TimeoutException) as e:
+            print(e)
             print(f'\n8. Related Cases: 0 linked properties.') if PRINT else None
             self.ending(app_df)
 
