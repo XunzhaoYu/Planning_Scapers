@@ -45,7 +45,7 @@ class Idox_Scraper(Base_Scraper):
        load for that tab.
 
     示例 / Examples:
-        1.auth_id = 32, Blackpool:
+        1.auth_id = 32, Blackpool [cannot headless]:
             page:   https://idoxpa.blackpool.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=_BLCKP_DCAPR_23417
             comments: .../applicationDetails.do?activeTab=neighbourComments&keyVal=_BLCKP_DCAPR_23417
             documents: .../applicationDetails.do?activeTab=documents&keyVal=_BLCKP_DCAPR_23417
@@ -424,6 +424,8 @@ class Idox_Scraper(Base_Scraper):
 
         try:
             #content = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="pa"]/div[@class="container"]/div[@class="content"]')))
+            #time.sleep(3)
+            #driver.save_screenshot('headless_debug.png')
             tab_container = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="pa"]/*[@class="container"]/div[@class="content"]/div[@class="tabcontainer"]')))
             #                                                                                                    //*[@id="pa"]/div or main[@class="container"]/div[@class="content"]/div[@class="tabcontainer"]
         except TimeoutException:
@@ -535,7 +537,8 @@ class Idox_Scraper(Base_Scraper):
                     for comment_wrap in comment_wraps:
                         comment_source.append(temp_source)
 
-                        temp_date = comment_wrap.find_element(By.XPATH, './h3 | ./h4 | ./h2').get_attribute('innerText').strip()
+                        #temp_date = comment_wrap.find_element(By.XPATH, './h3 | ./h4 | ./h2').get_attribute('innerText').strip()
+                        temp_date = comment_wrap.get_attribute('innerText').strip()
                         temp_date2 = re.sub("\s+", " ", temp_date)
                         comment_date.append(temp_date2)
                         print(f'\n  --- --- --- comment --- --- --- ')
