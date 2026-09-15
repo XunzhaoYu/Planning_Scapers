@@ -75,9 +75,9 @@ class SeleniumMiddleware:
             driver_options.add_argument(argument)
 
         #driver_options.add_argument("start-maximized")  # for reCAPTCHA
-        #driver_options.add_experimental_option("excludeSwitches", ["enable-automation"])  # for reCAPTCHA
-        #driver_options.add_experimental_option('useAutomationExtension', False)  # for reCAPTCHA
-        #driver_options.add_argument('--disable-blink-features=AutomationControlled')  # for reCAPTCHA
+        driver_options.add_experimental_option("excludeSwitches", ["enable-automation"])  # for reCAPTCHA
+        driver_options.add_experimental_option('useAutomationExtension', False)  # for reCAPTCHA
+        driver_options.add_argument('--disable-blink-features=AutomationControlled')  # for reCAPTCHA
         driver_options.add_argument("--ignore-certificate-errors")  # added on 05-06-2024
         driver_options.add_argument('--ignore-ssl-errors=yes')  # added on 05-06-2024
         # --- --- --- 强制浏览器语言为英文，避免继承系统/容器的中文语言设置 --- --- ---
