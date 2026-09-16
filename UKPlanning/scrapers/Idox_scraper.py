@@ -537,16 +537,21 @@ class Idox_Scraper(Base_Scraper):
                     for comment_wrap in comment_wraps:
                         comment_source.append(temp_source)
 
-                        #temp_date = comment_wrap.find_element(By.XPATH, './h3 | ./h4 | ./h2').get_attribute('innerText').strip()
-                        temp_date = comment_wrap.get_attribute('innerText').strip()
-                        temp_date2 = re.sub("\s+", " ", temp_date)
+                        # Use find_elements and if statement to deal with the comments without date info.
+                        temp_date = comment_wrap.find_elements(By.XPATH, './h3 | ./h4 | ./h2')
+                        if temp_date:
+                            temp_date = temp_date[0].get_attribute('innerText').strip()
+                            temp_date2 = re.sub("\s+", " ", temp_date)
+                        else:
+                            temp_date2 = ''
                         comment_date.append(temp_date2)
                         print(f'\n  --- --- --- comment --- --- --- ')
                         print(f'    source: {temp_source}, date: {temp_date}, date2: {temp_date2}')
 
                         # ./ or ./div/p or ./p
                         temp_content = comment_wrap.get_attribute('innerText').strip()
-                        temp_content = re.sub(temp_date, " ", temp_content) # delete date text for ./
+                        if temp_date:  # delete date text for ./
+                            temp_content = temp_content.replace(temp_date, ' ')
                         temp_content2 = re.sub("\s+", " ", temp_content)
                         comment_content.append(temp_content2)
                         #print(f'\n  --- --- --- content2 (delete spaces and newlines) --- --- --- ')
