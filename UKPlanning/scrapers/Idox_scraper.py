@@ -828,7 +828,7 @@ class Idox_Scraper(Base_Scraper):
                 self.ending(app_df)
 
         except (NoSuchElementException, TimeoutException) as e:
-            print(e)
+            #print(e)
             print(f'\n8. Related Cases: 0 linked properties.') if PRINT else None
             self.ending(app_df)
 
