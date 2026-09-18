@@ -778,6 +778,11 @@ class Idox_Scraper(Base_Scraper):
                         file_urls, document_names = get_Broads_documents(response, document_table, self.data_upload_path, folder_name, max_file_name_len)
                         item = self.create_item(driver, folder_name, file_urls, document_names)
                         yield item
+                elif 'caseref' in mode_str:
+                    system_name = 'Derby'
+                    documents_found = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="content-section"]/table/tbody/tr[3]/td[2]')))
+                    n_documents = documents_found.get_attribute('innerText')
+
                 else:
                     print(f'\n7. Documents <{mode}>: Doc system name <{system_name}>.')
 
