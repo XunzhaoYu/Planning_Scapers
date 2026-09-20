@@ -10,7 +10,7 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
 from configs.settings import PRINT
 from general.base_scraper import Base_Scraper
-from general.document_utils import replace_invalid_characters, get_documents, get_NEC_or_Northgate_documents, get_Broads_documents
+from general.document_utils import replace_invalid_characters, get_documents, get_NEC_or_Northgate_documents, get_Broads_documents, get_Derby_documents
 from general.items import DownloadFilesItem
 from general.utils import unique_columns, scrape_data_items, scrape_for_csv, scrape_multi_tables_for_csv, is_empty, convert_date
 
@@ -782,7 +782,12 @@ class Idox_Scraper(Base_Scraper):
                     system_name = 'Derby'
                     documents_found = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="content-section"]/table/tbody/tr[3]/td[2]')))
                     n_documents = documents_found.get_attribute('innerText')
-
+                    print(f'\n7. Documents <{mode}>: {n_documents} items, folder_name: {folder_name}.') if PRINT else None
+                    if n_documents > 0:
+                        document_table = driver.find_element(By.XPATH, '//*[@id="content-section"]/div/table/tbody')
+                        file_urls, document_names = get_Derby_documents(response, document_table, folder_path, folder_name, max_file_name_len)
+                        item = self.create_item(driver, folder_name, file_urls, document_names)
+                        yield item
                 else:
                     print(f'\n7. Documents <{mode}>: Doc system name <{system_name}>.')
 

@@ -114,34 +114,6 @@ def get_documents_for_old_Idox(response, folder_path, folder_name):  # All docs 
 
 
 
-# Updated on 05/09/2026
-def get_Broads_documents(response, document_table, folder_path, folder_name, max_file_name_len):
-    date_column, type_column, description_column = 1, 2, 3
-    document_items = document_table.find_elements(By.XPATH, './tr')[1:]
-    file_urls, document_names, n_documents = [], [], 0
-    for document_item in document_items:
-        n_documents += 1
-        print(f'    - - - Document {n_documents} - - -') if PRINT else None
-        file_url = document_item.find_elements(By.XPATH, './td/a')[-1].get_attribute('href')
-        print(f'    {file_url}') if PRINT else None
-        file_urls.append(response.urljoin(file_url))
-
-        document_date = document_item.find_element(By.XPATH, f'./td[{date_column}]').text.strip()
-        document_type = document_item.find_element(By.XPATH, f'./td[{type_column}]').text.strip()
-        document_description = document_item.find_element(By.XPATH, f'./td[{description_column}]').text.strip()
-        item_extension = file_url.split('.')[-1]
-        document_name = f"date={document_date}&type={document_type}&desc={document_description}&uid={n_documents}.{item_extension}"
-
-        len_limitation = len(document_name) - max_file_name_len
-        print(f'    Doc {n_documents} len_limitation: {len_limitation}') if len_limitation > -5 else None
-        if len_limitation > 0:
-            document_description = document_description[:-len_limitation]
-            document_name = f'date={document_date}&type={document_type}&desc={document_description}&uid={n_documents}.{item_extension}'
-        print(f'    Document {n_documents}: {document_name}') if PRINT else None
-        document_name = replace_invalid_characters(document_name)
-        document_names.append(f'{folder_path}{folder_name}/{document_name}')
-    return file_urls, document_names
-
 # Updated on 04/06/2024
 def get_Civica_documents(response, document_items, n_documents, folder_path, folder_name, Civica_version=2024):
     file_urls = []
@@ -409,6 +381,67 @@ def get_NEC_or_Northgate_documents_Idox(response, n_documents, folder_path, fold
 
     return file_urls, document_names
 
+
+
+# Updated on 05/09/2026
+def get_Broads_documents(response, document_table, folder_path, folder_name, max_file_name_len):
+    date_column, type_column, description_column = 1, 2, 3
+    document_items = document_table.find_elements(By.XPATH, './tr')[1:]
+    file_urls, document_names, n_documents = [], [], 0
+    for document_item in document_items:
+        n_documents += 1
+        print(f'    - - - Document {n_documents} - - -') if PRINT else None
+        file_url = document_item.find_elements(By.XPATH, './td/a')[-1].get_attribute('href')
+        print(f'    {file_url}') if PRINT else None
+        file_urls.append(response.urljoin(file_url))
+
+        document_date = document_item.find_element(By.XPATH, f'./td[{date_column}]').text.strip()
+        document_type = document_item.find_element(By.XPATH, f'./td[{type_column}]').text.strip()
+        document_description = document_item.find_element(By.XPATH, f'./td[{description_column}]').text.strip()
+        item_extension = file_url.split('.')[-1]
+        document_name = f"date={document_date}&type={document_type}&desc={document_description}&uid={n_documents}.{item_extension}"
+
+        len_limitation = len(document_name) - max_file_name_len
+        print(f'    Doc {n_documents} len_limitation: {len_limitation}') if len_limitation > -5 else None
+        if len_limitation > 0:
+            document_description = document_description[:-len_limitation]
+            document_name = f'date={document_date}&type={document_type}&desc={document_description}&uid={n_documents}.{item_extension}'
+        print(f'    Document {n_documents}: {document_name}') if PRINT else None
+        document_name = replace_invalid_characters(document_name)
+        document_names.append(f'{folder_path}{folder_name}/{document_name}')
+    return file_urls, document_names
+
+# Derby, example:https://docs.derby.gov.uk/padocumentserver/index.html?caseref=01/04/00004
+# No doc file url in each document item. Only docid is available.
+def get_Derby_documents(response, document_table, folder_path, folder_name, max_file_name_len):
+    date_column, type_column, description_column = 3, 1, 2
+    document_items = document_table.find_elements(By.XPATH, './tr')[2:]
+    file_urls, document_names, n_documents = [], [], 0
+    for document_item in document_items:
+        n_documents += 1
+        print(f'    - - - Document {n_documents} - - -') if PRINT else None
+        file_docID = document_item.find_elements(By.XPATH, './td[4]').get_attribute('innerText')
+        print(f'    {file_docID}') if PRINT else None
+        file_urls.append(f'https://docs.derby.gov.uk/padocumentserver/DownloadDocument.aspx?docid={file_docID}')
+        #file_urls.append(response.urljoin(file_url))
+
+        document_date = document_item.find_element(By.XPATH, f'./td[{date_column}]').text.strip()
+        document_type = document_item.find_element(By.XPATH, f'./td[{type_column}]').text.strip()
+        document_description = document_item.find_element(By.XPATH, f'./td[{description_column}]').text.strip()
+        #item_extension = file_url.split('.')[-1]
+        #document_name = f"date={document_date}&type={document_type}&desc={document_description}&uid={n_documents}.{item_extension}"
+        document_name = f"date={document_date}&type={document_type}&desc={document_description}&uid={n_documents}"
+
+        len_limitation = len(document_name) - max_file_name_len
+        print(f'    Doc {n_documents} len_limitation: {len_limitation}') if len_limitation > -10 else None # -5 + space for item.extension.
+        if len_limitation > 0:
+            document_description = document_description[:-len_limitation]
+            #document_name = f'date={document_date}&type={document_type}&desc={document_description}&uid={n_documents}.{item_extension}'
+            document_name = f'date={document_date}&type={document_type}&desc={document_description}&uid={n_documents}'
+        print(f'    Document {n_documents}: {document_name}') if PRINT else None
+        document_name = replace_invalid_characters(document_name)
+        document_names.append(f'{folder_path}{folder_name}/{document_name}')
+    return file_urls, document_names
 
 
 # doc href is #.
