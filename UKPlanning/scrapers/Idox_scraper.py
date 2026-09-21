@@ -98,6 +98,10 @@ class Idox_Scraper(Base_Scraper):
         else:
             self.parse_func = self.parse_data_item_Idox
 
+        if self.auth in ['Derby']:
+            print('pipeline extension')
+            custom_settings = {'ITEM_PIPELINES': {'UKPlanning.pipelines.pipelines_extension.DownloadFilesPipeline': 1,}}
+
     LA_url_dict = {'Bolton': 'https://paplanning.bolton.gov.uk/online-applications',    # applicationDetails.do?activeTab=summary&keyVal=
                    'Newport': 'https://publicaccess.newport.gov.uk/online-applications',# applicationDetails.do?activeTab=summary&keyVal=
                    'Selby': 'https://publicaccess.northyorks.gov.uk/online-applications', #applicationDetails.do?activeTab=summary&keyVal=
@@ -781,11 +785,11 @@ class Idox_Scraper(Base_Scraper):
                 elif 'caseref' in mode_str:
                     system_name = 'Derby'
                     documents_found = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="content-section"]/table/tbody/tr[3]/td[2]')))
-                    n_documents = documents_found.get_attribute('innerText')
+                    n_documents = int(documents_found.get_attribute('innerText'))
                     print(f'\n7. Documents <{mode}>: {n_documents} items, folder_name: {folder_name}.') if PRINT else None
                     if n_documents > 0:
                         document_table = driver.find_element(By.XPATH, '//*[@id="content-section"]/div/table/tbody')
-                        file_urls, document_names = get_Derby_documents(response, document_table, folder_path, folder_name, max_file_name_len)
+                        file_urls, document_names = get_Derby_documents(document_table, folder_path, folder_name, max_file_name_len)
                         item = self.create_item(driver, folder_name, file_urls, document_names)
                         yield item
                 else:
