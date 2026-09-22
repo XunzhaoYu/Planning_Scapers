@@ -84,6 +84,14 @@ class Idox_Scraper(Base_Scraper):
     # 默认使用项目通用的下载管道 (settings.py 中的 DownloadFilesPipeline)。
     # Use the project's default download pipeline defined in settings.py; no override needed here.
     # custom_settings = {}
+    custom_settings = {
+        'ITEM_PIPELINES': {
+            'UKPlanning.pipelines.pipelines.DownloadFilesPipeline': None,
+            'UKPlanning.pipelines.pipelines_extension.DownloadFilesPipeline': 1,
+        },
+        'SELENIUM_DRIVER_ARGUMENTS': [],
+    }
+    #custom_settings = {'ITEM_PIPELINES': {'UKPlanning.pipelines.pipelines_extension.DownloadFilesPipeline': 1,}}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -98,9 +106,9 @@ class Idox_Scraper(Base_Scraper):
         else:
             self.parse_func = self.parse_data_item_Idox
 
-        if self.auth in ['Derby']:
-            print('pipeline extension')
-            custom_settings = {'ITEM_PIPELINES': {'UKPlanning.pipelines.pipelines_extension.DownloadFilesPipeline': 1,}}
+        #if self.auth in ['Derby']:
+        #    print('pipeline extension')
+        #    custom_settings = {'ITEM_PIPELINES': {'UKPlanning.pipelines.pipelines_extension.DownloadFilesPipeline': 1,}}
 
     LA_url_dict = {'Bolton': 'https://paplanning.bolton.gov.uk/online-applications',    # applicationDetails.do?activeTab=summary&keyVal=
                    'Newport': 'https://publicaccess.newport.gov.uk/online-applications',# applicationDetails.do?activeTab=summary&keyVal=
