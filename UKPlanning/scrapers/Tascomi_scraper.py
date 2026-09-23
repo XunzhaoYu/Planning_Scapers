@@ -44,8 +44,13 @@ class Tascomi_Scaper(Base_Scraper):
     """
 
     # use pipelines_extension to obtain file extensions.
-    custom_settings = {'ITEM_PIPELINES': {'UKPlanning.pipelines.pipelines_extension.DownloadFilesPipeline': 1,},
-                       'SELENIUM_DRIVER_ARGUMENTS': []}
+    custom_settings = {
+        'ITEM_PIPELINES': {
+            #'UKPlanning.pipelines.pipelines.DownloadFilesPipeline': None,
+            'UKPlanning.pipelines.pipelines_extension.DownloadFilesPipeline': 1,
+        },
+        'SELENIUM_DRIVER_ARGUMENTS': []
+    }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -139,8 +144,7 @@ class Tascomi_Scaper(Base_Scraper):
     #"""
 
     def create_item(self, driver, folder_name, file_urls, document_names):
-        if not os.path.exists(self.failed_downloads_path + folder_name):
-            os.mkdir(self.failed_downloads_path + folder_name)
+        os.makedirs(self.failed_downloads_path + folder_name, exist_ok=True)
 
         item = DownloadFilesItem()
         item['file_urls'] = file_urls
