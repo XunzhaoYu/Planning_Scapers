@@ -49,31 +49,31 @@ class Idox_Scraper(Base_Scraper):
             page:   https://idoxpa.blackpool.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=_BLCKP_DCAPR_23417
             comments: .../applicationDetails.do?activeTab=neighbourComments&keyVal=_BLCKP_DCAPR_23417
             documents: .../applicationDetails.do?activeTab=documents&keyVal=_BLCKP_DCAPR_23417
-        2.auth_id = 35, Bolton (需要先用申请编号搜索, 因为原始 url 会过期/失效):
+        2.auth_id = 35, Bolton (self.url_check = True):
             search: https://paplanning.bolton.gov.uk/online-applications/search.do?action=simple&searchType=Application
             page:   https://paplanning.bolton.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=ZZZPEGDEPM788
-        3.auth_id = 48, Broads (External Documents)
+        3.auth_id = 48, Broads (External Documents <Broads>)
             page: https://planning.broads-authority.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=NG285JTB00W00
-        *4.auth_id = 101, Derby (External Documents, IP rotation 59 & document system)
+        **4.auth_id = 101, Derby (External Documents <Derby>, Pipeline_extension, *IP rotation 59)
             page:   https://eplanning.derby.gov.uk/online-applications/applicationDetails.do?keyVal=ZZZZRWFSXE316&activeTab=summary
         **5.auth_id = 125, EastNorthamptonshire (Page not found 74, *too many requests)
             page:   https://publicaccess.east-northamptonshire.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=R5L7NRGOMI300
         6.auth_id = 155, Gloucestershire (was Idox, is Tascomi now)
             origin: https://planning.gloucestershire.gov.uk/publicaccess/applicationDetails.do?keyVal=QR5GJNHNML200&activeTab=summary
             page(Tascomi):  https://planningonline.gloucestershire.gov.uk/planning/index.html?fa=getApplication&id=129260
-        **7.auth_id = 165, Hambleton (NEC, *doc page load issue 95) Not available since 13-Sep-2026
+        ***7.auth_id = 165, Hambleton (NEC, *doc page load issue 95) Not available since 13-Sep-2026
             page:   https://planning.hambleton.gov.uk/online-applications/applicationDetails.do?keyVal=0300023CAT&activeTab=summary
-        *8.auth_id = 166, Hammersmith (IP rotation 96, *too many requests)
+        ***8.auth_id = 166, Hammersmith (IP rotation 96, *too many requests)
             page:   https://public-access.lbhf.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=ISU0I8BIM9000
-        9.auth_id = 247, Newport (External Documents: Northgate 143)
+        *9.auth_id = 247, Newport (self.url_check = True; External Documents <Northgate>)
             origin: http://planning.newport.gov.uk/swift/apas/run/WPHAPPDETAIL.DisplayUrl?theApnID=01/0026
             search: https://publicaccess.newport.gov.uk/online-applications/search.do?action=simple&searchType=Application
             page:   https://publicaccess.newport.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=ZZZYZGLCPM524
-        10.auth_id = 318, Selby (was External Documents, not now)
+        *10.auth_id = 318, Selby (self.url_check = True: was External Documents, not now)
             origin: https://public.selby.gov.uk/online-applications/applicationDetails.do?keyVal=ZZZZZRNXXE759&activeTab=summary
             search: https://publicaccess.northyorks.gov.uk/online-applications/
             page:   https://publicaccess.northyorks.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=S71KFPNX0EX00
-        11.auth_id = 345, Spelthorne
+        11.auth_id = 345, Spelthorne (self.url_check = True)
             origin: https://my.spelthorne.gov.uk/planningpublisher.aspx?requesttype=parsetemplate&template=DCApplication.tmplt&basepage=planningpublisher.aspx&Filter=%5EREFVAL%5E%3D%2700/00013/TPO%27&history=0d9cb9a740094ce69db040f94cd8af08
             search: https://publicaccess.spelthorne.gov.uk/online-applications/
             paeg:   https://publicaccess.spelthorne.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=0000013TPO
@@ -83,7 +83,8 @@ class Idox_Scraper(Base_Scraper):
 
     # 默认使用项目通用的下载管道 (settings.py 中的 DownloadFilesPipeline)。
     # Use the project's default download pipeline defined in settings.py; no override needed here.
-    # custom_settings = {}
+    custom_settings = {'SELENIUM_DRIVER_ARGUMENTS': []}
+    """
     custom_settings = {
         'ITEM_PIPELINES': {
             #'UKPlanning.pipelines.pipelines.DownloadFilesPipeline': None,
@@ -91,7 +92,7 @@ class Idox_Scraper(Base_Scraper):
         },
         'SELENIUM_DRIVER_ARGUMENTS': []
     }
-    #custom_settings = {'ITEM_PIPELINES': {'UKPlanning.pipelines.pipelines_extension.DownloadFilesPipeline': 1,}}
+    #"""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -721,7 +722,11 @@ class Idox_Scraper(Base_Scraper):
             # 分类型获取文档, 更新other_fields.n_documents
             # get documents based on document mode, update other_fields.n_documents
             if mode == 'documents':
-                documents_str = driver.find_element(By.XPATH, '//*[@id="tab_documents"]/span | //*[@id="pa"]/div[3]/div[3]/ul/li[3]/span').get_attribute('innerText').strip()
+                elements = driver.find_elements(By.XPATH, '//*[@id="tab_documents"]/span')
+                if elements:
+                    documents_str = elements[0].get_attribute('innerText').strip()
+                else:
+                    documents_str = driver.find_element(By.XPATH, '//*[@id="pa"]/div[3]/div[3]/ul/li[3]/span').get_attribute('innerText').strip()
                 # if documents_str is None:
                 #    n_documents = 0
                 match = re.search(r'\d+', documents_str) if documents_str else None
