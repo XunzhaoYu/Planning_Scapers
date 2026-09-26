@@ -86,10 +86,10 @@ class Idox_Scraper(Base_Scraper):
     # custom_settings = {}
     custom_settings = {
         'ITEM_PIPELINES': {
-            'UKPlanning.pipelines.pipelines.DownloadFilesPipeline': None,
+            #'UKPlanning.pipelines.pipelines.DownloadFilesPipeline': None,
             'UKPlanning.pipelines.pipelines_extension.DownloadFilesPipeline': 1,
         },
-        'SELENIUM_DRIVER_ARGUMENTS': [],
+        'SELENIUM_DRIVER_ARGUMENTS': []
     }
     #custom_settings = {'ITEM_PIPELINES': {'UKPlanning.pipelines.pipelines_extension.DownloadFilesPipeline': 1,}}
 
@@ -797,7 +797,7 @@ class Idox_Scraper(Base_Scraper):
                     print(f'\n7. Documents <{mode}>: {n_documents} items, folder_name: {folder_name}.') if PRINT else None
                     if n_documents > 0:
                         document_table = driver.find_element(By.XPATH, '//*[@id="content-section"]/div/table/tbody')
-                        file_urls, document_names = get_Derby_documents(document_table, folder_path, folder_name, max_file_name_len)
+                        file_urls, document_names = get_Derby_documents(document_table, self.data_upload_path, folder_name, max_file_name_len)
                         item = self.create_item(driver, folder_name, file_urls, document_names)
                         yield item
                 else:
