@@ -17,7 +17,7 @@ class DownloadFilesPipeline(DownloadFilesPipeline):
             doc_extension = re.sub(r'[^a-zA-Z0-9]', '', doc_extension)
             #print(f"document {info.spider.crawler.stats.get_value('file_count')} extension: {doc_extension}")
             document_name = f"{request.meta.get('document_name')}.{doc_extension}"
-            #print(document_name)
+            print('pipeline extension:', document_name)
             return document_name
         except AttributeError:
             pass
