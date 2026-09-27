@@ -54,22 +54,29 @@ class Idox_Scraper(Base_Scraper):
             page:   https://paplanning.bolton.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=ZZZPEGDEPM788
         3.auth_id = 48, Broads (External Documents <Broads>)
             page: https://planning.broads-authority.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=NG285JTB00W00
-        **4.auth_id = 101, Derby (External Documents <Derby>, Pipeline_extension, *IP rotation 59)
+        **4.auth_id = 101, Derby (External Documents <Derby>, Pipeline_extension)
+        IP: too many requests
             page:   https://eplanning.derby.gov.uk/online-applications/applicationDetails.do?keyVal=ZZZZRWFSXE316&activeTab=summary
-        **5.auth_id = 125, EastNorthamptonshire (Page not found 74, *too many requests)
+        **5.auth_id = 125, EastNorthamptonshire (Page not found)
+        IP: too many requests
             page:   https://publicaccess.east-northamptonshire.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=R5L7NRGOMI300
         6.auth_id = 155, Gloucestershire (was Idox, is Tascomi now)
             origin: https://planning.gloucestershire.gov.uk/publicaccess/applicationDetails.do?keyVal=QR5GJNHNML200&activeTab=summary
             page(Tascomi):  https://planningonline.gloucestershire.gov.uk/planning/index.html?fa=getApplication&id=129260
-        ***7.auth_id = 165, Hambleton (NEC, *doc page load issue 95) Not available since 13-Sep-2026
-            page:   https://planning.hambleton.gov.uk/online-applications/applicationDetails.do?keyVal=0300023CAT&activeTab=summary
-        ***8.auth_id = 166, Hammersmith (IP rotation 96, *too many requests)
+        **7.auth_id = 165, Hambleton -> North Yorkshire (self.url_check = True; was External Documents <NEC>, not now.)
+        IP: too many requests
+            origin: https://planning.hambleton.gov.uk/online-applications/applicationDetails.do?keyVal=0300023CAT&activeTab=summary
+            search: https://publicaccess.northyorks.gov.uk/online-applications/
+            page:   https://publicaccess.northyorks.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=MFIZLQHU5P000
+        **8.auth_id = 166, Hammersmith
+        IP: too many requests
             page:   https://public-access.lbhf.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=ISU0I8BIM9000
         *9.auth_id = 247, Newport (self.url_check = True; External Documents <Northgate>)
             origin: http://planning.newport.gov.uk/swift/apas/run/WPHAPPDETAIL.DisplayUrl?theApnID=01/0026
             search: https://publicaccess.newport.gov.uk/online-applications/search.do?action=simple&searchType=Application
             page:   https://publicaccess.newport.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=ZZZYZGLCPM524
-        *10.auth_id = 318, Selby (self.url_check = True: was External Documents, not now)
+        **10.auth_id = 318, Selby -> North Yorkshire (self.url_check = True: was External Documents, not now)
+        IP: too many requests
             origin: https://public.selby.gov.uk/online-applications/applicationDetails.do?keyVal=ZZZZZRNXXE759&activeTab=summary
             search: https://publicaccess.northyorks.gov.uk/online-applications/
             page:   https://publicaccess.northyorks.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=S71KFPNX0EX00
@@ -99,7 +106,7 @@ class Idox_Scraper(Base_Scraper):
 
         # 每个 Base_Scraper 子类都需要在 __init__ 中指定 self.parse_func。
         # Every sub-class of Base_Scraper must define self.parse_func(s) in __init__.
-        if self.auth in ['Bolton', 'Newport', 'Selby', 'Spelthorne']:
+        if self.auth in ['Bolton', 'Hambleton', 'Newport', 'Selby', 'Spelthorne']:
             # Bolton 等的 CSV 起始 url 可能已过期, 需要先按申请编号(uid)搜索, 再跳转到真实详情页。
             # Bolton's stored start url may be stale, so we search by uid first.
             self.url_check = True
@@ -112,9 +119,10 @@ class Idox_Scraper(Base_Scraper):
         #    custom_settings = {'ITEM_PIPELINES': {'UKPlanning.pipelines.pipelines_extension.DownloadFilesPipeline': 1,}}
 
     LA_url_dict = {'Bolton': 'https://paplanning.bolton.gov.uk/online-applications',    # applicationDetails.do?activeTab=summary&keyVal=
-                   'Newport': 'https://publicaccess.newport.gov.uk/online-applications',# applicationDetails.do?activeTab=summary&keyVal=
-                   'Selby': 'https://publicaccess.northyorks.gov.uk/online-applications', #applicationDetails.do?activeTab=summary&keyVal=
-                   'Spelthorne': 'https://publicaccess.spelthorne.gov.uk/online-applications', #applicationDetails.do?activeTab=summary&keyVal=
+                   'Hambleton': 'https://publicaccess.northyorks.gov.uk/online-applications',  # applicationDetails.do?activeTab=summary&keyVal=
+                   'Newport': 'https://publicaccess.newport.gov.uk/online-applications',  # applicationDetails.do?activeTab=summary&keyVal=
+                   'Selby': 'https://publicaccess.northyorks.gov.uk/online-applications',  # applicationDetails.do?activeTab=summary&keyVal=
+                   'Spelthorne': 'https://publicaccess.spelthorne.gov.uk/online-applications',  # applicationDetails.do?activeTab=summary&keyVal=
                     }
 
     # ------------------------------------------------------------------

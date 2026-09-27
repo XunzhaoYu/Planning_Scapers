@@ -413,14 +413,14 @@ def get_Broads_documents(response, document_table, folder_path, folder_name, max
 
 # Derby, example:https://docs.derby.gov.uk/padocumentserver/index.html?caseref=01/04/00004
 # No doc file url in each document item. Only docid is available.
-def get_Derby_documents(response, document_table, folder_path, folder_name, max_file_name_len):
+def get_Derby_documents(document_table, folder_path, folder_name, max_file_name_len):
     date_column, type_column, description_column = 3, 1, 2
     document_items = document_table.find_elements(By.XPATH, './tr')[2:]
     file_urls, document_names, n_documents = [], [], 0
     for document_item in document_items:
         n_documents += 1
         print(f'    - - - Document {n_documents} - - -') if PRINT else None
-        file_docID = document_item.find_elements(By.XPATH, './td[4]').get_attribute('innerText')
+        file_docID = document_item.find_element(By.XPATH, './td[4]').get_attribute('innerText')
         print(f'    {file_docID}') if PRINT else None
         file_urls.append(f'https://docs.derby.gov.uk/padocumentserver/DownloadDocument.aspx?docid={file_docID}')
         #file_urls.append(response.urljoin(file_url))
