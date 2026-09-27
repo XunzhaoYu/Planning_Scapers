@@ -54,43 +54,44 @@ class Idox_Scraper(Base_Scraper):
             page:   https://paplanning.bolton.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=ZZZPEGDEPM788
         3.auth_id = 48, Broads (External Documents <Broads>)
             page: https://planning.broads-authority.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=NG285JTB00W00
-        **4.auth_id = 101, Derby (External Documents <Derby>, Pipeline_extension)
-        IP: too many requests
-            page:   https://eplanning.derby.gov.uk/online-applications/applicationDetails.do?keyVal=ZZZZRWFSXE316&activeTab=summary
-        **5.auth_id = 125, EastNorthamptonshire (Page not found)
-        IP: too many requests
-            page:   https://publicaccess.east-northamptonshire.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=R5L7NRGOMI300
         6.auth_id = 155, Gloucestershire (was Idox, is Tascomi now)
             origin: https://planning.gloucestershire.gov.uk/publicaccess/applicationDetails.do?keyVal=QR5GJNHNML200&activeTab=summary
             page(Tascomi):  https://planningonline.gloucestershire.gov.uk/planning/index.html?fa=getApplication&id=129260
-        **7.auth_id = 165, Hambleton -> North Yorkshire (self.url_check = True; was External Documents <NEC>, not now.)
-        IP: too many requests
-            origin: https://planning.hambleton.gov.uk/online-applications/applicationDetails.do?keyVal=0300023CAT&activeTab=summary
-            search: https://publicaccess.northyorks.gov.uk/online-applications/
-            page:   https://publicaccess.northyorks.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=MFIZLQHU5P000
-        **8.auth_id = 166, Hammersmith
-        IP: too many requests
-            page:   https://public-access.lbhf.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=ISU0I8BIM9000
         *9.auth_id = 247, Newport (self.url_check = True; External Documents <Northgate>)
             origin: http://planning.newport.gov.uk/swift/apas/run/WPHAPPDETAIL.DisplayUrl?theApnID=01/0026
             search: https://publicaccess.newport.gov.uk/online-applications/search.do?action=simple&searchType=Application
             page:   https://publicaccess.newport.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=ZZZYZGLCPM524
-        **10.auth_id = 318, Selby -> North Yorkshire (self.url_check = True: was External Documents, not now)
-        IP: too many requests
-            origin: https://public.selby.gov.uk/online-applications/applicationDetails.do?keyVal=ZZZZZRNXXE759&activeTab=summary
-            search: https://publicaccess.northyorks.gov.uk/online-applications/
-            page:   https://publicaccess.northyorks.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=S71KFPNX0EX00
         11.auth_id = 345, Spelthorne (self.url_check = True)
             origin: https://my.spelthorne.gov.uk/planningpublisher.aspx?requesttype=parsetemplate&template=DCApplication.tmplt&basepage=planningpublisher.aspx&Filter=%5EREFVAL%5E%3D%2700/00013/TPO%27&history=0d9cb9a740094ce69db040f94cd8af08
             search: https://publicaccess.spelthorne.gov.uk/online-applications/
             paeg:   https://publicaccess.spelthorne.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=0000013TPO
+        auth_id = 400, WesternIsles
+            page:   https://planning.cne-siar.gov.uk/PublicAccess/applicationDetails.do?activeTab=summary&keyVal=RR54XIROIFU00
+
+    IP: too many requests
+        **4.auth_id = 101, Derby (External Documents <Derby>, Pipeline_extension)
+            page:   https://eplanning.derby.gov.uk/online-applications/applicationDetails.do?keyVal=ZZZZRWFSXE316&activeTab=summary
+        **5.auth_id = 125, EastNorthamptonshire (Page not found)
+            page:   https://publicaccess.east-northamptonshire.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=R5L7NRGOMI300
+        **7.auth_id = 165, Hambleton -> North Yorkshire (self.url_check = True; was External Documents <NEC>, not now.)
+            origin: https://planning.hambleton.gov.uk/online-applications/applicationDetails.do?keyVal=0300023CAT&activeTab=summary
+            search: https://publicaccess.northyorks.gov.uk/online-applications/
+            page:   https://publicaccess.northyorks.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=MFIZLQHU5P000
+        **8.auth_id = 166, Hammersmith
+            page:   https://public-access.lbhf.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=ISU0I8BIM9000
+        **10.auth_id = 318, Selby -> North Yorkshire (self.url_check = True: was External Documents, not now)
+            origin: https://public.selby.gov.uk/online-applications/applicationDetails.do?keyVal=ZZZZZRNXXE759&activeTab=summary
+            search: https://publicaccess.northyorks.gov.uk/online-applications/
+            page:   https://publicaccess.northyorks.gov.uk/online-applications/applicationDetails.do?activeTab=summary&keyVal=S71KFPNX0EX00
+        auth_id = 398, WestBerkshire
+            page:   https://publicaccess.westberks.gov.uk/online-applications/applicationDetails.do?keyVal=HQPNQ3RDK0000&activeTab=summary
     """
 
     name = 'Idox_Scraper'
 
     # 默认使用项目通用的下载管道 (settings.py 中的 DownloadFilesPipeline)。
     # Use the project's default download pipeline defined in settings.py; no override needed here.
-    custom_settings = {'SELENIUM_DRIVER_ARGUMENTS': []}
+    #custom_settings = {'SELENIUM_DRIVER_ARGUMENTS': []}
     """
     custom_settings = {
         'ITEM_PIPELINES': {
