@@ -43,41 +43,47 @@ class Agile_Scraper(Base_Scraper):
     13.auth_id = 346(343), Staffordshire: https://planning.agileapplications.co.uk/staffordshire/application-details/25518
     14.auth_id = 377(373), Tonbridge:   url error since 2003.  
                                         https://planning.agileapplications.co.uk/tmbc/application-details/153514
-    15.auth_id = 427(423), YorkshireDales:  multiple url errors. see url_preprocess_YorkshireDales. 
+    15.auth_id = 428(423), YorkshireDales:  multiple url errors. see url_preprocess_YorkshireDales. 
                                             https://planning.agileapplications.co.uk/yorkshiredales/application-details/41484
+    auth_id = 285(281), Peterborough
+            origin: https://planpa.peterborough.gov.uk/online-applications/applicationDetails.do?keyVal=0300004FUL&activeTab=summary
+            search: https://planning.agileapplications.co.uk/peterborough/search-applications/
+            page:   https://planning.agileapplications.co.uk/peterborough/application-details/8381
+       
     """
 
     # use pipelines_extension to obtain file extensions.
     # custom_settings = {'ITEM_PIPELINES': {'UKPlanning.pipelines.pipelines_extension.DownloadFilesPipeline': 1, }}
-    custom_settings = {'ITEM_PIPELINES': {'UKPlanning.pipelines.pipelines_IP.DownloadFilesPipeline': 1},
-                       'DOWNLOADER_MIDDLEWARES': {'UKPlanning.middlewares.middlewares_IP.SeleniumMiddleware': 1}}
+    #custom_settings = {'ITEM_PIPELINES': {'UKPlanning.pipelines.pipelines_IP.DownloadFilesPipeline': 1},
+    #                   'DOWNLOADER_MIDDLEWARES': {'UKPlanning.middlewares.middlewares_IP.SeleniumMiddleware': 1}}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         # """ for IP rotation
-        self.use_IP_proxies = True
-        valid_IP_proxy_path = f'{get_IP_storage_path()}/valid_IPs/{self.auth}.csv'
-        if os.path.exists(valid_IP_proxy_path):
-            valid_IPs_df = pd.read_csv(valid_IP_proxy_path)
-            self.init_valid_IPs = valid_IPs_df.iloc[:, 0].tolist()
-        else:
-            self.init_valid_IPs = IP_list
-        self.n_init_valid_IPs = len(self.init_valid_IPs)
-        if self.n_init_valid_IPs <= 1:
-            self.n_valid_IPs_for_data = self.n_init_valid_IPs
-            self.valid_IPs_for_data = self.init_valid_IPs
-            self.n_valid_IPs_for_docs = self.n_init_valid_IPs
-            self.valid_IPs_for_docs = self.init_valid_IPs
-        else:
-            self.n_valid_IPs_for_data =  self.n_init_valid_IPs // 2
-            self.valid_IPs_for_data = self.init_valid_IPs[:self.n_valid_IPs_for_data]
-            self.n_valid_IPs_for_docs = self.n_init_valid_IPs - self.n_valid_IPs_for_data
-            self.valid_IPs_for_docs = self.init_valid_IPs[-self.n_valid_IPs_for_docs:]
+        self.use_IP_proxies = False
+        if self.use_IP_proxies:
+            valid_IP_proxy_path = f'{get_IP_storage_path()}/valid_IPs/{self.auth}.csv'
+            if os.path.exists(valid_IP_proxy_path):
+                valid_IPs_df = pd.read_csv(valid_IP_proxy_path)
+                self.init_valid_IPs = valid_IPs_df.iloc[:, 0].tolist()
+            else:
+                self.init_valid_IPs = IP_list
+            self.n_init_valid_IPs = len(self.init_valid_IPs)
+            if self.n_init_valid_IPs <= 1:
+                self.n_valid_IPs_for_data = self.n_init_valid_IPs
+                self.valid_IPs_for_data = self.init_valid_IPs
+                self.n_valid_IPs_for_docs = self.n_init_valid_IPs
+                self.valid_IPs_for_docs = self.init_valid_IPs
+            else:
+                self.n_valid_IPs_for_data =  self.n_init_valid_IPs // 2
+                self.valid_IPs_for_data = self.init_valid_IPs[:self.n_valid_IPs_for_data]
+                self.n_valid_IPs_for_docs = self.n_init_valid_IPs - self.n_valid_IPs_for_data
+                self.valid_IPs_for_docs = self.init_valid_IPs[-self.n_valid_IPs_for_docs:]
         # """ # end of IP rotation
 
         # All sub_classes of Base_Scraper should define their self.parse_func(s) in __init__
-        if self.auth in ['LakeDistrict', 'Redbridge', 'Tonbridge', 'YorkshireDales']:
+        if self.auth in ['LakeDistrict', 'Redbridge', 'Tonbridge', 'YorkshireDales', 'Peterborough']:
             self.url_check = True
             if self.auth == 'YorkshireDales':
                 self.url_preprocess = self.url_preprocess_YorkshireDales
@@ -100,7 +106,8 @@ class Agile_Scraper(Base_Scraper):
                    'Slough': 'slough',
                    'Staffordshire': 'staffordshire',
                    'Tonbridge': 'tmbc',
-                   'YorkshireDales': 'yorkshiredales',}
+                   'YorkshireDales': 'yorkshiredales',
+                   'Peterborough': 'peterborough',}
 
     details_dict ={# 13: All except Exmoor and MoleValley
                    'Application reference number': 'uid',
@@ -141,6 +148,7 @@ class Agile_Scraper(Base_Scraper):
                    'Revised target date': 'other_fields.revised_target_decision_date',  # Staffordshire
                    'Publicity start date': 'other_fields.publicity_start_date',  # Redbridge
                    'Publicity end date': 'other_fields.publicity_end_date',  # Redbridge
+                   'Publicity expiry date': 'other_fields.publicity_end_date', # Peterborough
                    'Target Determination date': 'other_fields.determination_date', # Flintshire
                    'Application target date': 'other_fields.target_decision_date', # Redbridge, Tonbridge
                    'Level of Decision': 'other_fields.expected_decision_level', # Flintshire
@@ -265,13 +273,15 @@ class Agile_Scraper(Base_Scraper):
         print(f'search page url: {url}') if PRINT else None
 
         try:
-            WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="header"]/sas-cookie-consent/section/section/div[1]/button[1]'))).click()
+            WebDriverWait(driver, 30).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="header"]/sas-cookie-consent/section/section/div[1]/button[1]'))).click()
             print('Click: Accept.')
         except TimeoutException:
             print('No Cookie button.')
         # use app_id to search and view the application page.
         app_id = app_df.at['uid']
-        input_reference = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//input[@name="reference"]')))
+        #input_reference = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, '//input[@name="reference"]')))
+        time.sleep(10)
+        input_reference = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//input[@name="reference"]')))
         input_reference.click()
         input_reference.send_keys(app_id)
         # click 'search' button.
